@@ -1,0 +1,1668 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>アンカツ＋ | 城下町洲本のデジタルアーカイブ</title>
+  <meta name="description" content="兵庫県洲本市の地域情報メディア。まちの声、人、文化を記録するデジタルアーカイブ。" />
+
+  <!-- Firebase SDK (CDN) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import {
+      getFirestore, collection, getDocs, getDoc, doc,
+      query, orderBy, where, limit, addDoc, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    // ============================================================
+    // Firebase設定（ここを差し替える）
+    // ============================================================
+    const firebaseConfig = {
+      apiKey:            "AIzaSyC4HUWd4c5_fdgA-k34i1uthozfqYcRn9A",
+      authDomain:        "ankatsu-d4816.firebaseapp.com",
+      projectId:         "ankatsu-d4816",
+      storageBucket:     "ankatsu-d4816.firebasestorage.app",
+      messagingSenderId: "1005813876395",
+      appId:             "1:1005813876395:web:29153748d2a99c6584d9ee",
+      measurementId:     "G-TJWJXQZSBL"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db  = getFirestore(app);
+
+    // ============================================================
+    // グローバルにDBを公開（モジュール外から参照用）
+    // ============================================================
+    window._db          = db;
+    window._firestoreOp = { collection, getDocs, getDoc, doc, query, orderBy, where, limit, addDoc, serverTimestamp };
+
+    // 初期化完了イベント
+    document.dispatchEvent(new Event("firebase-ready"));
+
+  /* ============================================================
+     静的ページ（発行団体・特区・プライバシー・お問い合わせ）
+  ============================================================ */
+
+  const STATIC_PAGES = {
+    about: {
+      title: '発行団体について',
+      lead:  'アンカツ城下町洲本 発行団体のご紹介',
+      html: `
+        <h2>発行団体</h2>
+        <p>「生涯活躍のまち」の特区にしたい会は、兵庫県洲本市を拠点に活動する地域団体です。洲本城下町の文化・歴史・人を記録し、デジタルとアナログの両面から地域情報を発信しています。</p>
+        <h2>ミッション</h2>
+        <p>「地方の小さな声を、デジタルで広げる」をテーマに、まちの人・商店・イベント・空き家活用など、地域のあらゆる活動をアーカイブします。</p>
+        <h2>発行メディア</h2>
+        <ul>
+          <li>地域密着型ミニコミ誌「アンカツ城下町洲本」（印刷版）</li>
+          <li>デジタル版 Web メディア「アンカツ＋」（本サイト）</li>
+        </ul>
+        <h2>所在地</h2>
+        <p>兵庫県洲本市（南あわじ市・淡路島）</p>`
+    },
+    tokku: {
+      title: '「生涯活躍のまち」特区',
+      lead:  '洲本市が目指す特区構想について',
+      html: `
+        <h2>特区構想とは</h2>
+        <p>「生涯活躍のまち」特区は、高齢者をはじめすべての世代が健康で活躍し続けられるまちづくりを推進する国家戦略特区の構想です。</p>
+        <h2>洲本市での取り組み</h2>
+        <p>洲本市では、空き家の活用・移住促進・地域コミュニティの再生を三本柱に、特区申請に向けた活動を進めています。</p>
+        <ul>
+          <li>空き家バンクの整備と移住者サポート</li>
+          <li>生涯学習・就労支援プログラム</li>
+          <li>高齢者・若者・移住者の交流拠点づくり</li>
+          <li>商店街の活性化と新規出店支援</li>
+        </ul>
+        <h2>お問い合わせ・参加</h2>
+        <p>特区構想への参加・連携をご希望の方は、お問い合わせフォームよりご連絡ください。</p>`
+    },
+    privacy: {
+      title: 'プライバシーポリシー',
+      lead:  '個人情報の取り扱いについて',
+      html: `
+        <h2>個人情報の収集</h2>
+        <p>本サイトでは、お問い合わせフォームにおいてお名前・メールアドレス等の個人情報をお預かりする場合があります。</p>
+        <h2>利用目的</h2>
+        <ul>
+          <li>お問い合わせへの回答・連絡</li>
+          <li>本サイトの改善・運営のための分析</li>
+          <li>重要なお知らせのご連絡</li>
+        </ul>
+        <h2>第三者への提供</h2>
+        <p>法令に基づく場合を除き、お預かりした個人情報を第三者に提供することはありません。</p>
+        <h2>Cookie・アクセス解析</h2>
+        <p>本サイトでは、サービス改善のためGoogle Analytics等のアクセス解析ツールを使用する場合があります。</p>
+        <h2>お問い合わせ</h2>
+        <p>個人情報の取り扱いに関するお問い合わせは、お問い合わせフォームよりご連絡ください。</p>`
+    },
+    contact: {
+      title: 'お問い合わせ',
+      lead:  'ご意見・ご感想・取材のご依頼など、お気軽にどうぞ',
+      html: '' // フォームはJSで生成
+    }
+  };
+
+  /** 静的ページを表示 */
+  function showStaticPage(key) {
+    const page = STATIC_PAGES[key];
+    if (!page) return;
+
+    const isContact = key === 'contact';
+    const content = document.getElementById('static-content');
+
+    content.innerHTML = `
+      <div class="static-page">
+        <button class="back-btn" onclick="goBack()" style="margin-bottom:1.5rem;">← トップへ戻る</button>
+        <h1 class="static-page-title">${page.title}</h1>
+        <div class="static-page-lead">${page.lead}</div>
+        ${isContact ? buildContactForm() : page.html}
+      </div>`;
+
+    if (isContact) bindContactForm();
+    showView('static');
+    document.title = `${page.title} | アンカツ＋`;
+  }
+
+  /** お問い合わせフォームHTML生成 */
+  function buildContactForm() {
+    return `
+      <form class="contact-form" id="contact-form" onsubmit="return false;">
+        <div class="contact-row">
+          <label class="contact-label" for="c-name">お名前 <span class="req">*</span></label>
+          <input id="c-name" type="text" class="contact-input" placeholder="山田 太郎" />
+        </div>
+        <div class="contact-row">
+          <label class="contact-label" for="c-email">メールアドレス <span class="req">*</span></label>
+          <input id="c-email" type="email" class="contact-input" placeholder="example@email.com" />
+        </div>
+        <div class="contact-row">
+          <label class="contact-label" for="c-type">お問い合わせ種別</label>
+          <select id="c-type" class="contact-select">
+            <option value="一般">一般的なお問い合わせ</option>
+            <option value="取材">取材・掲載依頼</option>
+            <option value="移住">移住・空き家について</option>
+            <option value="特区">特区構想について</option>
+            <option value="その他">その他</option>
+          </select>
+        </div>
+        <div class="contact-row">
+          <label class="contact-label" for="c-msg">メッセージ <span class="req">*</span></label>
+          <textarea id="c-msg" class="contact-textarea" placeholder="お問い合わせ内容をご記入ください"></textarea>
+        </div>
+        <button type="button" class="contact-submit" id="c-submit" onclick="submitContact()">
+          送信する →
+        </button>
+      </form>
+      <div class="contact-done" id="contact-done">
+        ✅ お問い合わせを受け付けました。<br>
+        内容を確認のうえ、ご連絡いたします。
+      </div>`;
+  }
+
+  /** お問い合わせフォームのバインド（Enterキー制御） */
+  function bindContactForm() {
+    const form = document.getElementById('contact-form');
+    if (!form) return;
+    form.querySelectorAll('input').forEach(el => {
+      el.addEventListener('keydown', e => { if (e.key === 'Enter') e.preventDefault(); });
+    });
+  }
+
+  /** お問い合わせ送信 */
+  async function submitContact() {
+    const name  = document.getElementById('c-name')?.value.trim();
+    const email = document.getElementById('c-email')?.value.trim();
+    const type  = document.getElementById('c-type')?.value;
+    const msg   = document.getElementById('c-msg')?.value.trim();
+
+    if (!name)  { alert('お名前を入力してください'); return; }
+    if (!email) { alert('メールアドレスを入力してください'); return; }
+    if (!msg)   { alert('メッセージを入力してください'); return; }
+
+    const btn = document.getElementById('c-submit');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="contact-spinner"></span> 送信中…';
+
+    const db = window._db;
+    const { collection, addDoc, serverTimestamp } = window._firestoreOp;
+
+    try {
+      await addDoc(collection(db, 'contacts'), {
+        name, email, type, message: msg,
+        createdAt: serverTimestamp(),
+        read: false
+      });
+      document.getElementById('contact-form').style.display = 'none';
+      document.getElementById('contact-done').classList.add('visible');
+      document.title = 'お問い合わせ完了 | アンカツ＋';
+    } catch (e) {
+      console.error('contact submit error:', e);
+      btn.disabled = false;
+      btn.textContent = '送信する →';
+      alert('送信に失敗しました。しばらくしてから再度お試しください。');
+    }
+  }
+
+  </script>
+
+  <!-- Google Fonts: 見出し=Noto Serif JP, 本文=Noto Sans JP -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;600;700;900&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ============================================================
+       CSS カスタムプロパティ（テーマ変数）
+    ============================================================ */
+    :root {
+      --bg:           #faf9f6;
+      --bg-card:      #ffffff;
+      --bg-sub:       #f3f1ec;
+      --text-main:    #1a1a18;
+      --text-muted:   #6b6b5e;
+      --text-light:   #999990;
+      --accent:       #2d6a4f;   /* 深緑 */
+      --accent-light: #52b788;
+      --accent-pale:  #d8f3dc;
+      --border:       #e0ddd4;
+      --shadow:       rgba(0,0,0,0.07);
+      --header-h:     64px;
+      --serif:        'Noto Serif JP', serif;
+      --sans:         'Noto Sans JP', sans-serif;
+      --radius:       6px;
+      --transition:   0.25s ease;
+    }
+
+    /* ダークモード */
+    [data-theme="dark"] {
+      --bg:           #16161a;
+      --bg-card:      #1e1e24;
+      --bg-sub:       #1a1a20;
+      --text-main:    #e8e6df;
+      --text-muted:   #9a9a8c;
+      --text-light:   #666660;
+      --accent:       #52b788;
+      --accent-light: #74c69d;
+      --accent-pale:  #1a3d2b;
+      --border:       #2e2e38;
+      --shadow:       rgba(0,0,0,0.3);
+    }
+
+    /* ============================================================
+       リセット & ベース
+    ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; font-size: 16px; }
+    body {
+      background: var(--bg);
+      color: var(--text-main);
+      font-family: var(--sans);
+      line-height: 1.7;
+      transition: background var(--transition), color var(--transition);
+      min-height: 100vh;
+    }
+    a { color: inherit; text-decoration: none; }
+    img { max-width: 100%; height: auto; display: block; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+    /* ============================================================
+       ローディング画面
+    ============================================================ */
+    #loading-screen {
+      position: fixed; inset: 0;
+      background: var(--accent);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      z-index: 9999;
+      transition: opacity 0.6s ease, visibility 0.6s ease;
+    }
+    #loading-screen.hidden { opacity: 0; visibility: hidden; }
+    .loading-logo {
+      color: #fff;
+      font-family: var(--serif);
+      font-size: clamp(1.8rem, 5vw, 3rem);
+      font-weight: 900;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.5rem;
+    }
+    .loading-sub { color: rgba(255,255,255,0.7); font-size: 0.85rem; letter-spacing: 0.15em; }
+    .loading-bar {
+      width: 200px; height: 2px;
+      background: rgba(255,255,255,0.2);
+      margin-top: 2rem; border-radius: 2px; overflow: hidden;
+    }
+    .loading-bar-inner {
+      height: 100%; background: #fff; width: 0;
+      animation: loadBar 1.8s ease forwards;
+    }
+    @keyframes loadBar { to { width: 100%; } }
+
+    /* ============================================================
+       ヘッダー
+    ============================================================ */
+    #site-header {
+      position: sticky; top: 0; z-index: 100;
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      height: var(--header-h);
+      box-shadow: 0 2px 8px var(--shadow);
+      transition: background var(--transition);
+    }
+    .header-inner {
+      max-width: 1200px; margin: 0 auto;
+      padding: 0 1.5rem;
+      height: 100%;
+      display: flex; align-items: center; gap: 1rem;
+    }
+
+    /* ハンバーガー */
+    #menu-toggle {
+      display: none; flex-direction: column;
+      gap: 5px; padding: 4px;
+    }
+    .burger-line {
+      width: 24px; height: 2px;
+      background: var(--text-main);
+      border-radius: 2px;
+      transition: transform 0.3s, opacity 0.3s;
+    }
+    #menu-toggle.open .burger-line:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    #menu-toggle.open .burger-line:nth-child(2) { opacity: 0; }
+    #menu-toggle.open .burger-line:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+    /* ロゴ */
+    .site-logo {
+      display: flex; flex-direction: column; line-height: 1;
+      flex: 1;
+    }
+    .logo-main {
+      font-family: var(--serif);
+      font-size: clamp(1.2rem, 3vw, 1.6rem);
+      font-weight: 900;
+      color: var(--accent);
+      letter-spacing: 0.05em;
+    }
+    .logo-sub {
+      font-size: 0.6rem; color: var(--text-muted);
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+    }
+
+    /* ナビゲーション */
+    #main-nav { display: flex; align-items: center; gap: 0.25rem; }
+    .nav-link {
+      padding: 0.4rem 0.75rem;
+      font-size: 0.85rem; font-weight: 500;
+      color: var(--text-muted);
+      border-radius: var(--radius);
+      transition: background var(--transition), color var(--transition);
+      white-space: nowrap;
+    }
+    .nav-link:hover, .nav-link.active {
+      background: var(--accent-pale);
+      color: var(--accent);
+    }
+
+    /* 検索バー */
+    .search-box {
+      display: flex; align-items: center;
+      background: var(--bg-sub);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 0.35rem 0.9rem;
+      gap: 0.5rem;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+    .search-box:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-pale);
+    }
+    .search-box input {
+      background: none; border: none; outline: none;
+      font-family: var(--sans); font-size: 0.85rem;
+      color: var(--text-main); width: 180px;
+    }
+    .search-box input::placeholder { color: var(--text-light); }
+    .search-icon { color: var(--text-muted); font-size: 0.9rem; }
+
+    /* ダークモードトグル */
+    #dark-toggle {
+      width: 44px; height: 24px;
+      background: var(--border);
+      border-radius: 12px; position: relative;
+      transition: background var(--transition);
+    }
+    #dark-toggle::after {
+      content: '';
+      position: absolute; top: 3px; left: 3px;
+      width: 18px; height: 18px;
+      background: #fff; border-radius: 50%;
+      transition: transform var(--transition);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    [data-theme="dark"] #dark-toggle { background: var(--accent); }
+    [data-theme="dark"] #dark-toggle::after { transform: translateX(20px); }
+
+    /* モバイルメニュードロワー */
+    #mobile-nav {
+      display: none; position: fixed;
+      top: var(--header-h); left: 0; right: 0;
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 1.5rem;
+      z-index: 99; flex-direction: column; gap: 0.25rem;
+    }
+    #mobile-nav.open { display: flex; }
+    #mobile-nav .nav-link { font-size: 1rem; padding: 0.6rem 1rem; }
+
+    /* ============================================================
+       ブレイキングニュース帯
+    ============================================================ */
+    #breaking-bar {
+      background: var(--accent);
+      color: #fff; font-size: 0.82rem;
+      display: flex; align-items: center; overflow: hidden;
+      height: 36px;
+    }
+    .breaking-label {
+      background: #1a4535;
+      padding: 0 1rem; height: 100%;
+      display: flex; align-items: center;
+      white-space: nowrap; font-weight: 700;
+      font-size: 0.75rem; letter-spacing: 0.1em;
+      flex-shrink: 0;
+    }
+    .breaking-scroll { overflow: hidden; flex: 1; position: relative; height: 100%; }
+    .breaking-inner {
+      display: flex; align-items: center;
+      height: 100%; gap: 3rem;
+      animation: breakingScroll 30s linear infinite;
+      white-space: nowrap; padding-left: 100%;
+    }
+    @keyframes breakingScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+    .breaking-inner:hover { animation-play-state: paused; }
+    .breaking-item { flex-shrink: 0; opacity: 0.9; }
+    .breaking-sep { color: rgba(255,255,255,0.4); }
+
+    /* ============================================================
+       カテゴリ帯
+    ============================================================ */
+    #category-bar {
+      background: var(--bg-card);
+      border-bottom: 2px solid var(--accent);
+      overflow-x: auto; scrollbar-width: none;
+    }
+    #category-bar::-webkit-scrollbar { display: none; }
+    .cat-list {
+      max-width: 1200px; margin: 0 auto;
+      padding: 0 1.5rem;
+      display: flex; gap: 0;
+    }
+    .cat-btn {
+      padding: 0.65rem 1.1rem;
+      font-size: 0.82rem; font-weight: 500;
+      color: var(--text-muted);
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+      transition: color var(--transition), border-color var(--transition);
+      white-space: nowrap;
+    }
+    .cat-btn:hover { color: var(--accent); }
+    .cat-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* ============================================================
+       メインコンテンツ
+    ============================================================ */
+    #main-content { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+    /* ============================================================
+       トップページ: 新聞型レイアウト
+    ============================================================ */
+    #top-layout {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 2rem;
+    }
+
+    /* --- 左：メイン記事 --- */
+    .main-feature-card {
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 16px var(--shadow);
+      cursor: pointer;
+      transition: transform var(--transition), box-shadow var(--transition);
+    }
+    .main-feature-card:hover { transform: translateY(-3px); box-shadow: 0 8px 28px var(--shadow); }
+    .main-feature-img {
+      width: 100%; aspect-ratio: 16/9;
+      object-fit: cover;
+      background: var(--bg-sub);
+      position: relative;
+    }
+    .main-feature-img-placeholder {
+      width: 100%; aspect-ratio: 16/9;
+      background: linear-gradient(135deg, var(--accent-pale) 0%, var(--bg-sub) 100%);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-light); font-size: 3rem;
+    }
+    .main-feature-body { padding: 1.5rem 2rem 2rem; }
+    .feature-category-tag {
+      display: inline-block;
+      background: var(--accent); color: #fff;
+      font-size: 0.72rem; font-weight: 700;
+      letter-spacing: 0.1em;
+      padding: 0.2rem 0.6rem; border-radius: 3px;
+      margin-bottom: 0.75rem;
+    }
+    .feature-category-tag.style-2 { background: none; color: var(--accent); border: 1px solid var(--accent); }
+    .main-feature-title {
+      font-family: var(--serif);
+      font-size: clamp(1.3rem, 2.8vw, 1.75rem);
+      font-weight: 700; line-height: 1.45;
+      margin-bottom: 0.75rem;
+      color: var(--text-main);
+    }
+    .main-feature-lead {
+      font-size: 0.92rem; color: var(--text-muted);
+      line-height: 1.8; margin-bottom: 1.25rem;
+      display: -webkit-box; -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .feature-meta {
+      display: flex; align-items: center; gap: 1rem;
+      font-size: 0.78rem; color: var(--text-light);
+      border-top: 1px solid var(--border);
+      padding-top: 1rem;
+    }
+    .feature-author-badge {
+      display: flex; align-items: center; gap: 0.4rem;
+    }
+    .author-dot {
+      width: 8px; height: 8px;
+      background: var(--accent-light); border-radius: 50%;
+    }
+    .read-more-btn {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      background: var(--accent); color: #fff;
+      padding: 0.5rem 1.1rem; border-radius: 4px;
+      font-size: 0.82rem; font-weight: 600;
+      margin-top: 1rem;
+      transition: background var(--transition);
+    }
+    .read-more-btn:hover { background: var(--accent-light); }
+
+    /* 関連記事サブセクション */
+    .related-section { margin-top: 1.5rem; }
+    .related-section-title {
+      font-size: 0.75rem; font-weight: 700;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--text-light); margin-bottom: 0.75rem;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .related-section-title::before {
+      content: ''; width: 3px; height: 14px;
+      background: var(--accent); display: inline-block; border-radius: 2px;
+    }
+    .related-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .related-card {
+      background: var(--bg-sub);
+      border-radius: 4px; overflow: hidden;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: background var(--transition), box-shadow var(--transition);
+      display: flex; gap: 0.75rem; padding: 0.75rem;
+      align-items: flex-start;
+    }
+    .related-card:hover { background: var(--accent-pale); box-shadow: 0 2px 8px var(--shadow); }
+    .related-thumb {
+      width: 64px; height: 64px;
+      object-fit: cover; border-radius: 3px;
+      flex-shrink: 0; background: var(--border);
+    }
+    .related-thumb-placeholder {
+      width: 64px; height: 64px;
+      background: var(--border); border-radius: 3px;
+      flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      color: var(--text-light); font-size: 1.2rem;
+    }
+    .related-card-title {
+      font-size: 0.8rem; font-weight: 600;
+      line-height: 1.4;
+      display: -webkit-box; -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical; overflow: hidden;
+    }
+
+    /* --- 右：ニュース一覧 --- */
+    .sidebar-news { display: flex; flex-direction: column; }
+    .sidebar-section-head {
+      font-family: var(--serif);
+      font-size: 1rem; font-weight: 700;
+      color: var(--text-main);
+      padding-bottom: 0.6rem;
+      border-bottom: 2px solid var(--accent);
+      margin-bottom: 0;
+      letter-spacing: 0.05em;
+    }
+    .news-list { border: 1px solid var(--border); border-top: none; background: var(--bg-card); border-radius: 0 0 var(--radius) var(--radius); }
+    .news-item {
+      display: flex; gap: 0.75rem;
+      padding: 0.9rem 1rem;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background var(--transition);
+    }
+    .news-item:last-child { border-bottom: none; }
+    .news-item:hover { background: var(--bg-sub); }
+    .news-thumb {
+      width: 72px; height: 52px;
+      object-fit: cover; border-radius: 3px;
+      flex-shrink: 0; background: var(--border);
+    }
+    .news-thumb-placeholder {
+      width: 72px; height: 52px;
+      background: linear-gradient(135deg, var(--accent-pale), var(--bg-sub));
+      border-radius: 3px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-light); font-size: 1.1rem;
+    }
+    .news-info { flex: 1; min-width: 0; }
+    .news-cat-tag {
+      display: inline-block;
+      font-size: 0.67rem; font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--accent); background: var(--accent-pale);
+      padding: 0.1rem 0.45rem; border-radius: 3px;
+      margin-bottom: 0.3rem;
+    }
+    .news-item-title {
+      font-size: 0.82rem; font-weight: 600;
+      line-height: 1.45; color: var(--text-main);
+      display: -webkit-box; -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .news-item-date {
+      font-size: 0.7rem; color: var(--text-light); margin-top: 0.3rem;
+    }
+
+    /* タグクラウド */
+    .tag-section { margin-top: 1.5rem; }
+    .tag-section-title {
+      font-size: 0.75rem; font-weight: 700;
+      letter-spacing: 0.12em; color: var(--text-light);
+      margin-bottom: 0.6rem;
+    }
+    .tag-cloud { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .tag-chip {
+      font-size: 0.75rem; padding: 0.3rem 0.7rem;
+      background: var(--bg-sub); border: 1px solid var(--border);
+      border-radius: 20px; color: var(--text-muted);
+      cursor: pointer;
+      transition: background var(--transition), border-color var(--transition), color var(--transition);
+    }
+    .tag-chip:hover { background: var(--accent-pale); border-color: var(--accent); color: var(--accent); }
+    .tag-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    /* ============================================================
+       記事ページ（SPA）
+    ============================================================ */
+    #article-view { display: none; }
+    #article-view.visible { display: block; }
+    #top-view { }
+    #top-view.hidden { display: none; }
+
+    .article-header {
+      max-width: 760px; margin: 0 auto 2rem;
+      padding: 2rem 0 0;
+    }
+    .article-cat-badge {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      font-size: 0.78rem; color: var(--accent); font-weight: 700;
+      letter-spacing: 0.1em; margin-bottom: 1rem;
+    }
+    .article-cat-badge::before {
+      content: ''; width: 12px; height: 2px; background: var(--accent);
+    }
+    .article-title {
+      font-family: var(--serif);
+      font-size: clamp(1.5rem, 4vw, 2.4rem);
+      font-weight: 900; line-height: 1.4;
+      margin-bottom: 1rem;
+    }
+    .article-meta {
+      display: flex; flex-wrap: wrap; gap: 1.2rem;
+      font-size: 0.8rem; color: var(--text-muted);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 0;
+      margin-bottom: 0;
+    }
+    .article-hero {
+      width: 100%; max-width: 760px; margin: 1.5rem auto;
+      aspect-ratio: 16/9; object-fit: cover;
+      border-radius: var(--radius);
+    }
+    .article-hero-placeholder {
+      max-width: 760px; margin: 1.5rem auto;
+      aspect-ratio: 16/9;
+      background: linear-gradient(135deg, var(--accent-pale), var(--bg-sub));
+      border-radius: var(--radius);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 4rem; color: var(--text-light);
+    }
+    .article-body {
+      max-width: 760px; margin: 0 auto;
+      font-size: 1rem; line-height: 1.9;
+      color: var(--text-main);
+    }
+    .article-body p { margin-bottom: 1.4em; }
+    .article-body h2 {
+      font-family: var(--serif); font-size: 1.35rem; font-weight: 700;
+      margin: 2.5em 0 0.75em;
+      padding-left: 1em;
+      border-left: 4px solid var(--accent);
+      color: var(--text-main);
+    }
+    .article-body h3 {
+      font-family: var(--serif); font-size: 1.1rem; font-weight: 700;
+      margin: 2em 0 0.5em; color: var(--accent);
+    }
+    .article-body blockquote {
+      background: var(--accent-pale);
+      border-left: 4px solid var(--accent);
+      padding: 1rem 1.5rem; border-radius: 0 4px 4px 0;
+      margin: 1.5em 0; color: var(--text-muted);
+      font-style: italic;
+    }
+    .article-body img {
+      border-radius: var(--radius); margin: 1.5em 0;
+    }
+    .article-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 2rem 0; max-width: 760px; margin-left: auto; margin-right: auto; }
+    .back-btn {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      font-size: 0.85rem; color: var(--text-muted);
+      padding: 0.5rem 1rem;
+      border: 1px solid var(--border); border-radius: 4px;
+      margin-bottom: 1.5rem;
+      transition: background var(--transition);
+      cursor: pointer;
+    }
+    .back-btn:hover { background: var(--bg-sub); color: var(--accent); }
+
+    /* ============================================================
+       検索結果 / カテゴリページ
+    ============================================================ */
+    #list-view { display: none; }
+    #list-view.visible { display: block; }
+    .list-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 1.5rem;
+    }
+    .list-title {
+      font-family: var(--serif); font-size: 1.4rem; font-weight: 700;
+    }
+    .list-count { font-size: 0.82rem; color: var(--text-muted); }
+    .articles-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.25rem;
+    }
+    .grid-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+      cursor: pointer;
+      transition: transform var(--transition), box-shadow var(--transition);
+    }
+    .grid-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px var(--shadow); }
+    .grid-card-img {
+      width: 100%; aspect-ratio: 16/9;
+      object-fit: cover; background: var(--bg-sub);
+    }
+    .grid-card-img-placeholder {
+      width: 100%; aspect-ratio: 16/9;
+      background: linear-gradient(135deg, var(--accent-pale), var(--bg-sub));
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-light); font-size: 2rem;
+    }
+    .grid-card-body { padding: 1rem; }
+    .grid-card-title {
+      font-family: var(--serif); font-size: 0.95rem; font-weight: 700;
+      line-height: 1.45; margin-bottom: 0.5rem;
+      display: -webkit-box; -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .grid-card-date { font-size: 0.73rem; color: var(--text-light); }
+
+    /* ============================================================
+       空状態 & スケルトン
+    ============================================================ */
+    .empty-state {
+      text-align: center; padding: 4rem 1rem;
+      color: var(--text-muted);
+    }
+    .empty-state .icon { font-size: 3.5rem; margin-bottom: 1rem; opacity: 0.4; }
+    .empty-state p { font-size: 0.9rem; }
+
+    .skeleton {
+      background: linear-gradient(90deg, var(--bg-sub) 25%, var(--border) 50%, var(--bg-sub) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 4px;
+    }
+    @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+    .skel-img { width: 100%; aspect-ratio: 16/9; }
+    .skel-title { height: 28px; margin-bottom: 0.5rem; }
+    .skel-text { height: 16px; margin-bottom: 0.4rem; }
+    .skel-text.w-70 { width: 70%; }
+
+    /* ============================================================
+       フッター
+    ============================================================ */
+    #site-footer {
+      background: var(--text-main);
+      color: rgba(255,255,255,0.7);
+      padding: 3rem 1.5rem 2rem;
+      margin-top: 4rem;
+    }
+    .footer-inner {
+      max-width: 1200px; margin: 0 auto;
+      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      gap: 2rem;
+    }
+    .footer-logo {
+      font-family: var(--serif);
+      font-size: 1.6rem; font-weight: 900;
+      color: #fff; margin-bottom: 0.5rem;
+    }
+    .footer-desc {
+      font-size: 0.8rem; line-height: 1.8; color: rgba(255,255,255,0.5);
+    }
+    .footer-col-title {
+      font-size: 0.75rem; font-weight: 700;
+      letter-spacing: 0.15em; text-transform: uppercase;
+      color: rgba(255,255,255,0.4); margin-bottom: 0.75rem;
+    }
+    .footer-links { display: flex; flex-direction: column; gap: 0.4rem; }
+    .footer-links a {
+      font-size: 0.83rem; color: rgba(255,255,255,0.6);
+      transition: color var(--transition);
+    }
+    .footer-links a:hover { color: var(--accent-light); }
+    .footer-bottom {
+      max-width: 1200px; margin: 2rem auto 0;
+      padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1);
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 0.75rem; color: rgba(255,255,255,0.3);
+      flex-wrap: wrap; gap: 0.5rem;
+    }
+
+    /* ============================================================
+       レスポンシブ（モバイル）
+    ============================================================ */
+    @media (max-width: 900px) {
+      #top-layout { grid-template-columns: 1fr; }
+      .sidebar-news { }
+      .related-grid { grid-template-columns: 1fr; }
+      .footer-inner { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 640px) {
+      :root { --header-h: 56px; }
+      #menu-toggle { display: flex; }
+      #main-nav, .search-box { display: none; }
+      .logo-main { font-size: 1.3rem; }
+      .breaking-label { padding: 0 0.75rem; }
+      .articles-grid { grid-template-columns: 1fr; }
+      .main-feature-body { padding: 1rem 1.25rem 1.5rem; }
+      .news-item { padding: 0.75rem; }
+    }
+    @media (min-width: 641px) and (max-width: 900px) {
+      .articles-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    /* ============================================================
+       ユーティリティ
+    ============================================================ */
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+    .section-gap { margin-top: 2.5rem; }
+    .visually-hidden { display: none; }
+
+    /* ============================================================
+       静的ページ共通
+    ============================================================ */
+    #static-view { display: none; }
+    #static-view.visible { display: block; }
+    .static-page { max-width: 760px; margin: 0 auto; padding: 2rem 0 3rem; }
+    .static-page-title {
+      font-family: var(--serif); font-size: clamp(1.5rem,3vw,2rem);
+      font-weight: 900; margin-bottom: 0.5rem;
+    }
+    .static-page-lead {
+      font-size: 0.88rem; color: var(--text-muted);
+      border-bottom: 2px solid var(--accent);
+      padding-bottom: 1rem; margin-bottom: 2rem;
+      letter-spacing: 0.05em;
+    }
+    .static-page h2 {
+      font-family: var(--serif); font-size: 1.15rem; font-weight: 700;
+      margin: 2rem 0 0.6rem;
+      padding-left: 0.85rem; border-left: 4px solid var(--accent);
+    }
+    .static-page p { font-size: 0.93rem; line-height: 1.9; color: var(--text-muted); margin-bottom: 1em; }
+    .static-page ul { padding-left: 1.5rem; margin-bottom: 1em; }
+    .static-page ul li { font-size: 0.93rem; line-height: 1.9; color: var(--text-muted); }
+
+    /* お問い合わせフォーム */
+    .contact-form { display: flex; flex-direction: column; gap: 1.25rem; margin-top: 1.5rem; }
+    .contact-row  { display: flex; flex-direction: column; gap: 0.35rem; }
+    .contact-label { font-size: 0.82rem; font-weight: 600; color: var(--text-muted); }
+    .contact-label .req { color: var(--danger); margin-left: 2px; }
+    .contact-input, .contact-select, .contact-textarea {
+      padding: 0.7rem 0.9rem; border: 1.5px solid var(--border);
+      border-radius: 6px; font-size: 0.92rem; color: var(--text-main);
+      background: var(--bg-card); outline: none;
+      transition: border-color var(--transition), box-shadow var(--transition);
+      font-family: var(--sans);
+    }
+    .contact-input:focus, .contact-select:focus, .contact-textarea:focus {
+      border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-pale);
+    }
+    .contact-textarea { min-height: 160px; resize: vertical; line-height: 1.7; }
+    .contact-submit {
+      background: var(--accent); color: #fff;
+      padding: 0.8rem 2rem; border-radius: 6px;
+      font-size: 0.95rem; font-weight: 700; align-self: flex-start;
+      transition: background var(--transition);
+    }
+    .contact-submit:hover { background: var(--accent-light); }
+    .contact-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+    .contact-done {
+      background: var(--accent-pale); border: 1px solid var(--accent-light);
+      border-radius: 8px; padding: 1.5rem; text-align: center;
+      color: var(--accent); font-weight: 700; font-size: 1rem;
+      display: none; margin-top: 1rem;
+    }
+    .contact-done.visible { display: block; }
+    .contact-spinner { width: 18px; height: 18px; border: 2.5px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+  </style>
+</head>
+<body>
+
+  <!-- ローディング画面 -->
+  <div id="loading-screen" role="status" aria-live="polite">
+    <div class="loading-logo">アンカツ＋</div>
+    <div class="loading-sub">城下町洲本 デジタルアーカイブ</div>
+    <div class="loading-bar"><div class="loading-bar-inner"></div></div>
+  </div>
+
+  <!-- ヘッダー -->
+  <header id="site-header">
+    <div class="header-inner">
+      <button id="menu-toggle" aria-label="メニューを開く" aria-expanded="false">
+        <span class="burger-line"></span>
+        <span class="burger-line"></span>
+        <span class="burger-line"></span>
+      </button>
+
+      <a href="/" class="site-logo" id="logo-link" aria-label="アンカツ＋ トップへ">
+        <span class="logo-main">アンカツ＋</span>
+        <span class="logo-sub">城下町洲本 / Sumoto Minamiawaji</span>
+      </a>
+
+      <nav id="main-nav" aria-label="メインナビゲーション">
+        <a href="#" class="nav-link active" data-cat="all">すべて</a>
+        <a href="#" class="nav-link" data-cat="まちの話題">まちの話題</a>
+        <a href="#" class="nav-link" data-cat="イベント">イベント</a>
+        <a href="#" class="nav-link" data-cat="空き家活用">空き家活用</a>
+        <a href="#" class="nav-link" data-cat="商店街">商店街</a>
+        <a href="#" class="nav-link" data-cat="文化">文化</a>
+        <a href="#" class="nav-link" data-cat="インタビュー">インタビュー</a>
+      </nav>
+
+      <div class="search-box" role="search">
+        <span class="search-icon" aria-hidden="true">🔍</span>
+        <input id="search-input" type="search" placeholder="記事を検索..." aria-label="記事を検索" />
+      </div>
+
+      <button id="dark-toggle" aria-label="ダークモード切替" title="ダークモード切替"></button>
+    </div>
+  </header>
+
+  <!-- モバイルメニュー -->
+  <nav id="mobile-nav" aria-label="モバイルナビゲーション">
+    <a href="#" class="nav-link active" data-cat="all">すべて</a>
+    <a href="#" class="nav-link" data-cat="まちの話題">まちの話題</a>
+    <a href="#" class="nav-link" data-cat="イベント">イベント</a>
+    <a href="#" class="nav-link" data-cat="空き家活用">空き家活用</a>
+    <a href="#" class="nav-link" data-cat="商店街">商店街</a>
+    <a href="#" class="nav-link" data-cat="文化">文化</a>
+    <a href="#" class="nav-link" data-cat="インタビュー">インタビュー</a>
+    <div style="padding:0.75rem 1rem">
+      <div class="search-box" role="search">
+        <span class="search-icon">🔍</span>
+        <input id="search-input-mob" type="search" placeholder="記事を検索..." aria-label="記事を検索" style="width:100%"/>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ブレイキングニュース帯 -->
+  <div id="breaking-bar" role="marquee" aria-label="最新情報">
+    <div class="breaking-label">最新情報</div>
+    <div class="breaking-scroll">
+      <div class="breaking-inner" id="breaking-inner">
+        <span class="breaking-item">洲本市の空き家活用プロジェクト始動 — 移住者向け説明会を開催</span>
+        <span class="breaking-sep">◆</span>
+        <span class="breaking-item">洲本城下町ウォーキングマップが完成、市役所で無料配布中</span>
+        <span class="breaking-sep">◆</span>
+        <span class="breaking-item">特区構想「生涯活躍のまち」認定申請、来月審査へ</span>
+        <span class="breaking-sep">◆</span>
+        <span class="breaking-item">商店街の若手経営者グループが新スイーツカフェをオープン予定</span>
+        <span class="breaking-sep">◆</span>
+        <span class="breaking-item">洲本市、子育て支援策を強化 — ファミリーサポートセンター拡充</span>
+        <span class="breaking-sep">◆</span>
+        <!-- 繰り返し（アニメーション用） -->
+        <span class="breaking-item">洲本市の空き家活用プロジェクト始動 — 移住者向け説明会を開催</span>
+        <span class="breaking-sep">◆</span>
+        <span class="breaking-item">洲本城下町ウォーキングマップが完成、市役所で無料配布中</span>
+        <span class="breaking-sep">◆</span>
+        <span class="breaking-item">特区構想「生涯活躍のまち」認定申請、来月審査へ</span>
+        <span class="breaking-sep">◆</span>
+        <span class="breaking-item">商店街の若手経営者グループが新スイーツカフェをオープン予定</span>
+        <span class="breaking-sep">◆</span>
+        <span class="breaking-item">洲本市、子育て支援策を強化 — ファミリーサポートセンター拡充</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- カテゴリ帯 -->
+  <div id="category-bar">
+    <div class="cat-list" role="tablist" aria-label="カテゴリ一覧">
+      <button class="cat-btn active" role="tab" aria-selected="true" data-cat="all">すべて</button>
+      <button class="cat-btn" role="tab" aria-selected="false" data-cat="まちの話題">まちの話題</button>
+      <button class="cat-btn" role="tab" aria-selected="false" data-cat="イベント">イベント</button>
+      <button class="cat-btn" role="tab" aria-selected="false" data-cat="空き家活用">空き家活用</button>
+      <button class="cat-btn" role="tab" aria-selected="false" data-cat="商店街">商店街</button>
+      <button class="cat-btn" role="tab" aria-selected="false" data-cat="文化">文化</button>
+      <button class="cat-btn" role="tab" aria-selected="false" data-cat="インタビュー">インタビュー</button>
+      <button class="cat-btn" role="tab" aria-selected="false" data-cat="学校・子育て">学校・子育て</button>
+      <button class="cat-btn" role="tab" aria-selected="false" data-cat="移住・定住">移住・定住</button>
+      <button class="cat-btn" role="tab" aria-selected="false" data-cat="お知らせ">お知らせ</button>
+    </div>
+  </div>
+
+  <!-- ===== メインコンテンツエリア ===== -->
+  <main id="main-content">
+
+    <!-- トップページ（新聞型） -->
+    <section id="top-view">
+      <div id="top-layout">
+        <!-- 左：注目記事 -->
+        <div>
+          <!-- スケルトンローダー（記事読み込み前） -->
+          <div id="feature-skeleton">
+            <div class="skeleton skel-img" style="border-radius:6px;"></div>
+            <div style="padding:1.5rem 0 0;">
+              <div class="skeleton skel-title" style="width:40%;margin-bottom:1rem;"></div>
+              <div class="skeleton skel-title"></div>
+              <div class="skeleton skel-title" style="width:80%;margin-bottom:1rem;"></div>
+              <div class="skeleton skel-text"></div>
+              <div class="skeleton skel-text"></div>
+              <div class="skeleton skel-text w-70"></div>
+            </div>
+          </div>
+          <!-- 注目記事カード -->
+          <div id="feature-card" style="display:none;"></div>
+          <!-- 関連記事 -->
+          <div id="related-articles" style="display:none;" class="related-section">
+            <div class="related-section-title">関連記事</div>
+            <div class="related-grid" id="related-grid"></div>
+          </div>
+        </div>
+
+        <!-- 右：ニュース一覧 -->
+        <aside>
+          <div class="sidebar-news">
+            <div class="sidebar-section-head">最新ニュース</div>
+            <div class="news-list" id="news-list">
+              <!-- スケルトン -->
+              <div id="news-skeleton">
+                <div class="news-item" aria-hidden="true">
+                  <div class="skeleton" style="width:72px;height:52px;border-radius:3px;flex-shrink:0;"></div>
+                  <div style="flex:1;"><div class="skeleton skel-text" style="margin-bottom:0.4rem;"></div><div class="skeleton skel-text w-70"></div></div>
+                </div>
+                <div class="news-item" aria-hidden="true">
+                  <div class="skeleton" style="width:72px;height:52px;border-radius:3px;flex-shrink:0;"></div>
+                  <div style="flex:1;"><div class="skeleton skel-text" style="margin-bottom:0.4rem;"></div><div class="skeleton skel-text w-70"></div></div>
+                </div>
+                <div class="news-item" aria-hidden="true">
+                  <div class="skeleton" style="width:72px;height:52px;border-radius:3px;flex-shrink:0;"></div>
+                  <div style="flex:1;"><div class="skeleton skel-text" style="margin-bottom:0.4rem;"></div><div class="skeleton skel-text w-70"></div></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- タグクラウド -->
+            <div class="tag-section" id="tag-section">
+              <div class="tag-section-title">🏷 タグ一覧</div>
+              <div class="tag-cloud" id="tag-cloud"></div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- 記事全文ページ（SPA） -->
+    <section id="article-view">
+      <button class="back-btn" id="back-btn" onclick="goBack()">← 一覧へ戻る</button>
+      <div id="article-content"></div>
+    </section>
+
+    <!-- カテゴリ / 検索 一覧ページ -->
+    <section id="list-view">
+      <div class="list-header">
+        <h2 class="list-title" id="list-title"></h2>
+        <span class="list-count" id="list-count"></span>
+      </div>
+      <div class="articles-grid" id="articles-grid"></div>
+    </section>
+
+    <!-- 静的ページ（発行団体・特区・プライバシー・お問い合わせ） -->
+    <section id="static-view">
+      <div id="static-content"></div>
+    </section>
+
+  </main>
+
+  <!-- フッター -->
+  <footer id="site-footer">
+    <div class="footer-inner">
+      <div>
+        <div class="footer-logo">アンカツ＋</div>
+        <p class="footer-desc">
+          兵庫県洲本市の地域情報メディア。<br>
+          まちの声、人、文化、歴史を<br>
+          デジタルで記録・発信します。<br>
+          「地域を面でつなぐ」
+        </p>
+      </div>
+      <div>
+        <div class="footer-col-title">カテゴリ</div>
+        <div class="footer-links">
+          <a href="#" data-cat-foot="まちの話題">まちの話題</a>
+          <a href="#" data-cat-foot="イベント">イベント</a>
+          <a href="#" data-cat-foot="空き家活用">空き家活用</a>
+          <a href="#" data-cat-foot="商店街">商店街</a>
+          <a href="#" data-cat-foot="文化">文化</a>
+          <a href="#" data-cat-foot="インタビュー">インタビュー</a>
+          <a href="#" data-cat-foot="移住・定住">移住・定住</a>
+        </div>
+      </div>
+      <div>
+        <div class="footer-col-title">運営情報</div>
+        <div class="footer-links">
+          <a href="#page/about"    data-page="about">発行団体について</a>
+          <a href="#page/tokku"    data-page="tokku">「生涯活躍のまち」特区</a>
+          <a href="#page/privacy"  data-page="privacy">プライバシーポリシー</a>
+          <a href="#page/contact"  data-page="contact">お問い合わせ</a>
+          <a href="admin.html">管理ページ</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2025 アンカツ城下町洲本「生涯活躍のまち」の特区にしたい会</span>
+      <span>兵庫県洲本市</span>
+    </div>
+  </footer>
+
+  <script>
+  // ============================================================
+  // アンカツ＋ フロントエンド JS
+  // ============================================================
+
+  /* --------- 状態管理 --------- */
+  let allArticles   = [];   // Firestoreから取得した全記事
+  let currentFilter = 'all'; // 現在のカテゴリフィルタ
+  let currentView   = 'top'; // 'top' | 'article' | 'list'
+
+  /* --------- デモ用フォールバックデータ
+     Firebaseに接続できない場合に表示するサンプル記事
+  --------- */
+  const DEMO_ARTICLES = [
+    {
+      id: 'demo-1',
+      title: '洲本城下町に新たな息吹 — 空き家をシェアアトリエに',
+      slug: 'sumoto-akiya-share-atelier',
+      category: '空き家活用',
+      thumbnail: '',
+      body: '<p>洲本城下町エリアで長年空き家となっていた築100年の古民家が、地域のアーティストや職人が集うシェアアトリエとして生まれ変わりました。</p><p>このプロジェクトは、「生涯活躍のまち」の特区にしたい会が主導し、市内外から7名のクリエイターが入居。陶芸、染色、木工の工房として活用されています。</p><h2>移住者も加わり始動</h2><p>大阪から移住した陶芸家・田中さん（32歳）は「洲本の土と空気が作品に合う。ここで根を張りたい」と語ります。週末にはワークショップも開催され、地域の子どもたちに人気です。</p>',
+      author: '編集部',
+      featured: true,
+      tags: ['空き家', '移住', 'アート', '城下町'],
+      createdAt: { toDate: () => new Date('2025-06-10') }
+    },
+    {
+      id: 'demo-2',
+      title: '夏の洲本城まつり、今年も開催へ — 地元高校生が企画運営',
+      slug: 'sumoto-castle-matsuri-2025',
+      category: 'イベント',
+      thumbnail: '',
+      body: '<p>今年で第20回を迎える洲本城まつりの実行委員会が発足しました。今年は洲本高校の生徒が中心となり、地域ならではの体験型プログラムが企画されています。</p>',
+      author: '田村記者',
+      featured: false,
+      tags: ['祭り', '洲本城', '高校生', 'イベント'],
+      createdAt: { toDate: () => new Date('2025-06-08') }
+    },
+    {
+      id: 'demo-3',
+      title: '本町商店街に「よりみち食堂」オープン — 高齢者の集いの場に',
+      slug: 'hommachi-yorimichi-shokudo',
+      category: '商店街',
+      thumbnail: '',
+      body: '<p>洲本市本町商店街に、地元食材を使った定食屋「よりみち食堂」がオープンしました。</p>',
+      author: '山田記者',
+      featured: false,
+      tags: ['商店街', '飲食', '高齢者', '地元食材'],
+      createdAt: { toDate: () => new Date('2025-06-05') }
+    },
+    {
+      id: 'demo-4',
+      title: '淡路水仙の里を記録する — 市民写真家たちのアーカイブ活動',
+      slug: 'awaji-suisen-photo-archive',
+      category: '文化',
+      thumbnail: '',
+      body: '<p>洲本市内の市民写真家グループ「まちカメラ隊」が、淡路島の自然と文化を記録する写真アーカイブ活動を本格始動させました。</p>',
+      author: '松本記者',
+      featured: false,
+      tags: ['写真', '文化', '記録', '自然'],
+      createdAt: { toDate: () => new Date('2025-06-01') }
+    },
+    {
+      id: 'demo-5',
+      title: '「洲本に移り住んで5年」— 元会社員・木村さんのUターン物語',
+      slug: 'kimura-u-turn-interview',
+      category: 'インタビュー',
+      thumbnail: '',
+      body: '<p>大阪の広告会社を退職し、Uターンで洲本市に戻った木村健一さん（45歳）。現在は農業と古民家再生を組み合わせた事業を営んでいます。</p>',
+      author: '岡田記者',
+      featured: false,
+      tags: ['移住', 'Uターン', 'インタビュー', '農業'],
+      createdAt: { toDate: () => new Date('2025-05-28') }
+    },
+    {
+      id: 'demo-6',
+      title: '洲本小学校、地域の職人と連携した「ものづくり授業」を開始',
+      slug: 'sumoto-school-crafts',
+      category: '学校・子育て',
+      thumbnail: '',
+      body: '<p>洲本小学校で、地域の職人・作家と連携した「ものづくり体験授業」がスタートしました。</p>',
+      author: '中野記者',
+      featured: false,
+      tags: ['学校', '子育て', 'ものづくり', '教育'],
+      createdAt: { toDate: () => new Date('2025-05-22') }
+    }
+  ];
+
+  /* --------- ユーティリティ --------- */
+  /** 日付をフォーマット */
+  function formatDate(dateOrTimestamp) {
+    try {
+      const d = (dateOrTimestamp && typeof dateOrTimestamp.toDate === 'function')
+        ? dateOrTimestamp.toDate()
+        : new Date(dateOrTimestamp);
+      return d.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' });
+    } catch { return ''; }
+  }
+
+  /** 画像タグを安全に返す（サムネイルなし→絵文字プレースホルダー） */
+  function thumbHtml(url, w, h, cls, emoji='📰') {
+    if (url) return `<img src="${url}" alt="" class="${cls}" loading="lazy" />`;
+    return `<div class="${cls}-placeholder" style="width:${w}px;height:${h}px;">${emoji}</div>`;
+  }
+
+  /** カテゴリ絵文字マップ */
+  const CAT_EMOJI = {
+    'まちの話題':'🏘️','イベント':'🎉','空き家活用':'🏠','商店街':'🛍️',
+    '文化':'🎨','インタビュー':'🎙️','学校・子育て':'📚','移住・定住':'🌱','お知らせ':'📢'
+  };
+
+  /* --------- Firestore読み込み --------- */
+  async function loadArticles() {
+    const db = window._db;
+    const { collection, getDocs, query, orderBy } = window._firestoreOp;
+    if (!db) { useDemoData(); return; }
+    try {
+      const q = query(collection(db, 'articles'), orderBy('createdAt', 'desc'));
+      const snap = await getDocs(q);
+      allArticles = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (allArticles.length === 0) allArticles = DEMO_ARTICLES;
+    } catch (e) {
+      console.warn('Firestore読み込みエラー。デモデータを使用します。', e);
+      useDemoData();
+    }
+    renderAll();
+  }
+
+  function useDemoData() { allArticles = DEMO_ARTICLES; }
+
+  /* --------- レンダリング --------- */
+  function renderAll() {
+    hideLoading();
+    renderFeature();
+    renderNewsList();
+    renderTagCloud();
+  }
+
+  /** ローディング非表示 */
+  function hideLoading() {
+    document.getElementById('loading-screen').classList.add('hidden');
+    document.getElementById('feature-skeleton').style.display = 'none';
+    document.getElementById('news-skeleton').style.display = 'none';
+    document.getElementById('feature-card').style.display = '';
+    document.getElementById('news-list').style.visibility = 'visible';
+  }
+
+  /** 注目（featured）記事を左メインに表示 */
+  function renderFeature() {
+    const featured = allArticles.find(a => a.featured) || allArticles[0];
+    if (!featured) return;
+
+    const date = formatDate(featured.createdAt);
+    const imgHtml = featured.thumbnail
+      ? `<img src="${featured.thumbnail}" alt="${featured.title}" class="main-feature-img" />`
+      : `<div class="main-feature-img-placeholder">${CAT_EMOJI[featured.category] || '📰'}</div>`;
+
+    const card = document.getElementById('feature-card');
+    card.innerHTML = `
+      <article class="main-feature-card" onclick="navigateToArticle('${featured.id}', '${featured.slug || featured.id}')">
+        ${imgHtml}
+        <div class="main-feature-body">
+          <span class="feature-category-tag">${featured.category || '記事'}</span>
+          <h2 class="main-feature-title">${featured.title}</h2>
+          <p class="main-feature-lead">${featured.body ? featured.body.replace(/<[^>]*>/g,'') : ''}</p>
+          <div class="feature-meta">
+            <div class="feature-author-badge">
+              <span class="author-dot"></span>
+              <span>${featured.author || '編集部'}</span>
+            </div>
+            <span>📅 ${date}</span>
+            <a class="read-more-btn" href="#article/${featured.slug || featured.id}">続きを読む ›</a>
+          </div>
+        </div>
+      </article>`;
+
+    // 関連記事（同カテゴリ or 注目以外の記事）
+    const related = allArticles
+      .filter(a => a.id !== featured.id && (a.category === featured.category || a.featured === false))
+      .slice(0, 4);
+
+    if (related.length > 0) {
+      const grid = document.getElementById('related-grid');
+      grid.innerHTML = related.map(a => `
+        <div class="related-card" onclick="navigateToArticle('${a.id}', '${a.slug || a.id}')">
+          ${a.thumbnail
+            ? `<img src="${a.thumbnail}" alt="" class="related-thumb" loading="lazy" />`
+            : `<div class="related-thumb-placeholder">${CAT_EMOJI[a.category]||'📰'}</div>`}
+          <div class="related-card-title">${a.title}</div>
+        </div>`).join('');
+      document.getElementById('related-articles').style.display = '';
+    }
+  }
+
+  /** サイドバー：最新ニュース一覧 */
+  function renderNewsList() {
+    const sideItems = allArticles.slice(0, 12);
+    const list = document.getElementById('news-list');
+    if (sideItems.length === 0) {
+      list.innerHTML = '<div class="empty-state"><p>記事がありません</p></div>';
+      return;
+    }
+    list.innerHTML = sideItems.map(a => `
+      <div class="news-item" onclick="navigateToArticle('${a.id}', '${a.slug || a.id}')" tabindex="0"
+           onkeydown="if(event.key==='Enter')navigateToArticle('${a.id}','${a.slug||a.id}')">
+        ${a.thumbnail
+          ? `<img src="${a.thumbnail}" alt="" class="news-thumb" loading="lazy" />`
+          : `<div class="news-thumb-placeholder">${CAT_EMOJI[a.category]||'📰'}</div>`}
+        <div class="news-info">
+          <span class="news-cat-tag">${a.category || 'ニュース'}</span>
+          <div class="news-item-title">${a.title}</div>
+          <div class="news-item-date">${formatDate(a.createdAt)}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  /** タグクラウド */
+  function renderTagCloud() {
+    const tagSet = new Set();
+    allArticles.forEach(a => { if (Array.isArray(a.tags)) a.tags.forEach(t => tagSet.add(t)); });
+    const cloud = document.getElementById('tag-cloud');
+    if (tagSet.size === 0) { document.getElementById('tag-section').style.display = 'none'; return; }
+    cloud.innerHTML = [...tagSet].map(t =>
+      `<button class="tag-chip" onclick="filterByTag('${t}')" aria-label="タグ: ${t}">#${t}</button>`
+    ).join('');
+  }
+
+  /* --------- SPA ナビゲーション --------- */
+  function showView(v) {
+    document.getElementById('top-view').classList.toggle('hidden', v !== 'top');
+    document.getElementById('article-view').classList.toggle('visible', v === 'article');
+    document.getElementById('list-view').classList.toggle('visible', v === 'list');
+    document.getElementById('static-view').classList.toggle('visible', v === 'static');
+    currentView = v;
+    window.scrollTo(0,0);
+  }
+
+  /** 記事ページへ遷移 */
+  function navigateToArticle(id, slug) {
+    const article = allArticles.find(a => a.id === id || a.slug === slug);
+    if (!article) return;
+    history.pushState({ view:'article', id, slug }, '', `#article/${slug || id}`);
+    renderArticle(article);
+    showView('article');
+  }
+
+  /** 記事フルページをレンダリング */
+  function renderArticle(article) {
+    const date = formatDate(article.createdAt);
+    const imgHtml = article.thumbnail
+      ? `<img src="${article.thumbnail}" alt="${article.title}" class="article-hero" />`
+      : `<div class="article-hero-placeholder">${CAT_EMOJI[article.category]||'📰'}</div>`;
+
+    const tags = Array.isArray(article.tags)
+      ? article.tags.map(t => `<button class="tag-chip" onclick="filterByTag('${t}')">#${t}</button>`).join('')
+      : '';
+
+    document.getElementById('article-content').innerHTML = `
+      <header class="article-header">
+        <div class="article-cat-badge">${article.category || '記事'}</div>
+        <h1 class="article-title">${article.title}</h1>
+        <div class="article-meta">
+          <span>✍️ ${article.author || '編集部'}</span>
+          <span>📅 ${date}</span>
+        </div>
+      </header>
+      ${imgHtml}
+      <div class="article-body">${article.body || '<p>本文がありません。</p>'}</div>
+      <div class="article-tags">${tags}</div>`;
+
+    document.title = `${article.title} | アンカツ＋`;
+  }
+
+  /** トップ/一覧に戻る */
+  function goBack() {
+    history.back();
+    // fallback
+    setTimeout(() => {
+      if (currentView !== 'top') {
+        showView('top');
+        history.pushState(null, '', '/');
+        document.title = 'アンカツ＋ | 城下町洲本のデジタルアーカイブ';
+      }
+    }, 100);
+  }
+
+  /* --------- カテゴリ・タグフィルタ --------- */
+  function filterByCategory(cat) {
+    currentFilter = cat;
+    // ナビのアクティブ状態
+    document.querySelectorAll('.nav-link, .cat-btn').forEach(el => {
+      el.classList.toggle('active', el.dataset.cat === cat);
+      if (el.getAttribute('role') === 'tab') {
+        el.setAttribute('aria-selected', el.dataset.cat === cat ? 'true' : 'false');
+      }
+    });
+
+    if (cat === 'all') {
+      showView('top');
+      history.pushState(null, '', '/');
+      document.title = 'アンカツ＋ | 城下町洲本のデジタルアーカイブ';
+      return;
+    }
+    const filtered = allArticles.filter(a => a.category === cat);
+    showListView(`カテゴリ：${cat}`, filtered);
+    history.pushState({ view:'list', cat }, '', `#cat/${encodeURIComponent(cat)}`);
+  }
+
+  function filterByTag(tag) {
+    const filtered = allArticles.filter(a => Array.isArray(a.tags) && a.tags.includes(tag));
+    showListView(`タグ：#${tag}`, filtered);
+    history.pushState({ view:'list', tag }, '', `#tag/${encodeURIComponent(tag)}`);
+    // タグチップのアクティブ
+    document.querySelectorAll('.tag-chip').forEach(el => {
+      el.classList.toggle('active', el.textContent === `#${tag}`);
+    });
+  }
+
+  function showListView(title, articles) {
+    document.getElementById('list-title').textContent = title;
+    document.getElementById('list-count').textContent = `${articles.length}件`;
+    const grid = document.getElementById('articles-grid');
+    if (articles.length === 0) {
+      grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="icon">📭</div><p>該当する記事がありません</p></div>`;
+    } else {
+      grid.innerHTML = articles.map(a => `
+        <article class="grid-card" onclick="navigateToArticle('${a.id}', '${a.slug || a.id}')">
+          ${a.thumbnail
+            ? `<img src="${a.thumbnail}" alt="" class="grid-card-img" loading="lazy" />`
+            : `<div class="grid-card-img-placeholder">${CAT_EMOJI[a.category]||'📰'}</div>`}
+          <div class="grid-card-body">
+            <span class="news-cat-tag">${a.category || 'ニュース'}</span>
+            <div class="grid-card-title">${a.title}</div>
+            <div class="grid-card-date">${formatDate(a.createdAt)}</div>
+          </div>
+        </article>`).join('');
+    }
+    showView('list');
+  }
+
+  /* --------- 検索 --------- */
+  function doSearch(q) {
+    if (!q.trim()) { filterByCategory('all'); return; }
+    const kw = q.toLowerCase();
+    const results = allArticles.filter(a =>
+      (a.title && a.title.toLowerCase().includes(kw)) ||
+      (a.body  && a.body.replace(/<[^>]*>/g,'').toLowerCase().includes(kw)) ||
+      (a.category && a.category.toLowerCase().includes(kw)) ||
+      (Array.isArray(a.tags) && a.tags.some(t => t.toLowerCase().includes(kw)))
+    );
+    showListView(`「${q}」の検索結果`, results);
+    history.pushState({ view:'list', q }, '', `#search/${encodeURIComponent(q)}`);
+  }
+
+  /* --------- ブラウザ履歴対応 --------- */
+  window.addEventListener('popstate', e => {
+    const hash = location.hash;
+    if (!hash || hash === '#') { showView('top'); return; }
+    if (hash.startsWith('#article/')) {
+      const slug = decodeURIComponent(hash.slice(9));
+      const a = allArticles.find(x => x.slug === slug || x.id === slug);
+      if (a) renderArticle(a), showView('article');
+    } else if (hash.startsWith('#page/')) {
+      showStaticPage(decodeURIComponent(hash.slice(6)));
+    } else if (hash.startsWith('#cat/')) {
+      filterByCategory(decodeURIComponent(hash.slice(5)));
+    } else if (hash.startsWith('#tag/')) {
+      filterByTag(decodeURIComponent(hash.slice(5)));
+    } else if (hash.startsWith('#search/')) {
+      doSearch(decodeURIComponent(hash.slice(8)));
+    } else if (hash.startsWith('#page/')) {
+      showStaticPage(decodeURIComponent(hash.slice(6)));
+    }
+  });
+
+  /* --------- 初期ハッシュルーティング --------- */
+  function handleInitialHash() {
+    const hash = location.hash;
+    if (!hash) return;
+    // Firebaseがロードされてからルーティング
+    if (hash.startsWith('#article/')) {
+      const slug = decodeURIComponent(hash.slice(9));
+      const a = allArticles.find(x => x.slug === slug || x.id === slug);
+      if (a) renderArticle(a), showView('article');
+    }
+  }
+
+  /* --------- ダークモード --------- */
+  function initDarkMode() {
+    const stored = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (stored === 'dark' || (!stored && prefersDark)) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+    document.getElementById('dark-toggle').addEventListener('click', () => {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+      localStorage.setItem('theme', isDark ? 'light' : 'dark');
+    });
+  }
+
+  /* --------- ハンバーガーメニュー --------- */
+  function initHamburger() {
+    const btn = document.getElementById('menu-toggle');
+    const nav = document.getElementById('mobile-nav');
+    btn.addEventListener('click', () => {
+      const open = nav.classList.toggle('open');
+      btn.classList.toggle('open', open);
+      btn.setAttribute('aria-expanded', String(open));
+    });
+  }
+
+  /* --------- イベントバインド --------- */
+  function bindEvents() {
+    // カテゴリ帯
+    document.querySelectorAll('.cat-btn').forEach(btn => {
+      btn.addEventListener('click', () => filterByCategory(btn.dataset.cat));
+    });
+    // ナビリンク
+    document.querySelectorAll('.nav-link[data-cat]').forEach(link => {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        filterByCategory(link.dataset.cat);
+        document.getElementById('mobile-nav').classList.remove('open');
+        document.getElementById('menu-toggle').classList.remove('open');
+      });
+    });
+    // フッターリンク
+    document.querySelectorAll('[data-cat-foot]').forEach(link => {
+      link.addEventListener('click', e => { e.preventDefault(); filterByCategory(link.dataset.catFoot); });
+    });
+    // フッター 静的ページリンク
+    document.querySelectorAll('[data-page]').forEach(link => {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        const page = link.dataset.page;
+        showStaticPage(page);
+        history.pushState({ view:'static', page }, '', `#page/${page}`);
+      });
+    });
+    // ロゴ
+    document.getElementById('logo-link').addEventListener('click', e => {
+      e.preventDefault(); filterByCategory('all');
+    });
+    // 検索（デスクトップ）
+    document.getElementById('search-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') doSearch(e.target.value);
+    });
+    // 検索（モバイル）
+    document.getElementById('search-input-mob').addEventListener('keydown', e => {
+      if (e.key === 'Enter') { doSearch(e.target.value); document.getElementById('mobile-nav').classList.remove('open'); }
+    });
+  }
+
+  /* --------- 初期化 --------- */
+  // type="module" の Firebase は DOMContentLoaded より先に
+  // firebase-ready を発火することがあるのでフラグで対応
+  let _firebaseReady = false;
+  let _domReady      = false;
+
+  function tryLoad() {
+    if (_firebaseReady && _domReady) {
+      loadArticles().then(handleInitialHash);
+    }
+  }
+
+  document.addEventListener('firebase-ready', () => {
+    _firebaseReady = true;
+    tryLoad();
+  });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    initDarkMode();
+    initHamburger();
+    bindEvents();
+    _domReady = true;
+    tryLoad();
+    // 6秒待ってもFirebaseが来なければデモデータで表示
+    setTimeout(() => {
+      if (allArticles.length === 0) {
+        console.warn('Firebase timeout → デモデータ表示');
+        useDemoData(); renderAll(); handleInitialHash();
+      }
+    }, 6000);
+  });
+  </script>
+</body>
+</html>
