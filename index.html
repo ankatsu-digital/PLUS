@@ -1388,19 +1388,36 @@
   }
 
   /* --------- 初期化 --------- */
-  function init() {
+  // type="module" の Firebase は DOMContentLoaded より先に
+  // firebase-ready を発火することがあるのでフラグで対応
+  let _firebaseReady = false;
+  let _domReady      = false;
+
+  function tryLoad() {
+    if (_firebaseReady && _domReady) {
+      loadArticles().then(handleInitialHash);
+    }
+  }
+
+  document.addEventListener('firebase-ready', () => {
+    _firebaseReady = true;
+    tryLoad();
+  });
+
+  document.addEventListener('DOMContentLoaded', () => {
     initDarkMode();
     initHamburger();
     bindEvents();
-    // Firebase準備完了後に記事ロード
-    document.addEventListener('firebase-ready', () => { loadArticles().then(handleInitialHash); });
-    // Firebaseが5秒以内に来なければデモデータ
+    _domReady = true;
+    tryLoad();
+    // 6秒待ってもFirebaseが来なければデモデータで表示
     setTimeout(() => {
-      if (allArticles.length === 0) { useDemoData(); renderAll(); handleInitialHash(); }
-    }, 5000);
-  }
-
-  document.addEventListener('DOMContentLoaded', init);
+      if (allArticles.length === 0) {
+        console.warn('Firebase timeout → デモデータ表示');
+        useDemoData(); renderAll(); handleInitialHash();
+      }
+    }, 6000);
+  });
   </script>
 </body>
 </html>
