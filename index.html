@@ -476,9 +476,9 @@
     var db=window._db; var ops=window._firestoreOp;
     if(!db||!ops){allArticles=DEMO_ARTICLES;renderAll();return;}
     try{
-      var q=ops.query(ops.collection(db,'articles'),ops.orderBy('createdAt','desc'));
-      var snap=await ops.getDocs(q);
+      var snap=await ops.getDocs(ops.collection(db,'articles'));
       allArticles=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+      allArticles.sort(function(a,b){try{var ta=a.createdAt&&a.createdAt.toDate?a.createdAt.toDate():new Date(a.createdAt||0);var tb=b.createdAt&&b.createdAt.toDate?b.createdAt.toDate():new Date(b.createdAt||0);return tb-ta;}catch(e){return 0;}});
       if(!allArticles.length) allArticles=DEMO_ARTICLES;
     }catch(e){console.error(e);allArticles=DEMO_ARTICLES;}
     renderAll();
