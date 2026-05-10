@@ -901,12 +901,19 @@
   function closeContactModal(){document.getElementById('contact-modal').classList.remove('on');currentContactId=null;}
   document.getElementById('cm-delete').onclick=function(){
     if(!currentContactId) return;
+    // 削除対象IDをローカルに保持してからモーダルを閉じる
+    var targetId = currentContactId;
+    closeContactModal(); // 先にお問い合わせ詳細を閉じてからPINモーダルを開く
     openDel('お問い合わせを削除','このお問い合わせを削除しますか？',async function(){
       var fs=window._fbFS;
       try{
-        await fs.deleteDoc(fs.doc(window._db,'contacts',currentContactId));
-        closeContactModal();toast('削除しました');renderContacts();
-      }catch(e){toast('削除失敗: '+e.message,'error');}
+        await fs.deleteDoc(fs.doc(window._db,'contacts',targetId));
+        toast('削除しました');
+        renderContacts();
+      }catch(e){
+        console.error('contact delete error:',e);
+        toast('削除失敗: '+e.message,'error');
+      }
     });
   };
 
