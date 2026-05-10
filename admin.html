@@ -637,18 +637,18 @@
   async function loadArticles(){
     var fs=window._fbFS;
     try{
-      var q=fs.query(fs.collection(window._db,'articles'),fs.orderBy('createdAt','desc'));
-      var snap=await fs.getDocs(q);
+      var snap=await fs.getDocs(fs.collection(window._db,'articles'));
       cache=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+      cache.sort(function(a,b){try{var ta=a.createdAt&&a.createdAt.toDate?a.createdAt.toDate():new Date(a.createdAt||0);var tb=b.createdAt&&b.createdAt.toDate?b.createdAt.toDate():new Date(b.createdAt||0);return tb-ta;}catch(e){return 0;}});
     }catch(e){console.error('loadArticles:',e);toast('記事読み込み失敗: '+e.message,'error');}
   }
 
   async function loadContacts(){
     var fs=window._fbFS;
     try{
-      var q=fs.query(fs.collection(window._db,'contacts'),fs.orderBy('createdAt','desc'));
-      var snap=await fs.getDocs(q);
+      var snap=await fs.getDocs(fs.collection(window._db,'contacts'));
       contacts=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+      contacts.sort(function(a,b){try{var ta=a.createdAt&&a.createdAt.toDate?a.createdAt.toDate():new Date(a.createdAt||0);var tb=b.createdAt&&b.createdAt.toDate?b.createdAt.toDate():new Date(b.createdAt||0);return tb-ta;}catch(e){return 0;}});
       updateUnreadBadge();
     }catch(e){console.error('loadContacts:',e);}
   }
