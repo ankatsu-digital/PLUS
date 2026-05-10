@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>管理画面　アンカツ＋</title>
+  <title>アンカツ＋ 管理画面</title>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -477,11 +477,25 @@
     </div>
   </div>
 
-  <!-- 削除確認モーダル -->
+  <!-- 削除確認モーダル（PIN認証付き） -->
   <div class="modal-bg" id="del-modal">
     <div class="modal">
-      <h3 id="del-title">確認</h3>
-      <p  id="del-body"></p>
+      <h3 id="del-title">🗑️ 削除の確認</h3>
+      <p id="del-body" style="margin-bottom:1rem"></p>
+      <div style="margin-bottom:1.25rem">
+        <label style="font-size:.8rem;font-weight:600;color:var(--text-muted);display:block;margin-bottom:.4rem">
+          削除PINコードを入力してください
+        </label>
+        <input id="del-pin" type="password" inputmode="numeric"
+          placeholder="••••"
+          style="padding:.65rem .9rem;border:1.5px solid var(--border);border-radius:6px;font-size:1.1rem;letter-spacing:.3em;width:140px;outline:none;transition:border-color .2s,box-shadow .2s"
+          onfocus="this.style.borderColor='var(--accent)';this.style.boxShadow='0 0 0 3px var(--accent-pale)'"
+          onblur="this.style.borderColor='var(--border)';this.style.boxShadow='none'"
+        />
+        <div id="del-pin-error" style="font-size:.78rem;color:var(--danger);margin-top:.35rem;display:none">
+          PINコードが違います
+        </div>
+      </div>
       <div class="modal-acts">
         <button class="btn btn-s" onclick="closeDel()">キャンセル</button>
         <button class="btn btn-d" id="del-ok">削除する</button>
@@ -549,15 +563,49 @@
   // ============================================================
   // 削除確認
   // ============================================================
-  var _delCb=null;
-  function openDel(title,body,cb){
-    document.getElementById('del-title').textContent=title;
-    document.getElementById('del-body').textContent=body;
-    _delCb=cb;
+  // ============================================================
+  // 削除確認 + PIN認証
+  // ※ PINコードをここで設定してください
+  // ============================================================
+  var DELETE_PIN = '2506';   // ← PINコードを変更する場合はここを編集
+
+  var _delCb = null;
+
+  function openDel(title, body, cb){
+    document.getElementById('del-title').textContent = title;
+    document.getElementById('del-body').textContent  = body;
+    document.getElementById('del-pin').value         = '';
+    document.getElementById('del-pin-error').style.display = 'none';
+    _delCb = cb;
     document.getElementById('del-modal').classList.add('on');
+    // 少し遅らせてからフォーカス
+    setTimeout(function(){ document.getElementById('del-pin').focus(); }, 100);
   }
-  function closeDel(){document.getElementById('del-modal').classList.remove('on');_delCb=null;}
-  document.getElementById('del-ok').onclick=function(){if(_delCb)_delCb();closeDel();};
+
+  function closeDel(){
+    document.getElementById('del-modal').classList.remove('on');
+    document.getElementById('del-pin').value = '';
+    document.getElementById('del-pin-error').style.display = 'none';
+    _delCb = null;
+  }
+
+  // PINを確認してから削除実行
+  document.getElementById('del-ok').onclick = function(){
+    var entered = document.getElementById('del-pin').value.trim();
+    if(entered !== DELETE_PIN){
+      document.getElementById('del-pin-error').style.display = 'block';
+      document.getElementById('del-pin').value = '';
+      document.getElementById('del-pin').focus();
+      return;
+    }
+    if(_delCb) _delCb();
+    closeDel();
+  };
+
+  // Enterキーでも確認できるように
+  document.getElementById('del-pin').addEventListener('keydown', function(e){
+    if(e.key === 'Enter') document.getElementById('del-ok').click();
+  });
 
   // ============================================================
   // ビュー切替
