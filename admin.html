@@ -644,9 +644,7 @@
     document.getElementById('sb-overlay').classList.remove('on');
     document.getElementById('sb-toggle').classList.remove('open');
   }
-  document.getElementById('sb-toggle').addEventListener('click',function(){
-    document.getElementById('sidebar').classList.contains('open')?closeSidebar():openSidebar();
-  });
+  // sb-toggle は DOMContentLoaded 内でバインド済み
 
   // ============================================================
   // 削除確認
@@ -677,23 +675,7 @@
     _delCb = null;
   }
 
-  // PINを確認してから削除実行
-  document.getElementById('del-ok').onclick = function(){
-    var entered = document.getElementById('del-pin').value.trim();
-    if(entered !== DELETE_PIN){
-      document.getElementById('del-pin-error').style.display = 'block';
-      document.getElementById('del-pin').value = '';
-      document.getElementById('del-pin').focus();
-      return;
-    }
-    if(_delCb) _delCb();
-    closeDel();
-  };
-
-  // Enterキーでも確認できるように
-  document.getElementById('del-pin').addEventListener('keydown', function(e){
-    if(e.key === 'Enter') document.getElementById('del-ok').click();
-  });
+  // del-ok / del-pin / cm-delete / tbl-search は DOMContentLoaded 内でバインド済み
 
   // ============================================================
   // ビュー切替
@@ -747,24 +729,7 @@
     });
   }
 
-  document.getElementById('l-btn').onclick=async function(){
-    var email=document.getElementById('l-email').value.trim();
-    var pw=document.getElementById('l-pw').value;
-    var err=document.getElementById('l-error');
-    var btn=document.getElementById('l-btn');
-    err.classList.remove('show');
-    btn.disabled=true;
-    btn.innerHTML='<span class="spinner"></span> 認証中…';
-    try{await window._fbAuth.signInWithEmailAndPassword(window._auth,email,pw);}
-    catch(e){err.classList.add('show');}
-    finally{btn.disabled=false;btn.textContent='ログイン';}
-  };
-  ['l-email','l-pw'].forEach(function(id){
-    document.getElementById(id).addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('l-btn').click();});
-  });
-  document.getElementById('logout-btn').onclick=async function(){
-    await window._fbAuth.signOut(window._auth);toast('ログアウトしました');
-  };
+  // ログインボタンは DOMContentLoaded 内でバインド済み
 
   // ============================================================
   // データ取得
@@ -851,7 +816,7 @@
         +'</div></td></tr>';
     }).join('');
   }
-  document.getElementById('tbl-search').addEventListener('input',function(e){renderTable(e.target.value.trim());});
+  // tbl-search は DOMContentLoaded 内でバインド済み
 
   // ============================================================
   // エディタ
@@ -860,15 +825,7 @@
   function eb(tag){document.execCommand('formatBlock',false,tag);document.getElementById('body-editor').focus();}
   function eLink(){var u=prompt('リンクURLを入力:','https://');if(u)document.execCommand('createLink',false,u);document.getElementById('body-editor').focus();}
 
-  document.getElementById('f-thumb').addEventListener('input',function(e){
-    var prev=document.getElementById('thumb-prev');
-    var url=e.target.value.trim();
-    if(url){prev.src=url;prev.style.display='block';}else{prev.style.display='none';}
-  });
-  document.getElementById('f-title').addEventListener('blur',function(){
-    var sl=document.getElementById('f-slug');
-    if(!sl.value.trim()) sl.value='article-'+Date.now();
-  });
+  // f-thumb / f-title は DOMContentLoaded 内でバインド済み
 
   // ============================================================
   // 記事保存
@@ -997,23 +954,6 @@
   }
 
   function closeContactModal(){document.getElementById('contact-modal').classList.remove('on');currentContactId=null;}
-  document.getElementById('cm-delete').onclick=function(){
-    if(!currentContactId) return;
-    // 削除対象IDをローカルに保持してからモーダルを閉じる
-    var targetId = currentContactId;
-    closeContactModal(); // 先にお問い合わせ詳細を閉じてからPINモーダルを開く
-    openDel('お問い合わせを削除','このお問い合わせを削除しますか？',async function(){
-      var fs=window._fbFS;
-      try{
-        await fs.deleteDoc(fs.doc(window._db,'contacts',targetId));
-        toast('削除しました');
-        renderContacts();
-      }catch(e){
-        console.error('contact delete error:',e);
-        toast('削除失敗: '+e.message,'error');
-      }
-    });
-  };
 
 
   // ============================================================
@@ -1228,16 +1168,117 @@
   }
 
   // ============================================================
-  // サイドバーナビ
+  // 初期化 — DOM構築完了後にすべてバインド
   // ============================================================
-  document.querySelectorAll('.sb-item[data-view]').forEach(function(el){
-    el.addEventListener('click',function(){showView(el.dataset.view);});
-  });
+  document.addEventListener('DOMContentLoaded', function(){
 
-  // ============================================================
-  // 初期化
-  // ============================================================
-  document.addEventListener('firebase-ready',initAuth);
+    // サイドバーナビ
+    document.querySelectorAll('.sb-item[data-view]').forEach(function(el){
+      el.addEventListener('click',function(){showView(el.dataset.view);});
+    });
+
+    // ログインボタン
+    document.getElementById('l-btn').onclick = async function(){
+      var email = document.getElementById('l-email').value.trim();
+      var pw    = document.getElementById('l-pw').value;
+      var err   = document.getElementById('l-error');
+      var btn   = document.getElementById('l-btn');
+      err.classList.remove('show');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> 認証中…';
+      try{
+        await window._fbAuth.signInWithEmailAndPassword(window._auth, email, pw);
+      }catch(e){
+        err.classList.add('show');
+      }finally{
+        btn.disabled = false;
+        btn.textContent = 'ログイン';
+      }
+    };
+
+    // Enterキーでログイン
+    ['l-email','l-pw'].forEach(function(id){
+      document.getElementById(id).addEventListener('keydown',function(e){
+        if(e.key==='Enter') document.getElementById('l-btn').click();
+      });
+    });
+
+    // ログアウト
+    document.getElementById('logout-btn').onclick = async function(){
+      await window._fbAuth.signOut(window._auth);
+      toast('ログアウトしました');
+    };
+
+    // サイドバートグル
+    document.getElementById('sb-toggle').addEventListener('click',function(){
+      document.getElementById('sidebar').classList.contains('open') ? closeSidebar() : openSidebar();
+    });
+
+    // 削除PINのEnterキー
+    document.getElementById('del-pin').addEventListener('keydown',function(e){
+      if(e.key==='Enter') document.getElementById('del-ok').click();
+    });
+
+    // 削除OKボタン
+    document.getElementById('del-ok').onclick = function(){
+      var entered = document.getElementById('del-pin').value.trim();
+      if(entered !== DELETE_PIN){
+        document.getElementById('del-pin-error').style.display = 'block';
+        document.getElementById('del-pin').value = '';
+        document.getElementById('del-pin').focus();
+        return;
+      }
+      if(_delCb) _delCb();
+      closeDel();
+    };
+
+    // お問い合わせ削除
+    document.getElementById('cm-delete').onclick = function(){
+      if(!currentContactId) return;
+      var targetId = currentContactId;
+      closeContactModal();
+      openDel('お問い合わせを削除','このお問い合わせを削除しますか？', async function(){
+        var fs = window._fbFS;
+        try{
+          await fs.deleteDoc(fs.doc(window._db,'contacts',targetId));
+          toast('削除しました');
+          renderContacts();
+        }catch(e){
+          console.error('contact delete error:',e);
+          toast('削除失敗: '+e.message,'error');
+        }
+      });
+    };
+
+    // テーブル検索
+    document.getElementById('tbl-search').addEventListener('input',function(e){
+      renderTable(e.target.value.trim());
+    });
+
+    // サムネプレビュー
+    document.getElementById('f-thumb').addEventListener('input',function(e){
+      var prev = document.getElementById('thumb-prev');
+      var url  = e.target.value.trim();
+      if(url){prev.src=url;prev.style.display='block';}
+      else{prev.style.display='none';}
+    });
+
+    // タイトル→スラッグ自動生成
+    document.getElementById('f-title').addEventListener('blur',function(){
+      var sl = document.getElementById('f-slug');
+      if(!sl.value.trim()) sl.value = 'article-' + Date.now();
+    });
+
+    // Firebase初期化完了後に認証開始
+    document.addEventListener('firebase-ready', initAuth);
+
+    // 6秒以内にfirebase-readyが来なければ警告
+    setTimeout(function(){
+      if(!window._auth){
+        alert('Firebase の初期化に失敗しました。ネットワーク接続を確認してください。');
+      }
+    }, 6000);
+  });
   </script>
 </body>
 </html>
