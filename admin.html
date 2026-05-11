@@ -189,6 +189,19 @@
     #body-editor h3{font-family:var(--serif);font-size:1.1rem;margin:1.2em 0 .4em;color:var(--accent)}
     #body-editor blockquote{background:var(--accent-pale);border-left:4px solid var(--accent);padding:.75rem 1rem;margin:1em 0;border-radius:0 4px 4px 0}
 
+
+    /* 下書きバッジ */
+    .draft-badge{display:inline-block;background:var(--warning);color:#fff;font-size:.65rem;font-weight:700;border-radius:10px;padding:.1rem .4rem;margin-left:.4rem;vertical-align:middle}
+    .draft-tag{display:inline-block;background:#fff3cd;color:#856404;font-size:.72rem;font-weight:700;padding:.15rem .5rem;border-radius:4px}
+
+    /* JSON入出力 */
+    .json-panel{background:var(--bg-card);border-radius:var(--radius);border:1px solid var(--border);padding:1.5rem;margin-bottom:1.5rem}
+    .json-panel h3{font-size:1rem;font-weight:700;margin-bottom:1rem;padding-bottom:.75rem;border-bottom:1px solid var(--border)}
+    .json-textarea{width:100%;min-height:180px;padding:.85rem;border:1.5px solid var(--border);border-radius:6px;font-family:monospace;font-size:.82rem;line-height:1.6;resize:vertical;outline:none;background:var(--bg);color:var(--text-main);transition:border-color var(--tr)}
+    .json-textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-pale)}
+    .json-result{margin-top:.75rem;padding:.75rem 1rem;border-radius:6px;font-size:.82rem;display:none}
+    .json-result.ok{background:var(--accent-pale);color:var(--accent);display:block}
+    .json-result.err{background:var(--danger-pale);color:var(--danger);display:block}
     /* 速報管理 */
     .breaking-manage{background:var(--bg-card);border-radius:var(--radius);border:1px solid var(--border);padding:1.5rem}
     .breaking-manage h3{font-size:1rem;font-weight:700;margin-bottom:1.25rem;padding-bottom:.75rem;border-bottom:1px solid var(--border)}
@@ -298,6 +311,8 @@
         <div class="sb-item" data-view="list"><span>📰</span> 記事一覧</div>
         <div class="sb-item" data-view="new"><span>✏️</span> 新規記事作成</div>
         <div class="sb-item" data-view="contacts"><span>✉️</span> お問い合わせ<span id="sb-unread"></span></div>
+        <div class="sb-item" data-view="drafts"><span>📝</span> 下書き<span id="sb-draft-count"></span></div>
+        <div class="sb-item" data-view="jsontools"><span>📦</span> JSON入出力</div>
         <div class="sb-item" data-view="breaking"><span>📡</span> 速報バー設定</div>
         <div class="sb-section" style="margin-top:.5rem">サイト</div>
         <a class="sb-item" href="index.html" target="_blank"><span>🌐</span> サイトを開く</a>
@@ -329,6 +344,7 @@
             <div class="stat-card"><div class="stat-label">注目記事</div><div class="stat-val" id="s-feat">—</div><div class="stat-sub">トップ掲載</div></div>
             <div class="stat-card"><div class="stat-label">カテゴリ数</div><div class="stat-val" id="s-cat">—</div><div class="stat-sub">登録済み</div></div>
             <div class="stat-card clickable" onclick="showView('contacts')"><div class="stat-label">未読お問い合わせ</div><div class="stat-val danger" id="s-contacts">—</div><div class="stat-sub">クリックで確認</div></div>
+            <div class="stat-card clickable" onclick="showView('drafts')"><div class="stat-label">下書き</div><div class="stat-val" id="s-drafts" style="color:var(--warning)">—</div><div class="stat-sub">未公開記事</div></div>
           </div>
           <div class="panel">
             <div class="panel-head">
@@ -430,7 +446,8 @@
               </div>
               <div class="form-actions">
                 <button class="btn btn-s" onclick="resetForm()">🔄 リセット</button>
-                <button class="btn btn-p" id="save-btn" onclick="saveArticle()">💾 保存する</button>
+                <button class="btn btn-s" id="draft-btn" onclick="saveArticle(true)" style="border-color:var(--warning);color:var(--warning)">📝 下書き保存</button>
+                <button class="btn btn-p" id="save-btn" onclick="saveArticle(false)">💾 公開保存</button>
               </div>
             </div>
           </div>
@@ -445,6 +462,77 @@
             </div>
             <div id="contacts-list"></div>
           </div>
+        </div>
+
+
+        <!-- 下書き一覧 -->
+        <div id="view-drafts" class="view">
+          <div class="panel">
+            <div class="panel-head">
+              <span class="panel-title">下書き一覧</span>
+              <button class="btn btn-p btn-sm" onclick="showView('new')">✏️ 新規記事</button>
+            </div>
+            <div style="overflow-x:auto">
+              <table class="tbl">
+                <thead><tr><th style="width:64px"></th><th>タイトル</th><th>カテゴリ</th><th>最終更新</th><th style="width:180px">操作</th></tr></thead>
+                <tbody id="drafts-tbody"></tbody>
+              </table>
+              <div id="drafts-empty" class="empty-tbl" style="display:none">下書きはありません。</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- JSON入出力 -->
+        <div id="view-jsontools" class="view">
+
+          <!-- エクスポート -->
+          <div class="json-panel">
+            <h3>📤 JSONエクスポート</h3>
+            <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:1rem">
+              Firestoreの記事データをJSONとしてダウンロードできます。バックアップや移行に使えます。
+            </p>
+            <div style="display:flex;gap:.75rem;flex-wrap:wrap">
+              <button class="btn btn-p" onclick="exportArticles('all')">📥 全記事をエクスポート</button>
+              <button class="btn btn-s" onclick="exportArticles('published')">📥 公開記事のみ</button>
+              <button class="btn btn-s" onclick="exportArticles('draft')">📥 下書きのみ</button>
+            </div>
+            <div id="export-result" class="json-result"></div>
+          </div>
+
+          <!-- インポート -->
+          <div class="json-panel">
+            <h3>📥 JSONインポート</h3>
+            <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:.75rem">
+              エクスポートしたJSONを貼り付けてインポートできます。<strong>既存の記事は上書きされません（新規追加のみ）。</strong>
+            </p>
+            <div style="margin-bottom:.75rem;padding:.75rem 1rem;background:#fff3cd;border-radius:6px;font-size:.8rem;color:#856404">
+              ⚠️ インポートにはPINコードが必要です。スラッグが重複する記事はスキップされます。
+            </div>
+            <textarea id="import-json" class="json-textarea" placeholder='[{"title":"記事タイトル","slug":"article-slug","category":"まちの話題","body":"<p>本文</p>","author":"編集部","tags":["タグ1"],"featured":false,"status":"published"}]'></textarea>
+            <div style="margin-top:.75rem;display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
+              <button class="btn btn-p" onclick="importArticles()">📤 インポート実行</button>
+              <button class="btn btn-s" onclick="document.getElementById('import-json').value=''">クリア</button>
+            </div>
+            <div id="import-result" class="json-result"></div>
+          </div>
+
+          <!-- JSONフォーマット確認 -->
+          <div class="json-panel">
+            <h3>📋 JSONフォーマット</h3>
+            <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:.75rem">インポート時のJSON形式（1記事の例）：</p>
+            <textarea class="json-textarea" readonly style="min-height:200px;background:var(--bg);cursor:default">{
+  "title": "記事のタイトル",
+  "slug": "article-slug-name",
+  "category": "まちの話題",
+  "body": "<p>本文HTML</p>",
+  "author": "編集部",
+  "tags": ["洲本", "移住"],
+  "thumbnail": "https://i.imgur.com/xxxxx.jpg",
+  "featured": false,
+  "status": "published"
+}</textarea>
+          </div>
+
         </div>
 
         <!-- 速報バー設定 -->
@@ -616,6 +704,8 @@
     new:'✏️ 新規記事作成',
     edit:'✏️ 記事編集',
     contacts:'✉️ お問い合わせ',
+    drafts:'📝 下書き',
+    jsontools:'📦 JSON入出力',
     breaking:'📡 速報バー設定'
   };
 
@@ -634,6 +724,8 @@
     if(key==='dashboard') renderDash();
     if(key==='contacts')  renderContacts();
     if(key==='breaking')  loadBreakingSettings();
+    if(key==='drafts')    renderDrafts();
+    if(key==='jsontools') initJsonTools();
     closeSidebar();
     window.scrollTo(0,0);
   }
@@ -715,6 +807,9 @@
     document.getElementById('s-total').textContent=cache.length;
     document.getElementById('s-feat').textContent=cache.filter(function(a){return a.featured;}).length;
     document.getElementById('s-cat').textContent=new Set(cache.map(function(a){return a.category;}).filter(Boolean)).size;
+    var draftCount=cache.filter(function(a){return a.status==='draft';}).length;
+    var sdEl=document.getElementById('s-drafts');if(sdEl)sdEl.textContent=draftCount;
+    var sbDraft=document.getElementById('sb-draft-count');if(sbDraft)sbDraft.innerHTML=draftCount?'<span class="draft-badge">'+draftCount+'</span>':'';
     updateUnreadBadge();
     var recent=cache.slice(0,5);
     var wrap=document.getElementById('dash-recent');
@@ -746,7 +841,7 @@
         +'<td>'+(a.thumbnail?'<img src="'+a.thumbnail+'" class="row-thumb" loading="lazy"/>':'<div class="row-thumb-ph">📰</div>')+'</td>'
         +'<td><div style="font-weight:600;line-height:1.4;font-size:.85rem">'+a.title+'</div>'
         +'<div style="font-size:.72rem;color:var(--text-light)">/'+(a.slug||a.id)+'</div>'
-        +(a.featured?'<span class="badge badge-feat">⭐ 注目</span>':'')+'</td>'
+        +(a.featured?'<span class="badge badge-feat">⭐ 注目</span>':'')+(a.status==='draft'?'<span class="draft-tag" style="margin-left:.3rem">下書き</span>':'')+'</td>'
         +'<td><span class="badge badge-cat">'+(a.category||'—')+'</span></td>'
         +'<td style="font-size:.8rem">'+(a.author||'—')+'</td>'
         +'<td style="font-size:.78rem;white-space:nowrap">'+fmtDate(a.createdAt)+'</td>'
@@ -778,7 +873,8 @@
   // ============================================================
   // 記事保存
   // ============================================================
-  async function saveArticle(){
+  async function saveArticle(isDraft){
+    isDraft = !!isDraft;
     var title=document.getElementById('f-title').value.trim();
     var slug=document.getElementById('f-slug').value.trim();
     var category=document.getElementById('f-category').value;
@@ -792,22 +888,24 @@
     if(!category){toast('カテゴリを選択してください','warning');return;}
     if(!body||body==='<br>'){toast('本文を入力してください','warning');return;}
 
-    var btn=document.getElementById('save-btn');
-    btn.disabled=true;btn.innerHTML='<span class="spinner"></span> 保存中…';
+    var btn=document.getElementById(isDraft?'draft-btn':'save-btn');
+    var otherBtn=document.getElementById(isDraft?'save-btn':'draft-btn');
+    btn.disabled=true;otherBtn.disabled=true;
+    btn.innerHTML='<span class="spinner"></span> '+(isDraft?'下書き保存中…':'保存中…');
     var fs=window._fbFS;
-    var data={title:title,slug:slug,category:category,author:author,tags:tags,thumbnail:thumbnail,featured:featured,body:body};
+    var data={title:title,slug:slug,category:category,author:author,tags:tags,thumbnail:thumbnail,featured:featured,body:body,status:isDraft?'draft':'published'};
     try{
       if(editingId){
         await fs.updateDoc(fs.doc(window._db,'articles',editingId),data);
-        toast('記事を更新しました ✅');
+        toast(isDraft?'下書きを更新しました 📝':'記事を更新しました ✅');
       }else{
         data.createdAt=fs.serverTimestamp();
         await fs.addDoc(fs.collection(window._db,'articles'),data);
-        toast('記事を作成しました ✅');
+        toast(isDraft?'下書きを保存しました 📝':'記事を公開しました ✅');
       }
       await loadArticles();showView('list');
     }catch(e){console.error(e);toast('保存失敗: '+e.message,'error');}
-    finally{btn.disabled=false;btn.textContent='💾 保存する';}
+    finally{btn.disabled=false;otherBtn.disabled=false;btn.textContent=isDraft?'📝 下書き保存':'💾 公開保存';}
   }
 
   // ============================================================
@@ -916,6 +1014,136 @@
       }
     });
   };
+
+
+  // ============================================================
+  // 下書き一覧
+  // ============================================================
+  function renderDrafts(){
+    var drafts=cache.filter(function(a){return a.status==='draft';});
+    var tbody=document.getElementById('drafts-tbody');
+    var empty=document.getElementById('drafts-empty');
+    if(!drafts.length){tbody.innerHTML='';empty.style.display='block';return;}
+    empty.style.display='none';
+    tbody.innerHTML=drafts.map(function(a){
+      return '<tr>'
+        +'<td>'+(a.thumbnail?'<img src="'+a.thumbnail+'" class="row-thumb" loading="lazy"/>':'<div class="row-thumb-ph">📝</div>')+'</td>'
+        +'<td><div style="font-weight:600;font-size:.85rem">'+a.title+'</div><div style="font-size:.72rem;color:var(--text-light)">/'+(a.slug||a.id)+'</div></td>'
+        +'<td><span class="badge badge-cat">'+(a.category||'—')+'</span></td>'
+        +'<td style="font-size:.78rem;white-space:nowrap">'+fmtDate(a.createdAt)+'</td>'
+        +'<td><div class="row-acts">'
+        +'<button class="btn btn-s btn-sm" onclick="startEdit(''+a.id+'')">✏️ 編集</button>'
+        +'<button class="btn btn-p btn-sm" onclick="publishDraft(''+a.id+'')" style="font-size:.75rem">🌐 公開</button>'
+        +'<button class="btn btn-d btn-sm" onclick="confirmDel(''+a.id+'',''+a.title.replace(/'/g,"\'")+'')">🗑️</button>'
+        +'</div></td></tr>';
+    }).join('');
+  }
+
+  // 下書きをそのまま公開
+  async function publishDraft(id){
+    var fs=window._fbFS;
+    try{
+      await fs.updateDoc(fs.doc(window._db,'articles',id),{status:'published'});
+      toast('公開しました 🌐');
+      await loadArticles();
+      renderDrafts();
+      renderDash();
+    }catch(e){toast('公開失敗: '+e.message,'error');}
+  }
+
+  // ============================================================
+  // JSONエクスポート
+  // ============================================================
+  function exportArticles(mode){
+    var data=cache.filter(function(a){
+      if(mode==='all') return true;
+      if(mode==='published') return a.status!=='draft';
+      if(mode==='draft') return a.status==='draft';
+      return true;
+    });
+    // Firestoreのタイムスタンプを文字列に変換
+    var clean=data.map(function(a){
+      var obj=Object.assign({},a);
+      if(obj.createdAt&&typeof obj.createdAt.toDate==='function'){
+        obj.createdAt=obj.createdAt.toDate().toISOString();
+      }
+      return obj;
+    });
+    var json=JSON.stringify(clean,null,2);
+    var blob=new Blob([json],{type:'application/json'});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');
+    a.href=url;
+    a.download='ankatsu_articles_'+mode+'_'+new Date().toISOString().slice(0,10)+'.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    var res=document.getElementById('export-result');
+    res.className='json-result ok';
+    res.textContent='✅ '+clean.length+'件のデータをエクスポートしました。';
+  }
+
+  // ============================================================
+  // JSONインポート
+  // ============================================================
+  async function importArticles(){
+    var raw=document.getElementById('import-json').value.trim();
+    var res=document.getElementById('import-result');
+    res.className='json-result';res.style.display='none';
+
+    // PIN確認
+    var pin=prompt('インポート実行にはPINコードが必要です：');
+    if(pin!==DELETE_PIN){
+      res.className='json-result err';res.textContent='❌ PINコードが違います。';return;
+    }
+
+    // JSONパース
+    var data;
+    try{data=JSON.parse(raw);}
+    catch(e){res.className='json-result err';res.textContent='❌ JSONの形式が正しくありません: '+e.message;return;}
+    if(!Array.isArray(data)||!data.length){
+      res.className='json-result err';res.textContent='❌ 空の配列、または配列形式ではありません。';return;
+    }
+
+    // 既存スラッグを取得（重複チェック用）
+    var existingSlugs=cache.map(function(a){return a.slug;}).filter(Boolean);
+
+    var fs=window._fbFS;
+    var added=0,skipped=0,errors=0;
+    for(var i=0;i<data.length;i++){
+      var item=data[i];
+      if(!item.title||!item.slug){skipped++;continue;}
+      if(existingSlugs.indexOf(item.slug)>=0){skipped++;continue;}
+      try{
+        var doc={
+          title:   item.title||'',
+          slug:    item.slug||'',
+          category:item.category||'',
+          body:    item.body||'',
+          author:  item.author||'編集部',
+          tags:    Array.isArray(item.tags)?item.tags:[],
+          thumbnail:item.thumbnail||'',
+          featured: !!item.featured,
+          status:  item.status||'published',
+          createdAt:fs.serverTimestamp()
+        };
+        await fs.addDoc(fs.collection(window._db,'articles'),doc);
+        existingSlugs.push(item.slug);
+        added++;
+      }catch(e){errors++;console.error(e);}
+    }
+
+    await loadArticles();renderDash();
+    res.className='json-result '+(errors?'err':'ok');
+    res.textContent='✅ インポート完了 — 追加:'+(added)+'件 / スキップ:'+skipped+'件'+(errors?' / エラー:'+errors+'件':'');
+  }
+
+  function initJsonTools(){
+    // エクスポート結果リセット
+    var ex=document.getElementById('export-result');
+    if(ex){ex.className='json-result';ex.style.display='none';}
+    var im=document.getElementById('import-result');
+    if(im){im.className='json-result';im.style.display='none';}
+  }
 
   // ============================================================
   // 速報バー設定
