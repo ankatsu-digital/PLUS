@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>投稿申請 | アンカツ＋</title>
+  <meta name="description" content="アンカツ＋への記事投稿申請フォームです。洲本市の地域情報をお寄せください。" />
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, serverTimestamp }
+      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey:            "AIzaSyC4HUWd4c5_fdgA-k34i1uthozfqYcRn9A",
+      authDomain:        "ankatsu-d4816.firebaseapp.com",
+      projectId:         "ankatsu-d4816",
+      storageBucket:     "ankatsu-d4816.firebasestorage.app",
+      messagingSenderId: "1005813876395",
+      appId:             "1:1005813876395:web:29153748d2a99c6584d9ee",
+      measurementId:     "G-TJWJXQZSBL"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db  = getFirestore(app);
+
+    window._submitForm = async function(data) {
+      return addDoc(collection(db, 'submissions'), Object.assign(data, {
+        createdAt: serverTimestamp(),
+        status: 'pending'
+      }));
+    };
+
+    document.dispatchEvent(new Event('fb-ready'));
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg:#faf9f6; --card:#fff;
+      --text:#1a1a18; --muted:#6b6b5e; --light:#999990;
+      --green:#2d6a4f; --green2:#52b788; --gpale:#d8f3dc;
+      --red:#e63946; --rpale:#fde8ea;
+      --border:#e0ddd4; --shadow:rgba(0,0,0,.07);
+      --serif:'Noto Serif JP',serif; --sans:'Noto Sans JP',sans-serif;
+      --r:8px; --t:.25s ease;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html{font-size:16px;scroll-behavior:smooth}
+    body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.7;min-height:100vh}
+    a{color:var(--green)}
+    button{cursor:pointer;font-family:inherit;border:none;background:none}
+    input,textarea,select{font-family:inherit}
+
+    /* ヘッダー */
+    header{background:var(--card);border-bottom:1px solid var(--border);padding:.9rem 1.5rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;box-shadow:0 2px 8px var(--shadow)}
+    .hlogo{font-family:var(--serif);font-size:1.35rem;font-weight:900;color:var(--green);text-decoration:none}
+    .hback{font-size:.82rem;color:var(--muted);display:flex;align-items:center;gap:.35rem}
+    .hback:hover{color:var(--green)}
+
+    /* メイン */
+    main{max-width:780px;margin:0 auto;padding:2.5rem 1.5rem 4rem}
+
+    /* ヒーロー */
+    .hero{text-align:center;margin-bottom:2.5rem;padding:2rem 1rem;background:linear-gradient(135deg,var(--gpale),var(--bg));border-radius:12px;border:1px solid var(--border)}
+    .hero h1{font-family:var(--serif);font-size:clamp(1.5rem,4vw,2rem);font-weight:900;margin-bottom:.5rem}
+    .hero p{font-size:.9rem;color:var(--muted);max-width:500px;margin:0 auto;line-height:1.8}
+
+    /* フォームカード */
+    .fcard{background:var(--card);border-radius:var(--r);border:1px solid var(--border);box-shadow:0 4px 16px var(--shadow);overflow:hidden}
+    .fhead{background:var(--green);color:#fff;padding:1.1rem 1.5rem}
+    .fhead h2{font-family:var(--serif);font-size:1.1rem;font-weight:700}
+    .fhead p{font-size:.78rem;opacity:.8;margin-top:.2rem}
+    .fbody{padding:1.75rem}
+
+    /* フィールド */
+    .frow{display:flex;flex-direction:column;gap:.35rem;margin-bottom:1.25rem}
+    .flabel{font-size:.82rem;font-weight:600;color:var(--muted)}
+    .req{color:var(--red);margin-left:2px}
+    .finput,.fselect,.ftextarea{padding:.7rem .9rem;border:1.5px solid var(--border);border-radius:6px;font-size:.92rem;color:var(--text);background:var(--card);outline:none;transition:border-color var(--t),box-shadow var(--t);width:100%}
+    .finput:focus,.fselect:focus,.ftextarea:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--gpale)}
+    .fhint{font-size:.74rem;color:var(--light);line-height:1.5}
+    .ftextarea{min-height:140px;resize:vertical;line-height:1.7}
+    .fgrid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+
+    /* エディタ */
+    .editor-wrap{border:1.5px solid var(--border);border-radius:6px;overflow:hidden}
+    .editor-tabs{display:flex;border-bottom:1px solid var(--border);background:var(--bg)}
+    .etab{padding:.5rem 1rem;font-size:.8rem;font-weight:600;color:var(--muted);cursor:pointer;transition:background var(--t),color var(--t);border:none;background:none}
+    .etab.on{background:var(--green);color:#fff}
+    .ebar{display:flex;flex-wrap:wrap;gap:.2rem;padding:.4rem .65rem;background:var(--bg);border-bottom:1px solid var(--border)}
+    .etool{width:28px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:4px;font-size:.82rem;font-weight:600;color:var(--muted);cursor:pointer;transition:background var(--t)}
+    .etool:hover{background:var(--border);color:var(--text)}
+    .esep{width:1px;background:var(--border);margin:3px 3px}
+    #s-body-vis{min-height:220px;padding:.9rem;outline:none;font-family:var(--sans);font-size:.9rem;line-height:1.8;background:var(--card);color:var(--text);overflow-y:auto}
+    #s-body-vis:focus{outline:none}
+    #s-body-vis p{margin-bottom:.8em}
+    #s-body-vis h2{font-family:var(--serif);font-size:1.2rem;margin:1.5em 0 .5em;border-left:4px solid var(--green);padding-left:.7em}
+    #s-body-vis h3{font-family:var(--serif);font-size:1.05rem;margin:1.2em 0 .4em;color:var(--green)}
+    #s-body-vis blockquote{background:var(--gpale);border-left:4px solid var(--green);padding:.7rem 1rem;margin:1em 0;border-radius:0 4px 4px 0}
+    #s-body-html{min-height:220px;padding:.9rem;border:none;font-family:monospace;font-size:.82rem;line-height:1.6;resize:none;outline:none;background:#1e1e1e;color:#d4d4d4;width:100%;display:none}
+
+    /* 規約 */
+    .terms-box{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:1rem 1.25rem;max-height:180px;overflow-y:auto;font-size:.8rem;color:var(--muted);line-height:1.8;margin-bottom:1rem}
+    .terms-box h4{font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:.5rem}
+    .check-row{display:flex;align-items:flex-start;gap:.6rem;margin-bottom:1.5rem}
+    .check-row input[type=checkbox]{width:17px;height:17px;accent-color:var(--green);flex-shrink:0;margin-top:.15rem}
+    .check-row label{font-size:.88rem;line-height:1.6;cursor:pointer}
+
+    /* 送信ボタン */
+    .submit-btn{width:100%;padding:.9rem;background:var(--green);color:#fff;border-radius:var(--r);font-size:1rem;font-weight:700;transition:background var(--t);display:flex;align-items:center;justify-content:center;gap:.5rem}
+    .submit-btn:hover{background:var(--green2)}
+    .submit-btn:disabled{opacity:.6;cursor:not-allowed}
+
+    /* 完了画面 */
+    #pg-done{display:none;text-align:center;padding:3rem 1rem}
+    #pg-done.on{display:block}
+    .done-icon{font-size:4rem;margin-bottom:1rem}
+    #pg-done h2{font-family:var(--serif);font-size:1.6rem;font-weight:900;margin-bottom:.75rem;color:var(--green)}
+    #pg-done p{font-size:.92rem;color:var(--muted);line-height:1.9;max-width:480px;margin:0 auto 1.5rem}
+    .done-btn{display:inline-flex;align-items:center;gap:.4rem;padding:.65rem 1.5rem;background:var(--green);color:#fff;border-radius:var(--r);font-size:.9rem;font-weight:600;transition:background var(--t)}
+    .done-btn:hover{background:var(--green2)}
+
+    /* プレビュー */
+    .thumb-prev{max-height:140px;width:100%;object-fit:cover;border-radius:6px;border:1px solid var(--border);margin-top:.5rem;display:none}
+
+    /* スピナー */
+    .spin{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;display:inline-block;vertical-align:middle}
+    @keyframes sp{to{transform:rotate(360deg)}}
+
+    /* エラー */
+    .ferr{font-size:.78rem;color:var(--red);display:none;margin-top:.25rem}
+    .ferr.on{display:block}
+
+    /* フッター */
+    footer{text-align:center;padding:2rem 1.5rem;font-size:.78rem;color:var(--light);border-top:1px solid var(--border);margin-top:3rem}
+
+    @media(max-width:560px){
+      .fgrid2{grid-template-columns:1fr}
+      .fbody{padding:1.25rem}
+      main{padding:1.5rem 1rem 3rem}
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <a href="index.html" class="hlogo">アンカツ＋</a>
+    <a href="index.html" class="hback">← サイトに戻る</a>
+  </header>
+
+  <main>
+
+    <!-- ヒーロー -->
+    <div class="hero">
+      <h1>📝 記事の投稿申請</h1>
+      <p>洲本市の地域情報・イベント・活動報告などをお寄せください。<br>編集部で確認のうえ、掲載させていただきます。</p>
+    </div>
+
+    <!-- フォーム -->
+    <div id="pg-form">
+      <div class="fcard">
+        <div class="fhead">
+          <h2>投稿申請フォーム</h2>
+          <p>※ すべての<span style="color:#ffd">必須</span>項目を入力してください</p>
+        </div>
+        <div class="fbody">
+
+          <!-- 申請者情報 -->
+          <div style="background:var(--bg);border-radius:6px;padding:1rem 1.25rem;margin-bottom:1.5rem;border:1px solid var(--border)">
+            <div style="font-size:.82rem;font-weight:700;color:var(--muted);margin-bottom:.75rem;letter-spacing:.05em">👤 申請者情報</div>
+            <div class="fgrid2">
+              <div class="frow" style="margin-bottom:0">
+                <label class="flabel">お名前 <span class="req">*</span></label>
+                <input id="s-name" type="text" class="finput" placeholder="山田 太郎" />
+                <span class="ferr" id="err-name">お名前を入力してください</span>
+              </div>
+              <div class="frow" style="margin-bottom:0">
+                <label class="flabel">メールアドレス <span class="req">*</span></label>
+                <input id="s-email" type="email" class="finput" placeholder="example@email.com" />
+                <span class="ferr" id="err-email">メールアドレスを入力してください</span>
+              </div>
+            </div>
+            <div class="frow" style="margin-top:.75rem;margin-bottom:0">
+              <label class="flabel">所属・団体名（任意）</label>
+              <input id="s-org" type="text" class="finput" placeholder="〇〇商店街振興会、△△小学校 など" />
+            </div>
+          </div>
+
+          <!-- 記事情報 -->
+          <div class="frow">
+            <label class="flabel">記事タイトル <span class="req">*</span></label>
+            <input id="s-title" type="text" class="finput" placeholder="例：洲本城下町で春の花まつり開催" />
+            <span class="ferr" id="err-title">タイトルを入力してください</span>
+          </div>
+
+          <div class="fgrid2">
+            <div class="frow">
+              <label class="flabel">カテゴリ <span class="req">*</span></label>
+              <select id="s-cat" class="fselect">
+                <option value="">-- 選択してください --</option>
+                <option>まちの話題</option>
+                <option>イベント</option>
+                <option>空き家活用</option>
+                <option>商店街</option>
+                <option>文化</option>
+                <option>インタビュー</option>
+                <option>学校・子育て</option>
+                <option>移住・定住</option>
+                <option>お知らせ</option>
+              </select>
+              <span class="ferr" id="err-cat">カテゴリを選択してください</span>
+            </div>
+            <div class="frow">
+              <label class="flabel">タグ（カンマ区切り）</label>
+              <input id="s-tags" type="text" class="finput" placeholder="洲本, 移住, イベント" />
+            </div>
+          </div>
+
+          <div class="frow">
+            <label class="flabel">サムネイル画像URL（任意）</label>
+            <input id="s-thumb" type="url" class="finput" placeholder="https://i.imgur.com/xxxxx.jpg" />
+            <img id="s-thumb-prev" class="thumb-prev" alt="サムネイルプレビュー" />
+            <span class="fhint">💡 <a href="https://imgur.com/upload" target="_blank">Imgur</a> に画像をアップして「Direct Link」のURLを貼ってください（無料・登録不要）</span>
+          </div>
+
+          <!-- 本文エディタ -->
+          <div class="frow">
+            <label class="flabel">本文 <span class="req">*</span></label>
+            <div class="editor-wrap">
+              <div class="editor-tabs">
+                <button class="etab on" id="stab-vis" onclick="sMode('vis')">✏️ ビジュアル</button>
+                <button class="etab"    id="stab-html" onclick="sMode('html')">🖥 HTML直接入力</button>
+              </div>
+              <!-- ビジュアル -->
+              <div id="seditor-vis">
+                <div class="ebar">
+                  <button class="etool" onclick="se('bold')" title="太字"><b>B</b></button>
+                  <button class="etool" onclick="se('italic')" title="斜体"><i>I</i></button>
+                  <button class="etool" onclick="se('underline')" title="下線"><u>U</u></button>
+                  <div class="esep"></div>
+                  <button class="etool" onclick="sf('h2')" title="見出し2">H2</button>
+                  <button class="etool" onclick="sf('h3')" title="見出し3">H3</button>
+                  <button class="etool" onclick="sf('blockquote')" title="引用">❝</button>
+                  <div class="esep"></div>
+                  <button class="etool" onclick="se('insertUnorderedList')" title="箇条書き">•≡</button>
+                  <button class="etool" onclick="se('insertOrderedList')" title="番号付き">1≡</button>
+                  <div class="esep"></div>
+                  <button class="etool" onclick="sLink()" title="リンク">🔗</button>
+                  <button class="etool" onclick="sImg()" title="画像">🖼</button>
+                  <button class="etool" onclick="se('removeFormat')" title="書式クリア">✕</button>
+                </div>
+                <div id="s-body-vis" contenteditable="true" spellcheck="false"></div>
+              </div>
+              <!-- HTML -->
+              <textarea id="s-body-html" placeholder="HTMLを直接入力してください。埋め込みコードも使用できます。"></textarea>
+            </div>
+            <span class="ferr" id="err-body">本文を入力してください</span>
+            <span class="fhint">HTMLモードでは &lt;iframe&gt; 等の埋め込みコードも使用できます。</span>
+          </div>
+
+          <!-- 規約 -->
+          <div class="terms-box">
+            <h4>投稿申請について</h4>
+            <p>・投稿いただいた内容は編集部が確認し、掲載の可否を判断します。</p>
+            <p>・掲載にあたり、タイトル・本文の一部を編集する場合があります。</p>
+            <p>・申請内容は「アンカツ＋」の運営目的にのみ使用し、第三者への提供は行いません。</p>
+            <p>・虚偽の情報、誹謗中傷、著作権を侵害する内容は掲載できません。</p>
+            <p>・掲載結果はメールにてご連絡します（数日〜1週間程度）。</p>
+            <p>・お問い合わせは <a href="index.html#page/contact">お問い合わせフォーム</a> よりどうぞ。</p>
+          </div>
+          <div class="check-row">
+            <input type="checkbox" id="s-agree" />
+            <label for="s-agree">上記の投稿申請に関する注意事項を読み、同意します</label>
+          </div>
+          <span class="ferr" id="err-agree">同意のチェックが必要です</span>
+
+          <button class="submit-btn" id="s-submit" onclick="doSubmit()">
+            申請を送信する →
+          </button>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- 完了画面 -->
+    <div id="pg-done">
+      <div class="done-icon">✅</div>
+      <h2>投稿申請を受け付けました！</h2>
+      <p>
+        ご申請ありがとうございます。<br>
+        編集部にて内容を確認のうえ、<strong id="done-email"></strong> 宛にご連絡いたします。<br>
+        数日〜1週間程度お待ちください。
+      </p>
+      <a href="index.html" class="done-btn">← アンカツ＋ トップへ</a>
+    </div>
+
+  </main>
+
+  <footer>
+    © 2025 アンカツ城下町洲本「生涯活躍のまち」の特区にしたい会
+  </footer>
+
+  <script>
+  // ============================================================
+  // エディタ
+  // ============================================================
+  var _sMode = 'vis';
+
+  function sMode(m) {
+    if (m === _sMode) return;
+    if (m === 'html') {
+      document.getElementById('s-body-html').value = document.getElementById('s-body-vis').innerHTML;
+      document.getElementById('seditor-vis').style.display  = 'none';
+      document.getElementById('s-body-html').style.display  = 'block';
+      document.getElementById('stab-html').classList.add('on');
+      document.getElementById('stab-vis').classList.remove('on');
+    } else {
+      document.getElementById('s-body-vis').innerHTML = document.getElementById('s-body-html').value;
+      document.getElementById('seditor-vis').style.display  = 'block';
+      document.getElementById('s-body-html').style.display  = 'none';
+      document.getElementById('stab-vis').classList.add('on');
+      document.getElementById('stab-html').classList.remove('on');
+    }
+    _sMode = m;
+  }
+
+  function se(cmd)  { document.execCommand(cmd, false, null); document.getElementById('s-body-vis').focus(); }
+  function sf(tag)  { document.execCommand('formatBlock', false, tag); document.getElementById('s-body-vis').focus(); }
+  function sLink()  { var u=prompt('リンクURL:','https://'); if(u) document.execCommand('createLink',false,u); document.getElementById('s-body-vis').focus(); }
+  function sImg()   { var u=prompt('画像URL:','https://'); if(u) document.execCommand('insertHTML',false,'<img src="'+u+'" style="max-width:100%;height:auto;border-radius:4px;margin:.5em 0" alt="" />'); document.getElementById('s-body-vis').focus(); }
+
+  function getBody() {
+    if (_sMode === 'html') return document.getElementById('s-body-html').value.trim();
+    return document.getElementById('s-body-vis').innerHTML.trim();
+  }
+
+  // ============================================================
+  // サムネプレビュー
+  // ============================================================
+  document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('s-thumb').addEventListener('input', function(e) {
+      var prev = document.getElementById('s-thumb-prev');
+      var url  = e.target.value.trim();
+      if (url) { prev.src=url; prev.style.display='block'; }
+      else     { prev.style.display='none'; }
+    });
+  });
+
+  // ============================================================
+  // バリデーション
+  // ============================================================
+  function clearErrors() {
+    document.querySelectorAll('.ferr').forEach(function(el){ el.classList.remove('on'); });
+  }
+
+  function showErr(id, show) {
+    var el = document.getElementById(id);
+    if (el) el.classList.toggle('on', show);
+  }
+
+  function validate() {
+    clearErrors();
+    var ok = true;
+    var name  = document.getElementById('s-name').value.trim();
+    var email = document.getElementById('s-email').value.trim();
+    var title = document.getElementById('s-title').value.trim();
+    var cat   = document.getElementById('s-cat').value;
+    var body  = getBody().replace(/<[^>]*>/g,'').trim();
+    var agree = document.getElementById('s-agree').checked;
+
+    if (!name)  { showErr('err-name',  true); ok=false; }
+    if (!email) { showErr('err-email', true); ok=false; }
+    if (!title) { showErr('err-title', true); ok=false; }
+    if (!cat)   { showErr('err-cat',   true); ok=false; }
+    if (!body)  { showErr('err-body',  true); ok=false; }
+    if (!agree) { showErr('err-agree', true); ok=false; }
+    return ok;
+  }
+
+  // ============================================================
+  // 送信
+  // ============================================================
+  async function doSubmit() {
+    if (!validate()) {
+      // 最初のエラーにスクロール
+      var first = document.querySelector('.ferr.on');
+      if (first) first.scrollIntoView({behavior:'smooth', block:'center'});
+      return;
+    }
+
+    var btn = document.getElementById('s-submit');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spin"></span> 送信中…';
+
+    var data = {
+      authorName:  document.getElementById('s-name').value.trim(),
+      authorEmail: document.getElementById('s-email').value.trim(),
+      authorOrg:   document.getElementById('s-org').value.trim(),
+      title:       document.getElementById('s-title').value.trim(),
+      category:    document.getElementById('s-cat').value,
+      tags:        document.getElementById('s-tags').value.split(',').map(function(t){return t.trim();}).filter(Boolean),
+      thumbnail:   document.getElementById('s-thumb').value.trim(),
+      body:        getBody(),
+      slug:        'sub-' + Date.now(),
+      author:      document.getElementById('s-name').value.trim(),
+      featured:    false
+    };
+
+    // Firebase準備確認
+    if (!window._submitForm) {
+      await new Promise(function(res){ document.addEventListener('fb-ready', res, {once:true}); });
+    }
+
+    try {
+      await window._submitForm(data);
+      // 完了表示
+      document.getElementById('pg-form').style.display = 'none';
+      document.getElementById('pg-done').classList.add('on');
+      document.getElementById('done-email').textContent = data.authorEmail;
+      window.scrollTo(0,0);
+    } catch(e) {
+      console.error(e);
+      btn.disabled = false;
+      btn.textContent = '申請を送信する →';
+      alert('送信に失敗しました。しばらく経ってから再度お試しください。\n(' + e.message + ')');
+    }
+  }
+  </script>
+</body>
+</html>
