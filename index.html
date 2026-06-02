@@ -1,6 +1,372 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>観光ウェブサイト（防災警報連携サンプル）</title>
+<style>
+  :root {
+    --purple: #9c27b0;
+    --red: #d32f2f;
+    --yellow: #fbc02d;
+    --gray: #e0e0e0;
+    --text-main: #202124;
+    --text-sub: #5f6368;
+    --border-color: #dadce0;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #fafafa;
+    color: var(--text-main);
+  }
+
+  /* 観光サイトのダミーヘッダー・コンテンツ */
+  .site-header {
+    background-color: #ffffff;
+    padding: 20px;
+    text-align: center;
+    border-bottom: 1px solid var(--border-color);
+  }
+  .site-hero {
+    background: linear-gradient(135deg, #74b9ff, #a29bfe);
+    height: 250px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-size: 2rem;
+    font-weight: bold;
+    text-shadow: 1px 1px 5px rgba(0,0,0,0.2);
+  }
+
+  /* 1. 防災警告バナー（警報発生時のみ動的に表示） */
+  .emergency-banner {
+    display: none; /* 初期状態は非表示 */
+    background-color: var(--red);
+    color: white;
+    text-align: center;
+    padding: 12px 20px;
+    font-weight: bold;
+    font-size: 1.1rem;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    position: sticky;
+    top: 0;
+    z-index: 999;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0% { background-color: #d32f2f; }
+    50% { background-color: #b71c1c; }
+    100% { background-color: #d32f2f; }
+  }
+
+  /* 2. ポップアップ（モーダルウィンドウ） */
+  .modal-overlay {
+    display: none; /* 初期状態は非表示 */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    box-sizing: border-box;
+  }
+  .modal-card {
+    background-color: #ffffff;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 600px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    overflow: hidden;
+    animation: slideIn 0.3s ease-out;
+  }
+  @keyframes slideIn {
+    from { transform: translateY(-30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  .modal-header {
+    background-color: #333333;
+    color: white;
+    padding: 16px 20px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .modal-close-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0 5px;
+  }
+  .modal-body {
+    padding: 20px;
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+
+  /* 淡路島全体の詳細表示用スタイル */
+  .meta-info {
+    font-size: 0.85rem;
+    color: var(--text-sub);
+    margin-bottom: 15px;
+    text-align: right;
+  }
+  .city-box {
+    margin-bottom: 20px;
+  }
+  .city-name {
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+    padding-left: 8px;
+    border-left: 4px solid #1976d2;
+  }
+  .alert-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .alert-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 0.95rem;
+  }
+  .alert-status {
+    font-size: 0.8rem;
+    padding: 2px 6px;
+    background: rgba(255,255,255,0.7);
+    border-radius: 4px;
+    color: #000;
+  }
+
+  /* レベル別カラー */
+  .bg-purple { background-color: var(--purple); color: #ffffff; }
+  .bg-red { background-color: var(--red); color: #ffffff; }
+  .bg-yellow { background-color: var(--yellow); color: #202124; }
+</style>
+</head>
+<body>
+
+<div id="emergency-banner" class="emergency-banner" onclick="openEmergencyModal()">
+  【災害情報】現在、洲本市に気象警報が発表されています。タップして詳細を確認してください。
+</div>
+
+<div class="site-header">
+  <h2>淡路島 観光ナビ</h2>
+</div>
+<div class="site-hero">
+  Welcome to Awaji Island
+</div>
+<div style="padding: 20px; text-align: center; color: #666;">
+  <p>（ここに通常の観光ホームページのコンテンツが入ります）</p>
+  <p>バックグラウンドで気象庁XMLを5分おきに監視しています。</p>
+  <p>洲本市に「警報」または「特別警報」が発令されると、画面上部に赤い警告バナーが自動挿入されます。</p>
+</div>
+
+<div id="emergency-modal" class="modal-overlay" onclick="closeEmergencyModal(event)">
+  <div class="modal-card" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span>淡路島 気象警報・注意報 詳細</span>
+      <button class="modal-close-btn" onclick="closeEmergencyModal(null)">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="meta-info">
+        <span id="report-time">発表時刻: --:--:--</span>｜
+        <span id="update-time">最終更新: --:--:--</span>
+      </div>
+      
+      <div class="city-box">
+        <div class="city-name">淡路市</div>
+        <div id="alerts-awaji" class="alert-list"></div>
+      </div>
+      <div class="city-box">
+        <div class="city-name">洲本市</div>
+        <div id="alerts-sumoto" class="alert-list"></div>
+      </div>
+      <div class="city-box">
+        <div class="city-name">南あわじ市</div>
+        <div id="alerts-minamiawaji" class="alert-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const FEED_URL = 'https://www.data.jma.go.jp/developer/xml/feed/extra.xml';
+  const TARGET_CITIES = ['淡路市', '洲本市', '南あわじ市'];
+
+  // モーダル操作関数
+  function openEmergencyModal() {
+    document.getElementById('emergency-modal').style.display = 'flex';
+  }
+  function closeEmergencyModal(event) {
+    if (!event || event.target === document.getElementById('emergency-modal') || event.target.classList.contains('modal-close-btn')) {
+      document.getElementById('emergency-modal').style.display = 'none';
+    }
+  }
+
+  async function checkWeatherAlerts() {
+    const banner = document.getElementById('emergency-banner');
+    const updateTimeDisplay = document.getElementById('update-time');
+    const reportTimeDisplay = document.getElementById('report-time');
+
+    try {
+      // 1. フィードの取得
+      const feedRes = await fetch(FEED_URL);
+      if (!feedRes.ok) throw new Error('Feed fetch failed');
+      const feedText = await feedRes.text();
+      const parser = new DOMParser();
+      const feedXml = parser.parseFromString(feedText, 'application/xml');
+
+      // 2. 兵庫県の気象警報・注意報電文を探す
+      const entries = feedXml.getElementsByTagName('entry');
+      let targetXmlUrl = null;
+
+      for (let i = 0; i < entries.length; i++) {
+        const title = entries[i].getElementsByTagName('title')[0]?.textContent || '';
+        const content = entries[i].getElementsByTagName('content')[0]?.textContent || '';
+        const author = entries[i].getElementsByTagName('name')[0]?.textContent || '';
+
+        if (title.includes('警報') && title.includes('注意報') && (content.includes('兵庫県') || author.includes('神戸'))) {
+          targetXmlUrl = entries[i].getElementsByTagName('link')[0]?.getAttribute('href');
+          break;
+        }
+      }
+
+      const now = new Date();
+      updateTimeDisplay.textContent = `最終更新: ${now.toLocaleTimeString('ja-JP')}`;
+
+      if (!targetXmlUrl) {
+        banner.style.display = 'none';
+        return;
+      }
+
+      // 3. 詳細XMLの取得
+      const xmlRes = await fetch(targetXmlUrl);
+      if (!xmlRes.ok) throw new Error('XML fetch failed');
+      const xmlText = await xmlRes.text();
+      const xmlDoc = parser.parseFromString(xmlText, 'application/xml');
+
+      // 発表時刻
+      const reportDateTime = xmlDoc.getElementsByTagName('ReportDateTime')[0]?.textContent;
+      if (reportDateTime) {
+        reportTimeDisplay.textContent = `発表時刻: ${new Date(reportDateTime).toLocaleString('ja-JP')}`;
+      }
+
+      // 4. データ構造解析
+      const cityAlerts = { '淡路市': [], '洲本市': [], '南あわじ市': [] };
+      let hasSumotoWarningOrHigher = false; // 洲本市に警報以上が出ているかのフラグ
+
+      const items = xmlDoc.getElementsByTagName('Item');
+      for (let i = 0; i < items.length; i++) {
+        const areas = items[i].getElementsByTagName('Area');
+        let areaName = null;
+        
+        for (let j = 0; j < areas.length; j++) {
+          const nameNode = areas[j].getElementsByTagName('Name')[0];
+          if (nameNode && TARGET_CITIES.includes(nameNode.textContent)) {
+            areaName = nameNode.textContent;
+            break;
+          }
+        }
+
+        if (areaName) {
+          const kinds = items[i].getElementsByTagName('Kind');
+          for (let k = 0; k < kinds.length; k++) {
+            const alertName = kinds[k].getElementsByTagName('Name')[0]?.textContent;
+            const status = kinds[k].getElementsByTagName('Status')[0]?.textContent;
+
+            if (alertName && status && status !== '解除' && status !== '発表なし') {
+              cityAlerts[areaName].push({ name: alertName, status: status });
+
+              // 洲本市で、かつ名前に「警報」または「特別警報」が含まれる場合（注意報はすり抜ける）
+              if (areaName === '洲本市' && (alertName.includes('警報') || alertName.includes('特別警報'))) {
+                hasSumotoWarningOrHigher = true;
+              }
+            }
+          }
+        }
+      }
+
+      // 5. 洲本市に警報以上が発令されている場合のみ、観光サイトにバナーを表示
+      if (hasSumotoWarningOrHigher) {
+        // 最高レベルを検知してバナーの文字を調整
+        const sumotoAlertNames = cityAlerts['洲本市'].map(a => a.name).join('');
+        if (sumotoAlertNames.includes('特別警報')) {
+          banner.textContent = '【緊急災害情報】洲本市に「特別警報」が発表されています。安全を確保し詳細を確認してください。';
+          banner.style.backgroundColor = 'var(--purple)';
+        } else {
+          banner.textContent = '【災害情報】現在、洲本市に「気象警報」が発表されています。タップして詳細を確認してください。';
+          banner.style.backgroundColor = 'var(--red)';
+        }
+        banner.style.display = 'block';
+      } else {
+        banner.style.display = 'none'; // 注意報のみ、または発表なしなら表示しない
+      }
+
+      // 6. ポップアップ内部のレンダリング（裏側で最新状態にしておく）
+      renderCityAlerts('alerts-awaji', cityAlerts['淡路市']);
+      renderCityAlerts('alerts-sumoto', cityAlerts['洲本市']);
+      renderCityAlerts('alerts-minamiawaji', cityAlerts['南あわじ市']);
+
+    } catch (error) {
+      console.error('防災情報取得エラー:', error);
+    }
+  }
+
+  function renderCityAlerts(containerId, alerts) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+
+    if (!alerts || alerts.length === 0) {
+      container.innerHTML = '<div class="alert-item" style="background-color:var(--gray); color:var(--text-sub)">発表なし</div>';
+      return;
+    }
+
+    alerts.sort((a, b) => {
+      const score = (name) => name.includes('特別警報') ? 3 : name.includes('警報') ? 2 : 1;
+      return score(b.name) - score(a.name);
+    });
+
+    alerts.forEach(alert => {
+      const div = document.createElement('div');
+      div.className = 'alert-item';
+      
+      if (alert.name.includes('特別警報')) div.classList.add('bg-purple');
+      else if (alert.name.includes('警報')) div.classList.add('bg-red');
+      else if (alert.name.includes('注意報')) div.classList.add('bg-yellow');
+
+      div.innerHTML = `<span>${alert.name}</span><span class="alert-status">${alert.status}</span>`;
+      container.appendChild(div);
+    });
+  }
+
+  // 監視処理の開始
+  checkWeatherAlerts();
+  setInterval(checkWeatherAlerts, 5 * 60 * 1000);
+</script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="icon" href="web-app-manifest-512x512.png" type="image/png">
