@@ -117,6 +117,26 @@
     overflow-y: auto;
   }
 
+  /* 注意事項の文脈ボックス（報道・観光客向け） */
+  .notice-box {
+    background-color: var(--notice-bg);
+    border: 1px solid var(--notice-border);
+    border-left: 5px solid var(--red);
+    padding: 15px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: #c62828;
+  }
+  .notice-title {
+    font-weight: bold;
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
   /* 淡路島全体の詳細表示用スタイル */
   .meta-info {
     font-size: 0.85rem;
@@ -177,6 +197,10 @@
       <button class="modal-close-btn" onclick="closeEmergencyModal(null)">&times;</button>
     </div>
     <div class="modal-body">
+      <div class="notice-box">
+        <div class="notice-title">⚠️ 観光客・報道関係の皆様へのご注意</div>
+        <div>現在、淡路島の一部地域に気象警報が発令されています。今後の気象情報や交通機関（明石海峡大橋・大鳴門橋・各定期船）の運行状況に十分ご注意ください。安全のため、不要不急の外出や危険な場所（海岸、河川、斜面付近など）への立ち入りは控えてください。</div>
+      </div>
       <div class="meta-info">
         <span id="report-time">発表時刻: --:--:--</span>｜
         <span id="update-time">最終更新: --:--:--</span>
