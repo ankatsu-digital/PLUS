@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>記事管理 | アンカツ＋ Admin</title>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import {
+    getFirestore, collection, getDocs, doc,
+    addDoc, updateDoc, deleteDoc, serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import {
+    getAuth, onAuthStateChanged,
+    signInWithEmailAndPassword, signOut
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+  const cfg = {
+    apiKey:            "AIzaSyC4HUWd4c5_fdgA-k34i1uthozfqYcRn9A",
+    authDomain:        "ankatsu-d4816.firebaseapp.com",
+    projectId:         "ankatsu-d4816",
+    storageBucket:     "ankatsu-d4816.firebasestorage.app",
+    messagingSenderId: "1005813876395",
+    appId:             "1:1005813876395:web:29153748d2a99c6584d9ee"
+  };
+  const app  = initializeApp(cfg);
+  const db   = getFirestore(app);
+  const auth = getAuth(app);
+  window._db     = db;
+  window._auth   = auth;
+  window._fb     = { collection, getDocs, doc, addDoc, updateDoc, deleteDoc, serverTimestamp };
+  window._fbAuth = { onAuthStateChanged, signInWithEmailAndPassword, signOut };
+  document.dispatchEvent(new Event("firebase-ready"));
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@600;800&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet" />
+
+<style>
+:root{
+  --bg:#faf9f6;--bg-card:#fff;--bg-sub:#f3f1ec;
+  --text:#1a1a18;--muted:#6b6b5e;--light:#999990;
+  --acc:#2d6a4f;--acc-l:#52b788;--acc-p:#d8f3dc;
+  --danger:#e63946;--border:#e0ddd4;--shadow:rgba(0,0,0,.07);
+  --serif:'Noto Serif JP',serif;--sans:'Noto Sans JP',sans-serif;
+  --r:6px;--tr:.2s ease;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:16px;}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);line-height:1.7;min-height:100vh;}
+a{color:inherit;text-decoration:none;}
+img{max-width:100%;display:block;}
+button{cursor:pointer;font-family:inherit;border:none;background:none;}
+
+/* ===== ログイン ===== */
+#login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem;}
+#login-wrap.hide{display:none;}
+.login-box{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);
+  padding:2.2rem 2rem;max-width:380px;width:100%;}
+.login-box h1{font-family:var(--serif);font-size:1.2rem;font-weight:800;color:var(--acc);margin-bottom:.25rem;}
+.login-box .sub{font-size:.8rem;color:var(--muted);margin-bottom:1.6rem;}
+
+/* ===== App ===== */
+#app-wrap{display:none;}
+#app-wrap.show{display:block;}
+
+/* Header */
+#adm-header{
+  position:sticky;top:0;z-index:50;
+  background:var(--bg-card);border-bottom:1px solid var(--border);
+  padding:.8rem 1.4rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;
+}
+#adm-header h1{font-family:var(--serif);font-size:1.05rem;font-weight:800;color:var(--acc);flex:1;}
+.hdr-user{font-size:.78rem;color:var(--muted);}
+
+/* Tabs */
+#tab-bar{display:flex;border-bottom:2px solid var(--border);background:var(--bg-card);
+  padding:0 1.4rem;overflow-x:auto;gap:0;}
+.tab-btn{padding:.75rem 1.1rem;font-size:.85rem;font-weight:700;color:var(--muted);
+  border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:color var(--tr),border-color var(--tr);}
+.tab-btn.active{color:var(--acc);border-bottom-color:var(--acc);}
+
+/* Tab panels */
+.tab-panel{display:none;max-width:900px;margin:0 auto;padding:1.5rem 1.2rem 3rem;}
+.tab-panel.active{display:block;}
+
+/* Shared form */
+.panel{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);
+  padding:1.4rem;margin-bottom:1.2rem;}
+.panel h2{font-family:var(--serif);font-size:1rem;font-weight:800;color:var(--acc);margin-bottom:1rem;}
+.field{margin-bottom:1rem;}
+.field label{display:block;font-size:.8rem;font-weight:700;color:var(--muted);margin-bottom:.3rem;}
+.field .hint{font-size:.72rem;color:var(--light);margin-top:.25rem;}
+input[type=text],input[type=email],input[type=url],input[type=password],
+input[type=search],select,textarea{
+  width:100%;padding:.6rem .8rem;border:1.5px solid var(--border);border-radius:6px;
+  font-size:.9rem;font-family:inherit;background:var(--bg-card);color:var(--text);outline:none;
+  transition:border-color var(--tr),box-shadow var(--tr);
+}
+input:focus,select:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-p);}
+textarea{resize:vertical;line-height:1.7;}
+textarea.mono{font-family:monospace;font-size:.8rem;}
+.row2{display:grid;gap:.8rem;grid-template-columns:1fr 1fr;}
+.cb-row{display:flex;align-items:center;gap:.5rem;}
+.cb-row input{width:auto;}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:.35rem;font-size:.82rem;font-weight:700;
+  padding:.55rem 1.2rem;border-radius:6px;border:none;cursor:pointer;transition:background var(--tr),color var(--tr);}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.btn-primary{background:var(--acc);color:#fff;}
+.btn-primary:hover:not(:disabled){background:var(--acc-l);}
+.btn-ghost{background:var(--bg-sub);color:var(--muted);border:1px solid var(--border);}
+.btn-ghost:hover{background:var(--acc-p);color:var(--acc);}
+.btn-danger{background:#fff;color:var(--danger);border:1px solid var(--danger);}
+.btn-danger:hover{background:var(--danger);color:#fff;}
+.btn-sm{padding:.35rem .8rem;font-size:.75rem;}
+.actions{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.6rem;}
+
+/* Status */
+.status{font-size:.82rem;padding:.65rem 1rem;border-radius:6px;margin-top:.8rem;display:none;}
+.status.show{display:block;}
+.status.ok{background:var(--acc-p);color:var(--acc);}
+.status.err{background:#fde2e2;color:var(--danger);}
+
+/* Tag chips */
+.tag-row{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.4rem;}
+.tag-chip{display:inline-flex;align-items:center;gap:.3rem;background:var(--acc-p);color:var(--acc);
+  font-size:.75rem;padding:.2rem .55rem;border-radius:20px;}
+.tag-chip button{font-size:.85rem;line-height:1;color:var(--acc);}
+
+/* Article list */
+.art-row{display:flex;gap:.9rem;align-items:flex-start;padding:.9rem;
+  border:1px solid var(--border);border-radius:var(--r);margin-bottom:.6rem;background:var(--bg-card);}
+.art-thumb{width:60px;height:44px;border-radius:4px;flex-shrink:0;
+  background:var(--bg-sub);display:flex;align-items:center;justify-content:center;font-size:1.4rem;object-fit:cover;}
+.art-info{flex:1;min-width:0;}
+.art-title{font-weight:700;font-size:.88rem;line-height:1.45;margin-bottom:.25rem;}
+.art-meta{font-size:.72rem;color:var(--light);display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;}
+.cat-badge{font-size:.66rem;font-weight:700;color:var(--acc);background:var(--acc-p);padding:.1rem .45rem;border-radius:3px;}
+.feat-badge{font-size:.66rem;font-weight:700;color:#8a6300;background:#fff3da;padding:.1rem .45rem;border-radius:3px;}
+.art-btns{display:flex;flex-direction:column;gap:.35rem;flex-shrink:0;}
+
+/* ===== 特設サイトビルダー ===== */
+.section-card{background:var(--bg-sub);border:1px solid var(--border);border-radius:var(--r);
+  padding:1.1rem;margin-bottom:.8rem;position:relative;}
+.section-card .sc-head{display:flex;align-items:center;gap:.6rem;margin-bottom:.8rem;}
+.section-card .sc-num{font-family:var(--serif);font-size:.75rem;color:var(--acc);font-weight:800;}
+.section-card .sc-del{margin-left:auto;}
+.builder-preview{
+  background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);
+  padding:1.2rem;font-size:.82rem;color:var(--muted);min-height:80px;max-height:300px;
+  overflow-y:auto;line-height:1.7;
+}
+
+/* misc */
+.empty{text-align:center;color:var(--light);padding:2rem;font-size:.85rem;}
+.loading-txt{text-align:center;color:var(--light);padding:1.2rem;font-size:.82rem;}
+.help-note{background:var(--acc-p);border:1px solid var(--acc-l);border-radius:var(--r);
+  padding:.9rem 1.1rem;font-size:.8rem;margin-bottom:1.2rem;}
+.help-note code{background:rgba(255,255,255,.6);padding:.05rem .3rem;border-radius:3px;font-size:.76rem;}
+@media(max-width:600px){.row2{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<!-- ===== ログイン画面 ===== -->
+<div id="login-wrap">
+  <div class="login-box">
+    <h1>📝 アンカツ＋ Admin</h1>
+    <p class="sub">管理者アカウントでログインしてください</p>
+    <div class="field"><label for="l-email">メールアドレス</label>
+      <input type="email" id="l-email" autocomplete="username" /></div>
+    <div class="field"><label for="l-pass">パスワード</label>
+      <input type="password" id="l-pass" autocomplete="current-password" /></div>
+    <button class="btn btn-primary" id="login-btn" style="width:100%;justify-content:center;">ログイン</button>
+    <div class="status" id="login-status"></div>
+  </div>
+</div>
+
+<!-- ===== 管理画面 ===== -->
+<div id="app-wrap">
+
+  <header id="adm-header">
+    <h1>📝 アンカツ＋ 記事管理</h1>
+    <span class="hdr-user" id="hdr-email"></span>
+    <a class="btn btn-ghost btn-sm" href="index.html">← サイトを見る</a>
+    <button class="btn btn-ghost btn-sm" id="logout-btn">ログアウト</button>
+  </header>
+
+  <div id="tab-bar">
+    <button class="tab-btn active" data-tab="articles">📄 記事一覧・投稿</button>
+    <button class="tab-btn" data-tab="builder">✨ 特設サイト作成</button>
+  </div>
+
+  <!-- ===== TAB: 記事一覧・投稿 ===== -->
+  <div class="tab-panel active" id="tab-articles">
+
+    <div class="panel">
+      <h2 id="form-heading">新規記事を投稿</h2>
+      <input type="hidden" id="edit-id" />
+
+      <div class="field">
+        <label>タイトル <span style="color:var(--danger)">*</span></label>
+        <input type="text" id="f-title" placeholder="例：まちに泊まる、新しい旅のかたち。" />
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>カテゴリ <span style="color:var(--danger)">*</span></label>
+          <select id="f-cat">
+            <option>まちの話題</option><option>イベント</option>
+            <option>空き家活用</option><option>商店街</option>
+            <option>文化</option><option selected>インタビュー</option>
+            <option>学校・子育て</option><option>移住・定住</option>
+            <option>お知らせ</option><option>視察レポート</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>著者</label>
+          <input type="text" id="f-author" value="編集部" />
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>スラッグ（URL用・英数字）</label>
+          <input type="text" id="f-slug" placeholder="sekai-hotel-fuse-report" />
+          <div class="hint">空欄時はFirestoreの自動IDが使われます</div>
+        </div>
+        <div class="field">
+          <label>サムネイル画像URL</label>
+          <input type="url" id="f-thumb" placeholder="https://..." />
+        </div>
+      </div>
+
+      <div class="field">
+        <label>タグ（Enterで追加）</label>
+        <input type="text" id="f-tag-input" placeholder="例：空き家活用" />
+        <div class="tag-row" id="tag-list"></div>
+      </div>
+
+      <div class="field">
+        <label>本文（HTML） <span style="color:var(--danger)">*</span></label>
+        <textarea id="f-body" class="mono" style="min-height:240px;"
+          placeholder="<p>本文…</p>&#10;<h2>見出し</h2>&#10;<p>続き…</p>"></textarea>
+        <div class="hint">
+          通常のHTMLを貼り付けてください。&lt;style&gt;や&lt;script&gt;タグも使えます。<br>
+          「特設サイト作成」タブで生成したHTMLをそのままここに貼ることもできます。
+        </div>
+      </div>
+
+      <div class="field cb-row">
+        <input type="checkbox" id="f-featured" />
+        <label for="f-featured" style="margin:0;font-size:.88rem;">トップページの注目記事（featured）にする</label>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-primary" id="save-btn">保存する</button>
+        <button class="btn btn-ghost" id="cancel-btn" style="display:none;">キャンセル</button>
+        <button class="btn btn-ghost" id="load-sekai-btn">📋 SEKAI HOTEL記事を読み込む</button>
+      </div>
+      <div class="status" id="form-status"></div>
+    </div>
+
+    <!-- 一覧 -->
+    <div class="panel">
+      <h2>投稿済みの記事</h2>
+      <div id="art-list"><div class="loading-txt">読み込み中…</div></div>
+    </div>
+
+  </div><!-- /tab-articles -->
+
+  <!-- ===== TAB: 特設サイト作成 ===== -->
+  <div class="tab-panel" id="tab-builder">
+
+    <div class="help-note">
+      特集・視察レポート・インタビューなどを、フォームに入力するだけで
+      スタイル付きHTMLとして自動生成します。<br>
+      生成したHTMLは「記事一覧・投稿」タブの本文欄に貼り付けて保存してください。
+      タグ・カテゴリ・検索に自動で反映されます。
+    </div>
+
+    <div class="panel">
+      <h2>① 記事の基本情報</h2>
+      <div class="field"><label>特集タイトル</label>
+        <input type="text" id="b-title" placeholder="まちに泊まる、新しい旅のかたち。" /></div>
+      <div class="field"><label>サブタイトル / リード文</label>
+        <textarea id="b-lead" style="min-height:80px;" placeholder="SEKAI HOTEL Deep Osaka Experience 視察レポート ― 大阪・布施の商店街全体を…"></textarea></div>
+      <div class="row2">
+        <div class="field"><label>アイキャッチ画像URL（ヒーロー）</label>
+          <input type="url" id="b-hero-img" placeholder="https://..." /></div>
+        <div class="field"><label>ヒーロー背景カラー（画像なし時）</label>
+          <input type="text" id="b-hero-color" value="#2c4d39" /></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>② セクション</h2>
+      <div id="sections-wrap"></div>
+      <div class="actions">
+        <button class="btn btn-ghost" id="add-sec-text">＋ テキストセクション追加</button>
+        <button class="btn btn-ghost" id="add-sec-tl">＋ タイムライン追加</button>
+        <button class="btn btn-ghost" id="add-sec-quote">＋ 引用・インタビュー追加</button>
+        <button class="btn btn-ghost" id="add-sec-closing">＋ まとめ（クロージング）追加</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>③ 生成・コピー</h2>
+      <div class="actions" style="margin-bottom:.8rem;">
+        <button class="btn btn-primary" id="generate-btn">▶ HTMLを生成する</button>
+        <button class="btn btn-ghost" id="copy-btn">📋 クリップボードにコピー</button>
+        <button class="btn btn-ghost" id="to-form-btn">→ 本文欄に転記して投稿タブへ</button>
+      </div>
+      <div id="builder-preview" class="builder-preview">ここに生成されたHTMLが表示されます</div>
+      <div class="status" id="builder-status"></div>
+    </div>
+
+  </div><!-- /tab-builder -->
+
+</div><!-- /app-wrap -->
+
+<script>
+(function(){
+'use strict';
+
+// ============================================================
+// State
+// ============================================================
+var tags = [];
+var allArticles = [];
+var sectionCount = 0;
+
+var CAT_EMOJI = {
+  'まちの話題':'🏘️','イベント':'🎉','空き家活用':'🏠','商店街':'🛍️',
+  '文化':'🎨','インタビュー':'🎙️','学校・子育て':'📚','移住・定住':'🌱',
+  'お知らせ':'📢','視察レポート':'🧭'
+};
+
+// SEKAI HOTEL 登録用本文（</script>をエスケープして埋め込み済み）
+var SEKAI_BODY = "<style>\n  .sk{--green:#3f6a4f;--green-deep:#2c4d39;--green-pale:#e3ecdf;--beige-deep:#bfa978;--border:#e4ddca;--bg-sub:#f3efe4;--bg-card:#fff;--ink-soft:#6f6a5e;--r:10px;}\n  .sk h2.sk-title{font-family:var(--serif,serif);font-weight:800;font-size:1.4rem;line-height:1.6;color:var(--green-deep);border-left:none!important;padding-left:0!important;margin:2.5em 0 .6em;}\n  .sk .sk-lead{font-size:.95rem;color:var(--ink-soft);margin-bottom:1.5rem;}\n  .sk .sk-cards{display:grid;gap:1rem;margin:1.5rem 0;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));}\n  .sk .sk-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:1.3rem 1.2rem;}\n  .sk .sk-card .sk-icon{width:42px;height:42px;border-radius:50%;background:var(--green-pale);display:flex;align-items:center;justify-content:center;font-size:1.3rem;margin-bottom:.8rem;}\n  .sk .sk-card h3{font-family:var(--serif,serif);font-size:.98rem;font-weight:700;margin-bottom:.4rem;}\n  .sk .sk-card p{font-size:.85rem;color:var(--ink-soft);margin:0;}\n  .sk .sk-diagram{margin:1.5rem 0;border:1px dashed var(--beige-deep);border-radius:var(--r);padding:1.4rem;background:var(--bg-card);display:flex;flex-direction:column;gap:.8rem;}\n  .sk .sk-drow{display:flex;align-items:center;gap:.8rem;font-size:.85rem;}\n  .sk .sk-pill{flex-shrink:0;background:var(--green);color:#fff;font-weight:700;font-size:.72rem;padding:.35rem .75rem;border-radius:20px;white-space:nowrap;}\n  .sk .sk-arrow{color:var(--beige-deep);}\n  .sk .sk-drow p{color:var(--ink-soft);margin:0;}\n  .sk .sk-timeline{position:relative;margin:1.5rem 0;}\n  .sk .sk-timeline::before{content:'';position:absolute;left:18px;top:6px;bottom:6px;width:2px;background:linear-gradient(var(--beige-deep),var(--green-pale));}\n  .sk .sk-tl-item{position:relative;padding-left:3.2rem;margin-bottom:2.2rem;}\n  .sk .sk-tl-item:last-child{margin-bottom:0;}\n  .sk .sk-tl-dot{position:absolute;left:6px;top:.35rem;width:26px;height:26px;border-radius:50%;background:var(--bg-card);border:2px solid var(--green);display:flex;align-items:center;justify-content:center;font-size:.8rem;}\n  .sk .sk-tl-time{font-size:.72rem;letter-spacing:.12em;color:var(--beige-deep);font-weight:700;margin-bottom:.3rem;}\n  .sk .sk-tl-title{font-family:var(--serif,serif);font-weight:700;font-size:1rem;margin-bottom:.4rem;}\n  .sk .sk-tl-body{font-size:.88rem;color:var(--ink-soft);margin:0;}\n  .sk .sk-interview{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:1.5rem 1.3rem;margin:1.2rem 0;}\n  .sk .sk-q{font-family:var(--serif,serif);font-weight:700;color:var(--green-deep);font-size:.95rem;margin-bottom:.6rem;display:flex;gap:.6rem;}\n  .sk .sk-q::before{content:'Q';flex-shrink:0;width:1.6em;height:1.6em;border-radius:50%;background:var(--green-pale);color:var(--green-deep);display:flex;align-items:center;justify-content:center;font-size:.8rem;}\n  .sk blockquote{border-left:3px solid var(--beige-deep);padding-left:1.1rem;margin:.4rem 0 0;font-size:.9rem;color:var(--ink-soft);font-style:italic;}\n  .sk .sk-interviewee{margin-top:1.2rem;padding-top:.9rem;border-top:1px solid var(--border);font-size:.78rem;color:var(--ink-soft);}\n  .sk .sk-hint-list{display:flex;flex-direction:column;gap:1rem;margin:1.5rem 0;}\n  .sk .sk-hint{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:1.3rem;display:flex;gap:1rem;}\n  .sk .sk-hint-mark{font-family:var(--serif,serif);font-weight:800;font-size:1.5rem;color:var(--beige-deep);flex-shrink:0;}\n  .sk .sk-hint h3{font-family:var(--serif,serif);font-size:.96rem;font-weight:700;margin-bottom:.3rem;}\n  .sk .sk-hint p{font-size:.85rem;color:var(--ink-soft);margin:0;}\n  .sk .sk-pullquote{margin:1.8rem 0;background:var(--green-deep);color:#fff;border-radius:var(--r);padding:1.6rem;text-align:center;}\n  .sk .sk-pullquote p{font-family:var(--serif,serif);font-size:1.1rem;font-weight:700;line-height:1.7;margin:0;}\n  .sk .sk-gallery{display:flex;gap:1rem;overflow-x:auto;padding:1rem 0;scroll-snap-type:x mandatory;}\n  .sk .sk-gallery-item{flex:0 0 70%;max-width:300px;scroll-snap-align:start;cursor:pointer;background:none;border:none;padding:0;text-align:left;}\n  .sk .sk-ph{width:100%;aspect-ratio:4/3;border-radius:var(--r);border:1px solid var(--border);background:linear-gradient(135deg,var(--green-pale),var(--bg-sub));display:flex;align-items:center;justify-content:center;font-size:2.2rem;color:var(--beige-deep);}\n  .sk .sk-cap{font-size:.76rem;color:var(--ink-soft);margin:.5rem 0 0;}\n  @media(min-width:640px){.sk .sk-gallery-item{flex:0 0 45%;}}\n  .sk .sk-closing{text-align:center;background:var(--green-deep);color:#fff;border-radius:var(--r);padding:2rem 1.4rem;margin-top:2rem;}\n  .sk .sk-closing h2{font-family:var(--serif,serif);font-weight:800;font-size:1.5rem;line-height:1.7;margin:0 0 1rem;border:none;padding:0;color:#fff;}\n  .sk .sk-closing p{color:rgba(255,255,255,.85);font-size:.9rem;margin:0;}\n  #sk-lightbox{position:fixed;inset:0;background:rgba(20,20,18,.92);z-index:400;display:flex;align-items:center;justify-content:center;flex-direction:column;opacity:0;visibility:hidden;transition:.3s;padding:1.2rem;}\n  #sk-lightbox.open{opacity:1;visibility:visible;}\n  #sk-lightbox .sk-lb-ph{width:min(90vw,600px);aspect-ratio:4/3;background:var(--green-pale);display:flex;align-items:center;justify-content:center;font-size:4rem;color:var(--beige-deep);border-radius:6px;}\n  #sk-lightbox figcaption{color:#fff;font-size:.85rem;margin-top:1rem;text-align:center;max-width:30em;}\n  #sk-lb-close{position:absolute;top:1.2rem;right:1.2rem;color:#fff;font-size:1.8rem;width:2.2rem;height:2.2rem;display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.4);border-radius:50%;background:none;}\n<\\/style>\n\n<div class=\"sk\">\n\n<h2 class=\"sk-title\">SEKAI HOTELとは？ ―「まちごとホテル」という発想<\\/h2>\n<p class=\"sk-lead\">SEKAI HOTELは、ひとつの建物に客室や設備を集約する従来のホテルとは違い、商店街や住宅街に点在する空き家・空き店舗を客室や受付に活用し、銭湯や飲食店、商店街をホテルの「館内設備」として旅行者に開放する、分散型のホテルです。<\\/p>\n\n<div class=\"sk-cards\">\n  <div class=\"sk-card\"><div class=\"sk-icon\">🏠<\\/div><h3>空き家が客室になる<\\/h3><p>商店街の中の空き家・空き店舗をリノベーションし、宿泊者専用の客室として活用。生活感のある「ふつうの部屋」に泊まる体験そのものが旅の魅力になります。<\\/p><\\/div>\n  <div class=\"sk-card\"><div class=\"sk-icon\">♨️<\\/div><h3>銭湯がお風呂になる<\\/h3><p>ホテルに大浴場をつくらず、地域の銭湯を「ホテルのお風呂」として案内。地元の人と同じ湯につかることで、まちの暮らしに混ざり込む感覚が生まれます。<\\/p><\\/div>\n  <div class=\"sk-card\"><div class=\"sk-icon\">🏮<\\/div><h3>商店街がフロントになる<\\/h3><p>居酒屋や喫茶店が食事処として機能し、商店主との会話が「サービス」になる。観光客向けではない、住民と同じ目線のまちが体験の舞台です。<\\/p><\\/div>\n<\\/div>\n\n<div class=\"sk-diagram\">\n  <div class=\"sk-drow\"><span class=\"sk-pill\">客室<\\/span><span class=\"sk-arrow\">→<\\/span><p>商店街の空き家・空き店舗をリノベーションした宿泊棟<\\/p><\\/div>\n  <div class=\"sk-drow\"><span class=\"sk-pill\">お風呂<\\/span><span class=\"sk-arrow\">→<\\/span><p>近所の銭湯。地元の人と同じ時間・同じ湯を使う<\\/p><\\/div>\n  <div class=\"sk-drow\"><span class=\"sk-pill\">食事処<\\/span><span class=\"sk-arrow\">→<\\/span><p>昔から商店街にある居酒屋・喫茶店が「いつもの」を提供<\\/p><\\/div>\n  <div class=\"sk-drow\"><span class=\"sk-pill\">フロント<\\/span><span class=\"sk-arrow\">→<\\/span><p>商店街の中に小さな受付スポット。チェックインそのものがまち歩きの入口になる<\\/p><\\/div>\n<\\/div>\n\n<h2 class=\"sk-title\">実際に泊まってみた<\\/h2>\n<p class=\"sk-lead\">編集部が一泊二日で体験した、布施でのリアルな時間の流れをご紹介します。<\\/p>\n\n<div class=\"sk-timeline\">\n  <div class=\"sk-tl-item\"><div class=\"sk-tl-dot\">🚉<\\/div><p class=\"sk-tl-time\">15:30 ― 布施駅到着<\\/p><h3 class=\"sk-tl-title\">改札を出た瞬間から商店街がはじまる<\\/h3><p class=\"sk-tl-body\">近鉄・布施駅の改札を出ると、目の前にはすでにアーケード商店街が広がっていました。地図を見ながら歩くこと数分、立ち並ぶ惣菜店や金物屋の匂いと音が、観光地ではない「暮らしのまち」に来たことを実感させてくれます。<\\/p><\\/div>\n  <div class=\"sk-tl-item\"><div class=\"sk-tl-dot\">🔑<\\/div><p class=\"sk-tl-time\">16:00 ― チェックイン体験<\\/p><h3 class=\"sk-tl-title\">商店街の中の小さな受付で、まちのルールを教わる<\\/h3><p class=\"sk-tl-body\">フロントは商店街の中にある小さなスペース。スタッフの方から鍵を受け取りながら、客室までの道順、提携の銭湯や居酒屋の場所、地域でのマナーなどを地図を見ながら案内されます。ホテルというより、知り合いの家に泊めてもらう感覚に近い時間でした。<\\/p><\\/div>\n  <div class=\"sk-tl-item\"><div class=\"sk-tl-dot\">🛏️<\\/div><p class=\"sk-tl-time\">16:30 ― 商店街デラックスビューの客室<\\/p><h3 class=\"sk-tl-title\">アーケードの屋根が、そのまま「窓からの景色」になる<\\/h3><p class=\"sk-tl-body\">案内された客室は、商店街の2階に位置する一室。窓を開けると、すぐ目の前にアーケードの屋根と、買い物客の話し声。古い建物の梁や建具をそのまま生かしたリノベーションで、新築のホテルにはない「時間の積み重ね」を感じる空間でした。<\\/p><\\/div>\n  <div class=\"sk-tl-item\"><div class=\"sk-tl-dot\">🍶<\\/div><p class=\"sk-tl-time\">18:30 ― 居酒屋での「いつもの！」<\\/p><h3 class=\"sk-tl-title\">常連と同じ言葉で、暖簾をくぐる<\\/h3><p class=\"sk-tl-body\">提携している居酒屋に向かうと、すでに常連客で賑わう店内。スタッフの方が事前に「アンカツ＋さんが来ますよ」と伝えてくれていたようで、店主から「いつもの、でいい？」と声をかけられました。観光客向けのメニューではなく、地域の人と同じ一皿が出てくることに、ここでしか味わえない価値を感じました。<\\/p><\\/div>\n  <div class=\"sk-tl-item\"><div class=\"sk-tl-dot\">♨️<\\/div><p class=\"sk-tl-time\">20:30 ― 銭湯体験<\\/p><h3 class=\"sk-tl-title\">地元の人と同じ湯につかる、非日常のなかの日常<\\/h3><p class=\"sk-tl-body\">客室にお風呂はなく、徒歩数分の銭湯へ。番台でホテルの名前を伝えるとスムーズに案内され、近所の方々と並んで湯につかる時間は、観光ではなく「暮らし」を借りているような感覚でした。火照った体で夜の商店街を歩いて帰る道のりも含めて、この体験の一部だと感じます。<\\/p><\\/div>\n  <div class=\"sk-tl-item\"><div class=\"sk-tl-dot\">🌅<\\/div><p class=\"sk-tl-time\">7:30 ― 朝の商店街<\\/p><h3 class=\"sk-tl-title\">シャッターが開く音で、まちが起きる<\\/h3><p class=\"sk-tl-body\">早朝、シャッターを開ける音や荷物を運ぶ台車の音で目が覚めました。窓から見下ろす商店街は、昨夜とはまったく違う表情。八百屋の店主が野菜を並べ、犬の散歩をする人が行き交う、観光パンフレットには載らない「普通の朝」がそこにありました。<\\/p><\\/div>\n  <div class=\"sk-tl-item\"><div class=\"sk-tl-dot\">☕<\\/div><p class=\"sk-tl-time\">8:30 ― 喫茶店での朝食<\\/p><h3 class=\"sk-tl-title\">モーニングセットと、新聞を読む常連客たち<\\/h3><p class=\"sk-tl-body\">案内された喫茶店では、トーストとゆで卵がついたモーニングセットを注文。隣の席では常連のお客さんが新聞を片手にマスターと世間話をしていて、その輪の中に少しだけお邪魔させてもらったような、温かい朝食になりました。<\\/p><\\/div>\n  <div class=\"sk-tl-item\"><div class=\"sk-tl-dot\">💴<\\/div><p class=\"sk-tl-time\">10:00 ― チェックアウトと200円の地域還元<\\/p><h3 class=\"sk-tl-title\">宿泊料の一部が、まちに還っていく仕組み<\\/h3><p class=\"sk-tl-body\">チェックアウト時、宿泊料の一部（一泊あたり約200円）が、商店街の活性化や清掃活動などに使われる地域還元の仕組みになっていることを教えてもらいました。「泊まること」がそのまま「まちへの小さな投資」になる――この仕組みこそ、SEKAI HOTELの根っこにある考え方だと感じました。<\\/p><\\/div>\n<\\/div>\n\n<h2 class=\"sk-title\">SEKAI HOTELスタッフに聞く<\\/h2>\n<p class=\"sk-lead\">取り組みのきっかけや、地域との関わり方について、現地スタッフの方にお話を伺いました。<\\/p>\n\n<div class=\"sk-interview\">\n  <p class=\"sk-q\">なぜこの取り組みを始めたのですか？<\\/p>\n  <blockquote>「観光客が素通りしてしまうような、なんでもない商店街にこそ、本当の大阪の暮らしがあると思ったんです。立派な施設をつくるのではなく、すでにあるまちの魅力を、旅行者にもわかる形に翻訳する。それがSEKAI HOTELのはじまりでした。」<\\/blockquote>\n<\\/div>\n<div class=\"sk-interview\">\n  <p class=\"sk-q\">地域の方々とは、どのように関わっていますか？<\\/p>\n  <blockquote>「最初は『よそ者が何を始めるんだ』という空気もありました。でも、銭湯や飲食店の方々と何度も顔を合わせて話すうちに、宿泊者が増えることが商店街にとってもプラスになると分かってもらえるようになって。今では『今日は何人くらい来る?』と気にかけてくださる店主さんもいます。」<\\/blockquote>\n<\\/div>\n<div class=\"sk-interview\">\n  <p class=\"sk-q\">これからどんな未来を目指していますか？<\\/p>\n  <blockquote>「『観光地』ではなく『暮らしのまち』として選ばれる場所が、もっと増えていけばいいなと思っています。泊まった人がまた来てくれたり、商店街で買い物をしてくれたり。一回きりの観光ではなく、その人にとっての“もう一つの居場所”になれたら、それが一番の成功だと思います。」<\\/blockquote>\n  <div class=\"sk-interviewee\">🎙️ SEKAI HOTEL Fuse スタッフ（運営チーム）<\\/div>\n<\\/div>\n\n<h2 class=\"sk-title\">アンカツ視点 ― 淡路島でも活かせるヒント<\\/h2>\n<p class=\"sk-lead\">城下町洲本にも、商店街・空き家・銭湯（あるいは温泉）といった資源は少なくありません。SEKAI HOTELの視点から、洲本でできることを考えてみます。<\\/p>\n\n<div class=\"sk-hint-list\">\n  <div class=\"sk-hint\"><div class=\"sk-hint-mark\">A<\\/div><div><h3>空き家を「客室」として再定義する<\\/h3><p>洲本城下町にも、活用されていない古民家や空き店舗があります。それを「観光施設」ではなく「誰かの部屋」として開放することで、まちなみそのものが旅の資源になります。本サイトの「空き家活用」カテゴリで紹介してきた事例とも、相性の良い発想です。<\\/p><\\/div><\\/div>\n  <div class=\"sk-hint\"><div class=\"sk-hint-mark\">B<\\/div><div><h3>商店街の「いつもの」を旅の体験に<\\/h3><p>本町商店街の「よりみち食堂」のような、地元の人が通うお店こそが旅行者にとっての特別な体験になり得ます。特別な観光メニューを用意するのではなく、いつもの一品を分けてもらう関係づくりが、商店街の活性化にもつながります。<\\/p><\\/div><\\/div>\n  <div class=\"sk-hint\"><div class=\"sk-hint-mark\">C<\\/div><div><h3>「住むように泊まる」が関係人口を生む<\\/h3><p>銭湯や商店街で地元の人と接する時間が長いほど、その土地への愛着は深くなります。一度きりの観光ではなく「また来たい」「ここに関わりたい」という関係人口づくりは、洲本市が目指す「生涯活躍のまち」特区の方向性とも重なります。<\\/p><\\/div><\\/div>\n  <div class=\"sk-hint\"><div class=\"sk-hint-mark\">D<\\/div><div><h3>宿泊料の一部を地域に還す仕組み<\\/h3><p>SEKAI HOTELの「一泊200円の地域還元」のように、宿泊そのものがまちへの小さな貢献になる仕組みは、移住・定住の入り口にもなり得ます。観光客と住民が、お金の流れの面でもつながる構造をつくれるかもしれません。<\\/p><\\/div><\\/div>\n<\\/div>\n\n<div class=\"sk-pullquote\"><p>“暮らすように旅する”ことは、その土地の日常に、少しだけ自分の時間を重ねること。<\\/p><\\/div>\n\n<h2 class=\"sk-title\">フォトギャラリー<\\/h2>\n<p class=\"sk-lead\">視察時に撮影した写真です。タップすると拡大表示できます。<\\/p>\n\n<div class=\"sk-gallery\" id=\"sk-gallery\">\n  <button class=\"sk-gallery-item\" data-cap=\"布施駅から続くアーケード商店街。改札を出た瞬間からまちの一部に。\"><div class=\"sk-ph\">🏘️<\\/div><p class=\"sk-cap\">布施駅から続くアーケード商店街<\\/p><\\/button>\n  <button class=\"sk-gallery-item\" data-cap=\"商店街の中にあるSEKAI HOTELのフロント。地図を片手にまちの案内を受ける。\"><div class=\"sk-ph\">🔑<\\/div><p class=\"sk-cap\">商店街内のフロントスペース<\\/p><\\/button>\n  <button class=\"sk-gallery-item\" data-cap=\"商店街デラックスビューの客室。窓からアーケードの屋根が見える。\"><div class=\"sk-ph\">🛏️<\\/div><p class=\"sk-cap\">商店街デラックスビューの客室<\\/p><\\/button>\n  <button class=\"sk-gallery-item\" data-cap=\"提携の居酒屋にて。常連客と同じ「いつもの」一皿。\"><div class=\"sk-ph\">🍶<\\/div><p class=\"sk-cap\">居酒屋での「いつもの」一杯<\\/p><\\/button>\n  <button class=\"sk-gallery-item\" data-cap=\"近所の銭湯。地元の人と並んで湯につかる夜。\"><div class=\"sk-ph\">♨️<\\/div><p class=\"sk-cap\">提携銭湯の暖簾<\\/p><\\/button>\n  <button class=\"sk-gallery-item\" data-cap=\"シャッターが開き始める早朝の商店街。観光地とは違う「普通の朝」。\"><div class=\"sk-ph\">🌅<\\/div><p class=\"sk-cap\">朝の商店街の風景<\\/p><\\/button>\n  <button class=\"sk-gallery-item\" data-cap=\"喫茶店のモーニングセット。常連客と同じテーブルで過ごす朝食の時間。\"><div class=\"sk-ph\">☕<\\/div><p class=\"sk-cap\">喫茶店のモーニングセット<\\/p><\\/button>\n<\\/div>\n\n<div class=\"sk-closing\">\n  <h2>泊まることが、まちを知ることになる。<\\/h2>\n  <p>SEKAI HOTELが見せてくれたのは、特別な施設や演出ではなく、すでにそこにある暮らしそのものを旅の価値に変えるという発想でした。城下町洲本にも、同じように「日常」という資源があります。それをどう翻訳し、誰に届けるか――アンカツ＋はこれからも、まちと旅のあり方を考え続けます。<\\/p>\n<\\/div>\n\n<\\/div>\n\n<div id=\"sk-lightbox\">\n  <button id=\"sk-lb-close\" aria-label=\"閉じる\">×<\\/button>\n  <figure style=\"margin:0;\">\n    <div class=\"sk-lb-ph\" id=\"sk-lb-ph\">🏘️<\\/div>\n    <figcaption id=\"sk-lb-cap\"><\\/figcaption>\n  <\\/figure>\n<\\/div>\n\n<script>\n(function(){\n  var lightbox = document.getElementById('sk-lightbox');\n  if(!lightbox) return;\n  var lbPh  = document.getElementById('sk-lb-ph');\n  var lbCap = document.getElementById('sk-lb-cap');\n  document.querySelectorAll('.sk-gallery-item').forEach(function(item){\n    item.addEventListener('click', function(){\n      lbPh.textContent = item.querySelector('.sk-ph').textContent.trim();\n      lbCap.textContent = item.dataset.cap || '';\n      lightbox.classList.add('open');\n    });\n  });\n  document.getElementById('sk-lb-close').addEventListener('click', function(){ lightbox.classList.remove('open'); });\n  lightbox.addEventListener('click', function(e){ if(e.target === lightbox) lightbox.classList.remove('open'); });\n})();\n<\\/script>\n";
+
+// ============================================================
+// Auth init
+// ============================================================
+var _authInited = false;
+document.addEventListener('firebase-ready', initAuth);
+if (window._auth) initAuth();
+
+function initAuth(){
+  if (_authInited) return;
+  _authInited = true;
+  var auth = window._auth, fbAuth = window._fbAuth;
+
+  fbAuth.onAuthStateChanged(auth, function(user){
+    if (user){
+      document.getElementById('login-wrap').classList.add('hide');
+      document.getElementById('app-wrap').classList.add('show');
+      document.getElementById('hdr-email').textContent = user.email;
+      if (!allArticles.length) loadArticles();
+    } else {
+      document.getElementById('login-wrap').classList.remove('hide');
+      document.getElementById('app-wrap').classList.remove('show');
+    }
+  });
+
+  document.getElementById('login-btn').addEventListener('click', doLogin);
+  document.getElementById('l-pass').addEventListener('keydown', function(e){
+    if (e.key === 'Enter') doLogin();
+  });
+  document.getElementById('logout-btn').addEventListener('click', function(){
+    fbAuth.signOut(auth);
+  });
+}
+
+function doLogin(){
+  var email = document.getElementById('l-email').value.trim();
+  var pass  = document.getElementById('l-pass').value;
+  if (!email || !pass){ showStatus('login-status','メールとパスワードを入力してください','err'); return; }
+  var btn = document.getElementById('login-btn');
+  btn.disabled = true; btn.textContent = 'ログイン中…';
+  window._fbAuth.signInWithEmailAndPassword(window._auth, email, pass)
+    .catch(function(e){ showStatus('login-status','ログイン失敗: '+e.message,'err'); })
+    .finally(function(){ btn.disabled = false; btn.textContent = 'ログイン'; });
+}
+
+// ============================================================
+// Tabs
+// ============================================================
+document.querySelectorAll('.tab-btn').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    var t = btn.dataset.tab;
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+    document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
+    btn.classList.add('active');
+    document.getElementById('tab-'+t).classList.add('active');
+  });
+});
+
+// ============================================================
+// Tag input
+// ============================================================
+document.getElementById('f-tag-input').addEventListener('keydown', function(e){
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  var v = e.target.value.trim().replace(/^#/,'');
+  if (v && tags.indexOf(v) < 0){ tags.push(v); renderTags(); }
+  e.target.value = '';
+});
+function renderTags(){
+  var box = document.getElementById('tag-list');
+  box.innerHTML = tags.map(function(t,i){
+    return '<span class="tag-chip">#'+esc(t)
+      +' <button type="button" data-i="'+i+'" aria-label="削除">×</button></span>';
+  }).join('');
+  box.querySelectorAll('button').forEach(function(b){
+    b.addEventListener('click', function(){
+      tags.splice(+b.dataset.i, 1); renderTags();
+    });
+  });
+}
+
+// ============================================================
+// Firestore CRUD
+// ============================================================
+async function loadArticles(){
+  var db = window._db, fb = window._fb;
+  var el = document.getElementById('art-list');
+  el.innerHTML = '<div class="loading-txt">読み込み中…</div>';
+  try {
+    var snap = await fb.getDocs(fb.collection(db,'articles'));
+    allArticles = snap.docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
+    allArticles.sort(function(a,b){
+      var ta = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
+      var tb = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+      return tb - ta;
+    });
+    renderList();
+  } catch(e){
+    el.innerHTML = '<div class="empty">読み込みエラー: '+esc(e.message)+'</div>';
+  }
+}
+
+function renderList(){
+  var el = document.getElementById('art-list');
+  if (!allArticles.length){ el.innerHTML='<div class="empty">記事がありません</div>'; return; }
+  el.innerHTML = allArticles.map(function(a){
+    var thumb = a.thumbnail
+      ? '<img class="art-thumb" src="'+esc(a.thumbnail)+'" alt="" />'
+      : '<div class="art-thumb">'+(CAT_EMOJI[a.category]||'📰')+'</div>';
+    var ds = '';
+    try{ if(a.createdAt&&a.createdAt.toDate) ds=a.createdAt.toDate().toLocaleDateString('ja-JP'); }catch(e){}
+    return '<div class="art-row">'
+      +thumb
+      +'<div class="art-info">'
+        +'<div class="art-title">'+esc(a.title||'(無題)')+'</div>'
+        +'<div class="art-meta">'
+          +'<span class="cat-badge">'+esc(a.category||'')+'</span>'
+          +(a.featured?'<span class="feat-badge">★ 注目</span>':'')
+          +(ds?'<span>'+ds+'</span>':'')
+          +(a.author?'<span>✍️ '+esc(a.author)+'</span>':'')
+        +'</div>'
+      +'</div>'
+      +'<div class="art-btns">'
+        +'<button class="btn btn-ghost btn-sm" data-edit="'+a.id+'">編集</button>'
+        +'<button class="btn btn-danger btn-sm" data-del="'+a.id+'">削除</button>'
+      +'</div>'
+    +'</div>';
+  }).join('');
+  el.querySelectorAll('[data-edit]').forEach(function(b){
+    b.addEventListener('click', function(){ editArticle(b.dataset.edit); });
+  });
+  el.querySelectorAll('[data-del]').forEach(function(b){
+    b.addEventListener('click', function(){ deleteArticle(b.dataset.del); });
+  });
+}
+
+document.getElementById('save-btn').addEventListener('click', saveArticle);
+document.getElementById('cancel-btn').addEventListener('click', resetForm);
+
+async function saveArticle(){
+  var title = document.getElementById('f-title').value.trim();
+  var body  = document.getElementById('f-body').value.trim();
+  var cat   = document.getElementById('f-cat').value;
+  if (!title){ showStatus('form-status','タイトルを入力してください','err'); return; }
+  if (!body) { showStatus('form-status','本文を入力してください','err'); return; }
+  var btn = document.getElementById('save-btn');
+  btn.disabled = true; btn.textContent = '保存中…';
+  var db = window._db, fb = window._fb;
+  var editId = document.getElementById('edit-id').value;
+  var data = {
+    title: title,
+    slug:  document.getElementById('f-slug').value.trim() || null,
+    category: cat,
+    author: document.getElementById('f-author').value.trim() || '編集部',
+    thumbnail: document.getElementById('f-thumb').value.trim(),
+    tags: tags.slice(),
+    body: body,
+    featured: document.getElementById('f-featured').checked
+  };
+  try {
+    if (editId){
+      await fb.updateDoc(fb.doc(db,'articles',editId), data);
+      showStatus('form-status','✅ 記事を更新しました','ok');
+    } else {
+      data.createdAt = fb.serverTimestamp();
+      await fb.addDoc(fb.collection(db,'articles'), data);
+      showStatus('form-status','✅ 記事を投稿しました','ok');
+    }
+    resetForm();
+    loadArticles();
+  } catch(e){
+    showStatus('form-status','保存失敗: '+e.message,'err');
+  } finally {
+    btn.disabled = false; btn.textContent = '保存する';
+  }
+}
+
+function editArticle(id){
+  var a = allArticles.find(function(x){ return x.id===id; });
+  if (!a) return;
+  document.getElementById('edit-id').value = a.id;
+  document.getElementById('f-title').value = a.title||'';
+  document.getElementById('f-cat').value   = a.category||'まちの話題';
+  document.getElementById('f-author').value= a.author||'編集部';
+  document.getElementById('f-slug').value  = a.slug||'';
+  document.getElementById('f-thumb').value = a.thumbnail||'';
+  document.getElementById('f-body').value  = a.body||'';
+  document.getElementById('f-featured').checked = !!a.featured;
+  tags = Array.isArray(a.tags) ? a.tags.slice() : [];
+  renderTags();
+  document.getElementById('form-heading').textContent = '記事を編集';
+  document.getElementById('save-btn').textContent = '更新する';
+  document.getElementById('cancel-btn').style.display = '';
+  // 記事タブへ切り替え
+  document.querySelector('[data-tab="articles"]').click();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function resetForm(){
+  document.getElementById('edit-id').value = '';
+  ['f-title','f-slug','f-thumb','f-body'].forEach(function(id){
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('f-cat').value    = 'インタビュー';
+  document.getElementById('f-author').value = '編集部';
+  document.getElementById('f-featured').checked = false;
+  tags = []; renderTags();
+  document.getElementById('form-heading').textContent = '新規記事を投稿';
+  document.getElementById('save-btn').textContent = '保存する';
+  document.getElementById('cancel-btn').style.display = 'none';
+}
+
+async function deleteArticle(id){
+  if (!confirm('この記事を削除しますか？')) return;
+  try {
+    await window._fb.deleteDoc(window._fb.doc(window._db,'articles',id));
+    loadArticles();
+  } catch(e){ alert('削除失敗: '+e.message); }
+}
+
+// SEKAI HOTEL 読み込み
+document.getElementById('load-sekai-btn').addEventListener('click', function(){
+  document.getElementById('f-title').value  = 'まちに泊まる、新しい旅のかたち。SEKAI HOTEL Deep Osaka Experience 視察レポート';
+  document.getElementById('f-cat').value    = '視察レポート';
+  document.getElementById('f-author').value = '編集部';
+  document.getElementById('f-slug').value   = 'sekai-hotel-fuse-report';
+  document.getElementById('f-thumb').value  = '';
+  document.getElementById('f-body').value   = SEKAI_BODY;
+  document.getElementById('f-featured').checked = true;
+  tags = ['空き家活用','商店街','移住・定住','まちづくり','関係人口'];
+  renderTags();
+  showStatus('form-status','SEKAI HOTEL記事を読み込みました。確認後「保存する」を押してください','ok');
+  window.scrollTo({top:0,behavior:'smooth'});
+});
+
+// ============================================================
+// 特設サイトビルダー
+// ============================================================
+var sections = [];
+
+function addSection(type){
+  sectionCount++;
+  var id = 'sc-'+sectionCount;
+  sections.push({id:id, type:type});
+  var wrap = document.getElementById('sections-wrap');
+  var div = document.createElement('div');
+  div.className = 'section-card';
+  div.id = id;
+  var labels = {text:'テキストセクション', tl:'タイムライン', quote:'引用・インタビュー', closing:'まとめ（クロージング）'};
+  var inner = '<div class="sc-head">'
+    +'<span class="sc-num">Section '+sectionCount+'</span>'
+    +'<span style="font-size:.8rem;color:var(--muted);">'+labels[type]+'</span>'
+    +'<button class="btn btn-danger btn-sm sc-del" data-id="'+id+'">削除</button>'
+    +'</div>';
+
+  if (type === 'text'){
+    inner += '<div class="field"><label>見出し</label>'
+      +'<input type="text" class="sc-heading" placeholder="例：洲本でも活かせる視点" /></div>'
+      +'<div class="field"><label>本文（Enterで段落区切り）</label>'
+      +'<textarea class="sc-body" style="min-height:120px;" placeholder="本文を入力…"></textarea></div>';
+  } else if (type === 'tl'){
+    inner += '<div class="field"><label>タイムライン見出し</label>'
+      +'<input type="text" class="sc-heading" placeholder="例：実際に泊まってみた" /></div>'
+      +'<div class="sc-tl-items"></div>'
+      +'<button class="btn btn-ghost btn-sm add-tl-item" style="margin-top:.4rem;">＋ 項目を追加</button>';
+  } else if (type === 'quote'){
+    inner += '<div class="field"><label>インタビュー見出し</label>'
+      +'<input type="text" class="sc-heading" placeholder="例：スタッフに聞く" /></div>'
+      +'<div class="sc-q-items"></div>'
+      +'<button class="btn btn-ghost btn-sm add-q-item" style="margin-top:.4rem;">＋ Q&Aを追加</button>';
+  } else if (type === 'closing'){
+    inner += '<div class="field"><label>締めの一言（大きく表示）</label>'
+      +'<input type="text" class="sc-heading" placeholder="例：泊まることが、まちを知ることになる。" /></div>'
+      +'<div class="field"><label>締めの本文</label>'
+      +'<textarea class="sc-body" style="min-height:80px;" placeholder="まとめの文章…"></textarea></div>';
+  }
+
+  div.innerHTML = inner;
+  wrap.appendChild(div);
+
+  // 削除ボタン
+  div.querySelector('.sc-del').addEventListener('click', function(){
+    sections = sections.filter(function(s){ return s.id !== id; });
+    div.remove();
+  });
+
+  // タイムライン項目追加
+  if (type === 'tl'){
+    div.querySelector('.add-tl-item').addEventListener('click', function(){
+      addTlItem(div.querySelector('.sc-tl-items'));
+    });
+    addTlItem(div.querySelector('.sc-tl-items'));
+  }
+
+  // Q&A項目追加
+  if (type === 'quote'){
+    div.querySelector('.add-q-item').addEventListener('click', function(){
+      addQItem(div.querySelector('.sc-q-items'));
+    });
+    addQItem(div.querySelector('.sc-q-items'));
+  }
+}
+
+function addTlItem(container){
+  var d = document.createElement('div');
+  d.style.cssText = 'border-left:3px solid var(--acc-p);padding:.7rem .9rem;margin-bottom:.6rem;background:#fff;border-radius:4px;';
+  d.innerHTML = '<div class="row2" style="margin-bottom:.4rem;">'
+    +'<input type="text" class="tl-time" placeholder="時刻・ポイント（例: 15:30 布施駅到着）" />'
+    +'<input type="text" class="tl-emoji" placeholder="絵文字（例: 🚉）" style="max-width:80px;" /></div>'
+    +'<input type="text" class="tl-title" placeholder="小見出し（例: 改札を出た瞬間から商店街がはじまる）" style="margin-bottom:.4rem;" />'
+    +'<textarea class="tl-body" style="min-height:70px;" placeholder="説明文…"></textarea>'
+    +'<button class="btn btn-danger btn-sm" style="margin-top:.4rem;">削除</button>';
+  d.querySelector('button').addEventListener('click', function(){ d.remove(); });
+  container.appendChild(d);
+}
+
+function addQItem(container){
+  var d = document.createElement('div');
+  d.style.cssText = 'border-left:3px solid var(--acc-p);padding:.7rem .9rem;margin-bottom:.6rem;background:#fff;border-radius:4px;';
+  d.innerHTML = '<input type="text" class="q-question" placeholder="質問（例: なぜこの取り組みを始めたのですか？）" style="margin-bottom:.4rem;" />'
+    +'<textarea class="q-answer" style="min-height:80px;" placeholder="回答…"></textarea>'
+    +'<button class="btn btn-danger btn-sm" style="margin-top:.4rem;">削除</button>';
+  d.querySelector('button').addEventListener('click', function(){ d.remove(); });
+  container.appendChild(d);
+}
+
+document.getElementById('add-sec-text').addEventListener('click',    function(){ addSection('text'); });
+document.getElementById('add-sec-tl').addEventListener('click',      function(){ addSection('tl'); });
+document.getElementById('add-sec-quote').addEventListener('click',   function(){ addSection('quote'); });
+document.getElementById('add-sec-closing').addEventListener('click', function(){ addSection('closing'); });
+
+// ============================================================
+// HTML 生成
+// ============================================================
+var generatedHTML = '';
+
+document.getElementById('generate-btn').addEventListener('click', function(){
+  generatedHTML = buildHTML();
+  document.getElementById('builder-preview').textContent = generatedHTML;
+  showStatus('builder-status','HTMLを生成しました。コピーするか「本文欄に転記」してください','ok');
+});
+
+document.getElementById('copy-btn').addEventListener('click', function(){
+  if (!generatedHTML){ showStatus('builder-status','先に「HTMLを生成する」を押してください','err'); return; }
+  navigator.clipboard.writeText(generatedHTML).then(function(){
+    showStatus('builder-status','✅ クリップボードにコピーしました','ok');
+  });
+});
+
+document.getElementById('to-form-btn').addEventListener('click', function(){
+  if (!generatedHTML){ showStatus('builder-status','先に「HTMLを生成する」を押してください','err'); return; }
+  document.getElementById('f-body').value = generatedHTML;
+  // タイトルも転記
+  var t = document.getElementById('b-title').value.trim();
+  if (t) document.getElementById('f-title').value = t;
+  document.querySelector('[data-tab="articles"]').click();
+  window.scrollTo({top:0,behavior:'smooth'});
+});
+
+function buildHTML(){
+  var title     = document.getElementById('b-title').value.trim();
+  var lead      = document.getElementById('b-lead').value.trim();
+  var heroImg   = document.getElementById('b-hero-img').value.trim();
+  var heroColor = document.getElementById('b-hero-color').value.trim() || '#2c4d39';
+
+  var css = '<style>'
+    +'.sp{--g:#3f6a4f;--gd:#2c4d39;--gp:#e3ecdf;--bd:#bfa978;--br:#e4ddca;--bs:#f3efe4;--r:10px;}'
+    +'.sp .sp-hero{background:'+heroColor+';padding:3rem 1.2rem 2.2rem;color:#fff;'
+      +(heroImg?'background-image:linear-gradient(rgba(0,0,0,.45),rgba(0,0,0,.55)),url('+heroImg+');background-size:cover;background-position:center;':'')+'}'
+    +'.sp .sp-eyebrow{font-size:.72rem;letter-spacing:.2em;color:rgba(255,255,255,.7);margin-bottom:.8rem;}'
+    +'.sp .sp-h1{font-family:var(--serif,serif);font-weight:800;font-size:clamp(1.6rem,6vw,2.6rem);line-height:1.5;margin-bottom:.8rem;}'
+    +'.sp .sp-lead{font-size:.92rem;color:rgba(255,255,255,.88);max-width:32em;}'
+    +'.sp .sp-sec{padding:2.8rem 0;}'
+    +'.sp .sp-sec.alt{background:var(--bs);margin:0 -1.2rem;padding:2.8rem 1.2rem;}'
+    +'.sp .sp-label{font-size:.75rem;letter-spacing:.18em;color:var(--bd);font-weight:700;margin-bottom:.5rem;}'
+    +'.sp .sp-h2{font-family:var(--serif,serif);font-weight:800;font-size:clamp(1.2rem,4vw,1.7rem);color:var(--gd);line-height:1.55;margin-bottom:.9rem;}'
+    +'.sp .sp-p{font-size:.93rem;color:#444;margin-bottom:1em;}'
+    +'.sp .sp-tl{position:relative;margin-top:1.5rem;}'
+    +'.sp .sp-tl::before{content:"";position:absolute;left:18px;top:4px;bottom:4px;width:2px;background:linear-gradient(var(--bd),var(--gp));}'
+    +'.sp .sp-tl-item{position:relative;padding-left:3rem;margin-bottom:2rem;}'
+    +'.sp .sp-tl-dot{position:absolute;left:6px;top:.3rem;width:24px;height:24px;border-radius:50%;background:#fff;border:2px solid var(--g);display:flex;align-items:center;justify-content:center;font-size:.76rem;}'
+    +'.sp .sp-tl-time{font-size:.7rem;letter-spacing:.1em;color:var(--bd);font-weight:700;margin-bottom:.25rem;}'
+    +'.sp .sp-tl-title{font-family:var(--serif,serif);font-weight:700;font-size:.97rem;margin-bottom:.35rem;}'
+    +'.sp .sp-tl-body{font-size:.86rem;color:#555;}'
+    +'.sp .sp-qitem{background:#fff;border:1px solid var(--br);border-radius:var(--r);padding:1.2rem;margin-bottom:.9rem;}'
+    +'.sp .sp-q{font-family:var(--serif,serif);font-weight:700;color:var(--gd);font-size:.92rem;margin-bottom:.55rem;display:flex;gap:.55rem;}'
+    +'.sp .sp-q::before{content:"Q";flex-shrink:0;width:1.5em;height:1.5em;border-radius:50%;background:var(--gp);color:var(--gd);display:flex;align-items:center;justify-content:center;font-size:.78rem;}'
+    +'.sp blockquote{border-left:3px solid var(--bd);padding-left:1rem;margin:.3rem 0 0;font-size:.88rem;color:#666;font-style:italic;}'
+    +'.sp .sp-closing{background:var(--gd);color:#fff;border-radius:var(--r);padding:2rem 1.4rem;margin-top:2rem;text-align:center;}'
+    +'.sp .sp-closing h2{font-family:var(--serif,serif);font-size:clamp(1.2rem,4vw,1.7rem);font-weight:800;line-height:1.6;margin-bottom:.9rem;}'
+    +'.sp .sp-closing p{font-size:.88rem;color:rgba(255,255,255,.85);max-width:30em;margin:0 auto;}'
+    +'</style>';
+
+  var hero = '<div class="sp-hero">'
+    +'<p class="sp-eyebrow">アンカツ＋ 特集レポート</p>'
+    +(title?'<h1 class="sp-h1">'+hesc(title)+'</h1>':'')
+    +(lead?'<p class="sp-lead">'+hesc(lead)+'</p>':'')
+    +'</div>';
+
+  var body = '';
+  var scEl = document.querySelectorAll('#sections-wrap .section-card');
+  var secIdx = 0;
+  scEl.forEach(function(el, i){
+    var type = sections.find(function(s){ return s.id === el.id; });
+    if (!type) return;
+    secIdx++;
+    var isAlt = (secIdx % 2 === 0);
+    var altClass = isAlt ? ' alt' : '';
+
+    if (type.type === 'text'){
+      var h = el.querySelector('.sc-heading').value.trim();
+      var b = el.querySelector('.sc-body').value.trim();
+      var paras = b.split(/\n+/).filter(Boolean).map(function(p){ return '<p class="sp-p">'+hesc(p)+'</p>'; }).join('');
+      body += '<div class="sp-sec'+altClass+'">'
+        +(h?'<p class="sp-label">0'+secIdx+' /</p><h2 class="sp-h2">'+hesc(h)+'</h2>':'')
+        +paras
+        +'</div>';
+
+    } else if (type.type === 'tl'){
+      var h = el.querySelector('.sc-heading').value.trim();
+      var items = el.querySelectorAll('.sc-tl-items > div');
+      var tlHtml = '';
+      items.forEach(function(item){
+        var time  = item.querySelector('.tl-time').value.trim();
+        var emoji = item.querySelector('.tl-emoji').value.trim() || '●';
+        var ttl   = item.querySelector('.tl-title').value.trim();
+        var tb    = item.querySelector('.tl-body').value.trim();
+        tlHtml += '<div class="sp-tl-item">'
+          +'<div class="sp-tl-dot">'+emoji+'</div>'
+          +(time?'<p class="sp-tl-time">'+hesc(time)+'</p>':'')
+          +(ttl?'<h3 class="sp-tl-title">'+hesc(ttl)+'</h3>':'')
+          +(tb?'<p class="sp-tl-body">'+hesc(tb)+'</p>':'')
+          +'</div>';
+      });
+      body += '<div class="sp-sec'+altClass+'">'
+        +(h?'<p class="sp-label">0'+secIdx+' /</p><h2 class="sp-h2">'+hesc(h)+'</h2>':'')
+        +'<div class="sp-tl">'+tlHtml+'</div>'
+        +'</div>';
+
+    } else if (type.type === 'quote'){
+      var h = el.querySelector('.sc-heading').value.trim();
+      var items = el.querySelectorAll('.sc-q-items > div');
+      var qHtml = '';
+      items.forEach(function(item){
+        var q = item.querySelector('.q-question').value.trim();
+        var a = item.querySelector('.q-answer').value.trim();
+        qHtml += '<div class="sp-qitem">'
+          +(q?'<p class="sp-q">'+hesc(q)+'</p>':'')
+          +(a?'<blockquote>「'+hesc(a)+'」</blockquote>':'')
+          +'</div>';
+      });
+      body += '<div class="sp-sec'+altClass+'">'
+        +(h?'<p class="sp-label">0'+secIdx+' /</p><h2 class="sp-h2">'+hesc(h)+'</h2>':'')
+        +qHtml
+        +'</div>';
+
+    } else if (type.type === 'closing'){
+      var h = el.querySelector('.sc-heading').value.trim();
+      var b = el.querySelector('.sc-body').value.trim();
+      body += '<div class="sp-sec">'
+        +'<div class="sp-closing">'
+        +(h?'<h2>'+hesc(h)+'</h2>':'')
+        +(b?'<p>'+hesc(b)+'</p>':'')
+        +'</div></div>';
+    }
+  });
+
+  return css+'\n<div class="sp">'+hero+body+'</div>';
+}
+
+// ============================================================
+// Utils
+// ============================================================
+function esc(s){
+  return String(s).replace(/[&<>"']/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+function hesc(s){ return esc(s).replace(/\n/g,'<br>'); }
+
+function showStatus(id, msg, type){
+  var el = document.getElementById(id);
+  el.textContent = msg;
+  el.className = 'status show '+type;
+  clearTimeout(el._t);
+  el._t = setTimeout(function(){ el.classList.remove('show'); }, 5000);
+}
+
+})();
+</script>
+
+</body>
+</html>
