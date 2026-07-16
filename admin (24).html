@@ -1,0 +1,1611 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>アンカツ＋ 管理画面</title>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import {
+      getFirestore, collection, getDocs, addDoc, updateDoc,
+      deleteDoc, doc, serverTimestamp, setDoc, getDoc
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey:            "AIzaSyC4HUWd4c5_fdgA-k34i1uthozfqYcRn9A",
+      authDomain:        "ankatsu-d4816.firebaseapp.com",
+      projectId:         "ankatsu-d4816",
+      storageBucket:     "ankatsu-d4816.firebasestorage.app",
+      messagingSenderId: "1005813876395",
+      appId:             "1:1005813876395:web:29153748d2a99c6584d9ee",
+      measurementId:     "G-TJWJXQZSBL"
+    };
+
+    const app  = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db   = getFirestore(app);
+
+    window._auth = auth;
+    window._db   = db;
+
+    window._signIn  = (email, pw) => signInWithEmailAndPassword(auth, email, pw);
+    window._signOut = () => signOut(auth);
+    window._onAuth  = (cb) => onAuthStateChanged(auth, cb);
+
+    window._getAll  = (col) => getDocs(collection(db, col));
+    window._addDoc  = (col, data) => addDoc(collection(db, col), data);
+    window._updateDoc = (col, id, data) => updateDoc(doc(db, col, id), data);
+    window._deleteDoc = (col, id) => deleteDoc(doc(db, col, id));
+    window._setDoc  = (col, id, data) => setDoc(doc(db, col, id), data);
+    window._getDoc  = (col, id) => getDoc(doc(db, col, id));
+    window._ts      = () => serverTimestamp();
+
+    window._fbReady = true;
+    document.dispatchEvent(new Event('fb-ready'));
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg:#f4f5f7; --card:#fff;
+      --text:#1a1a18; --muted:#6b6b5e; --light:#9a9a8c;
+      --green:#2d6a4f; --green2:#52b788; --gpale:#d8f3dc;
+      --red:#e63946; --rpale:#fde8ea;
+      --warn:#f4a261;
+      --border:#e0ddd4; --shadow:rgba(0,0,0,.08);
+      --sw:240px;
+      --serif:'Noto Serif JP',serif; --sans:'Noto Sans JP',sans-serif;
+      --r:8px; --t:.2s ease;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html{font-size:15px}
+    body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh}
+    button{cursor:pointer;font-family:inherit;border:none;background:none}
+    input,textarea,select{font-family:inherit}
+    img{max-width:100%;display:block}
+
+    /* ===== ログイン ===== */
+    #pg-login{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#1a3d2b,#2d6a4f,#52b788)}
+    .lcard{background:#fff;border-radius:16px;padding:2.5rem;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+    .lcard h1{font-family:var(--serif);font-size:1.8rem;font-weight:700;color:var(--green);text-align:center;margin-bottom:.2rem}
+    .lcard p{text-align:center;font-size:.78rem;color:var(--muted);letter-spacing:.1em;margin-bottom:2rem}
+    .lfield{display:flex;flex-direction:column;gap:.35rem;margin-bottom:1rem}
+    .lfield label{font-size:.8rem;font-weight:500;color:var(--muted)}
+    .lfield input{padding:.7rem .9rem;border:1.5px solid var(--border);border-radius:var(--r);font-size:.95rem;outline:none;transition:border-color var(--t),box-shadow var(--t)}
+    .lfield input:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--gpale)}
+    #l-error{background:var(--rpale);color:var(--red);border:1px solid #f8b4ba;border-radius:6px;padding:.6rem .9rem;font-size:.83rem;display:none;margin-bottom:.75rem}
+    #l-error.show{display:block}
+    #l-btn{width:100%;padding:.8rem;background:var(--green);color:#fff;border-radius:var(--r);font-size:1rem;font-weight:700;transition:background var(--t);margin-top:.25rem}
+    #l-btn:hover{background:var(--green2)}
+    #l-btn:disabled{opacity:.6;cursor:not-allowed}
+
+    /* ===== 管理画面 ===== */
+    #pg-admin{display:none;min-height:100vh}
+    #pg-admin.on{display:flex}
+
+    /* オーバーレイ */
+    #overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:49}
+    #overlay.on{display:block}
+
+    /* サイドバー */
+    #sidebar{width:var(--sw);background:#1a3d2b;color:#fff;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:50;overflow-y:auto;transition:transform .3s}
+    .sb-head{padding:1.25rem;border-bottom:1px solid rgba(255,255,255,.1)}
+    .sb-head h2{font-family:var(--serif);font-size:1.35rem;font-weight:700}
+    .sb-head p{font-size:.68rem;color:rgba(255,255,255,.5);letter-spacing:.1em}
+    .sb-nav{padding:1rem 0;flex:1}
+    .sb-sec{font-size:.65rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.35);padding:.5rem 1.25rem .25rem}
+    .sb-btn{display:flex;align-items:center;gap:.75rem;padding:.65rem 1.25rem;font-size:.88rem;color:rgba(255,255,255,.75);cursor:pointer;transition:background var(--t),color var(--t);user-select:none;width:100%;text-align:left}
+    .sb-btn:hover{background:rgba(255,255,255,.08);color:#fff}
+    .sb-btn.on{background:var(--green);color:#fff}
+    a.sb-btn{text-decoration:none}
+    .sb-foot{padding:1rem 1.25rem;border-top:1px solid rgba(255,255,255,.1)}
+    .sb-user{font-size:.75rem;color:rgba(255,255,255,.6);margin-bottom:.75rem;word-break:break-all}
+    #logout-btn{width:100%;padding:.6rem;background:rgba(255,255,255,.1);color:rgba(255,255,255,.8);border-radius:var(--r);font-size:.82rem;font-weight:500;transition:background var(--t)}
+    #logout-btn:hover{background:var(--red);color:#fff}
+    .nbadge{display:inline-block;background:var(--red);color:#fff;font-size:.62rem;font-weight:700;border-radius:8px;padding:.05rem .35rem;margin-left:.35rem;vertical-align:middle}
+    .wbadge{display:inline-block;background:var(--warn);color:#fff;font-size:.62rem;font-weight:700;border-radius:8px;padding:.05rem .35rem;margin-left:.35rem;vertical-align:middle}
+
+    /* メイン */
+    #main{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;min-width:0}
+    #topbar{height:56px;background:var(--card);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:1rem;padding:0 1.5rem;position:sticky;top:0;z-index:40;box-shadow:0 2px 8px var(--shadow)}
+    #sb-toggle{display:none;flex-direction:column;gap:5px;padding:4px;flex-shrink:0}
+    .bline{width:22px;height:2px;background:var(--text);border-radius:2px;transition:transform .3s,opacity .3s}
+    #sb-toggle.open .bline:nth-child(1){transform:translateY(7px) rotate(45deg)}
+    #sb-toggle.open .bline:nth-child(2){opacity:0}
+    #sb-toggle.open .bline:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+    #page-title{font-size:1.05rem;font-weight:700;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    #body{padding:1.5rem;flex:1}
+
+    /* ボタン */
+    .btn{display:inline-flex;align-items:center;gap:.35rem;padding:.5rem 1rem;border-radius:var(--r);font-size:.83rem;font-weight:600;transition:all var(--t)}
+    .btn-g{background:var(--green);color:#fff}
+    .btn-g:hover{background:var(--green2)}
+    .btn-o{background:var(--bg);border:1.5px solid var(--border);color:var(--text)}
+    .btn-o:hover{border-color:var(--green);color:var(--green)}
+    .btn-r{background:var(--rpale);color:var(--red);border:1px solid #f8b4ba}
+    .btn-r:hover{background:var(--red);color:#fff}
+    .btn-w{background:#fff3cd;color:#856404;border:1px solid #ffc107}
+    .btn-w:hover{background:var(--warn);color:#fff}
+    .btn-sm{padding:.3rem .65rem;font-size:.76rem}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+
+    /* 統計 */
+    .stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:1rem;margin-bottom:1.5rem}
+    .scard{background:var(--card);border-radius:var(--r);border:1px solid var(--border);padding:1.1rem 1.25rem}
+    .scard.click{cursor:pointer}
+    .scard.click:hover{border-color:var(--green)}
+    .slabel{font-size:.73rem;color:var(--muted);font-weight:500}
+    .sval{font-size:1.9rem;font-weight:700;color:var(--green)}
+    .sval.red{color:var(--red)}
+    .sval.org{color:var(--warn)}
+    .ssub{font-size:.7rem;color:var(--light)}
+
+    /* パネル */
+    .panel{background:var(--card);border-radius:var(--r);border:1px solid var(--border);overflow:hidden;margin-bottom:1.5rem}
+    .phead{padding:.9rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem}
+    .ptitle{font-size:.95rem;font-weight:700}
+    .sbox{display:flex;align-items:center;gap:.4rem;background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:.3rem .85rem}
+    .sbox input{background:none;border:none;outline:none;font-size:.82rem;width:150px;color:var(--text)}
+
+    /* テーブル */
+    .tbl{width:100%;border-collapse:collapse}
+    .tbl th{text-align:left;padding:.65rem 1rem;font-size:.7rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);background:var(--bg);border-bottom:1px solid var(--border)}
+    .tbl td{padding:.8rem 1rem;border-bottom:1px solid var(--border);font-size:.83rem;vertical-align:middle}
+    .tbl tr:last-child td{border-bottom:none}
+    .tbl tr:hover td{background:var(--bg)}
+    .rthumb{width:54px;height:38px;object-fit:cover;border-radius:4px;background:var(--border)}
+    .rthumb-ph{width:54px;height:38px;background:var(--gpale);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:1rem}
+    .tag{display:inline-block;padding:.12rem .45rem;border-radius:4px;font-size:.7rem;font-weight:600}
+    .tag-g{background:var(--gpale);color:var(--green)}
+    .tag-y{background:#fff3cd;color:#856404}
+    .tag-r{background:var(--rpale);color:var(--red)}
+    .acts{display:flex;gap:.35rem;flex-wrap:wrap}
+    .etbl{text-align:center;padding:2.5rem;color:var(--muted);font-size:.88rem}
+
+    /* フォーム */
+    .fcard{background:var(--card);border-radius:var(--r);border:1px solid var(--border)}
+    .fhead{padding:1.1rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.75rem}
+    .fbody{padding:1.5rem}
+    .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:1.1rem}
+    .frow{display:flex;flex-direction:column;gap:.3rem}
+    .frow.full{grid-column:1/-1}
+    .flabel{font-size:.76rem;font-weight:600;color:var(--muted)}
+    .req{color:var(--red);margin-left:2px}
+    .finput,.fselect{padding:.6rem .8rem;border:1.5px solid var(--border);border-radius:6px;font-size:.88rem;color:var(--text);outline:none;background:var(--card);transition:border-color var(--t),box-shadow var(--t);width:100%}
+    .finput:focus,.fselect:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--gpale)}
+    .fhint{font-size:.7rem;color:var(--light)}
+    .tprev{max-height:150px;width:100%;object-fit:cover;border-radius:6px;border:1px solid var(--border);margin-top:.5rem;display:none}
+    .thint{background:var(--bg);border:1.5px dashed var(--border);border-radius:var(--r);padding:.75rem 1rem;font-size:.78rem;color:var(--muted);line-height:1.8;margin-top:.5rem}
+    .thint a{color:var(--green);text-decoration:underline}
+    .crow{display:flex;align-items:center;gap:.5rem;padding:.35rem 0}
+    .crow input[type=checkbox]{width:17px;height:17px;accent-color:var(--green)}
+    .crow label{font-size:.86rem;font-weight:500;cursor:pointer}
+    .factions{display:flex;justify-content:flex-end;gap:.65rem;padding-top:1.25rem;border-top:1px solid var(--border);margin-top:1.25rem;flex-wrap:wrap}
+
+    /* エディタ */
+    .ebar{display:flex;flex-wrap:wrap;gap:.2rem;padding:.45rem .65rem;background:var(--bg);border:1.5px solid var(--border);border-radius:6px 6px 0 0;border-bottom:none}
+    .etool{width:28px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:4px;font-size:.82rem;font-weight:600;color:var(--muted);cursor:pointer;transition:background var(--t)}
+    .etool:hover{background:var(--border);color:var(--text)}
+    .esep{width:1px;background:var(--border);margin:3px 3px}
+    #body-ed{min-height:260px;border:1.5px solid var(--border);border-radius:0 0 6px 6px;padding:.9rem;outline:none;font-family:var(--sans);font-size:.9rem;line-height:1.8;background:var(--card);color:var(--text);overflow-y:auto}
+    #body-ed:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--gpale)}
+    #body-ed p{margin-bottom:.8em}
+    #body-ed h2{font-family:var(--serif);font-size:1.25rem;margin:1.5em 0 .5em;border-left:4px solid var(--green);padding-left:.7em}
+    #body-ed h3{font-family:var(--serif);font-size:1.05rem;margin:1.2em 0 .4em;color:var(--green)}
+    #body-ed blockquote{background:var(--gpale);border-left:4px solid var(--green);padding:.7rem 1rem;margin:1em 0;border-radius:0 4px 4px 0}
+
+    /* お問い合わせ */
+    .citem{display:flex;align-items:flex-start;gap:.9rem;padding:.9rem 1.25rem;border-bottom:1px solid var(--border);cursor:pointer;transition:background var(--t)}
+    .citem:hover{background:var(--bg)}
+    .citem:last-child{border-bottom:none}
+    .cdot{width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0;margin-top:.4rem}
+    .cdot.read{background:transparent}
+    .cinfo{flex:1}
+    .cname{font-weight:600;font-size:.88rem}
+    .cmeta{font-size:.73rem;color:var(--light);margin:.1rem 0 .25rem}
+    .cprev{font-size:.8rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:400px}
+
+    /* 下書き */
+    .ditem{display:flex;align-items:flex-start;gap:.9rem;padding:.9rem 1.25rem;border-bottom:1px solid var(--border)}
+    .ditem:last-child{border-bottom:none}
+    .dinfo{flex:1;min-width:0}
+    .dtitle{font-weight:600;font-size:.88rem;margin-bottom:.2rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .dmeta{font-size:.73rem;color:var(--light)}
+
+    /* 速報 */
+    .bpanel{background:var(--card);border-radius:var(--r);border:1px solid var(--border);padding:1.5rem;margin-bottom:1.5rem}
+    .bpanel h3{font-size:.95rem;font-weight:700;margin-bottom:1rem;padding-bottom:.75rem;border-bottom:1px solid var(--border)}
+    .trow{display:flex;align-items:center;gap:.75rem;margin-bottom:1rem}
+    .tswitch{width:46px;height:25px;background:var(--border);border-radius:13px;position:relative;cursor:pointer;transition:background var(--t);flex-shrink:0}
+    .tswitch::after{content:'';position:absolute;top:3px;left:3px;width:19px;height:19px;background:#fff;border-radius:50%;transition:transform var(--t);box-shadow:0 1px 3px rgba(0,0,0,.2)}
+    .tswitch.on{background:var(--green)}
+    .tswitch.on::after{transform:translateX(21px)}
+    .bilist{display:flex;flex-direction:column;gap:.45rem;margin-bottom:.75rem}
+    .birow{display:flex;align-items:center;gap:.45rem}
+    .birow input{flex:1;padding:.5rem .8rem;border:1.5px solid var(--border);border-radius:6px;font-size:.86rem;outline:none;transition:border-color var(--t)}
+    .birow input:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--gpale)}
+    .bi-del{color:var(--red);font-size:1rem;padding:.2rem .45rem;border-radius:4px;transition:background var(--t)}
+    .bi-del:hover{background:var(--rpale)}
+    .bi-add{font-size:.8rem;color:var(--green);padding:.35rem .7rem;border:1px dashed var(--green);border-radius:6px;transition:background var(--t)}
+    .bi-add:hover{background:var(--gpale)}
+
+    /* JSON */
+    .jpanel{background:var(--card);border-radius:var(--r);border:1px solid var(--border);padding:1.5rem;margin-bottom:1.5rem}
+    .jpanel h3{font-size:.95rem;font-weight:700;margin-bottom:.75rem;padding-bottom:.75rem;border-bottom:1px solid var(--border)}
+    .jta{width:100%;min-height:160px;padding:.8rem;border:1.5px solid var(--border);border-radius:6px;font-family:monospace;font-size:.8rem;line-height:1.6;resize:vertical;outline:none;background:var(--bg);color:var(--text);transition:border-color var(--t)}
+    .jta:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--gpale)}
+    .jres{margin-top:.65rem;padding:.65rem .9rem;border-radius:6px;font-size:.8rem;display:none}
+    .jres.ok{background:var(--gpale);color:var(--green);display:block}
+    .jres.err{background:var(--rpale);color:var(--red);display:block}
+
+    /* PIN モーダル */
+    .mback{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:200;padding:1rem}
+    .mback.on{display:flex}
+    .mbox{background:var(--card);border-radius:12px;padding:1.75rem;max-width:380px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.2)}
+    .mbox h3{font-size:1rem;font-weight:700;margin-bottom:.5rem}
+    .mbox p{font-size:.84rem;color:var(--muted);margin-bottom:1.1rem;line-height:1.6}
+    #pin-input{padding:.65rem .9rem;border:1.5px solid var(--border);border-radius:6px;font-size:1.1rem;letter-spacing:.3em;width:140px;outline:none;transition:border-color var(--t)}
+    #pin-input:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--gpale)}
+    #pin-err{font-size:.76rem;color:var(--red);margin-top:.3rem;display:none}
+    .macts{display:flex;justify-content:flex-end;gap:.65rem;margin-top:1.25rem}
+
+    /* お問い合わせ詳細モーダル */
+    #contact-modal .mbox{max-width:520px}
+
+    /* スピナー */
+    .spin{width:16px;height:16px;border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;display:inline-block;vertical-align:middle}
+    @keyframes sp{to{transform:rotate(360deg)}}
+
+    /* ビュー */
+    .view{display:none}
+    .view.on{display:block}
+
+    /* レスポンシブ */
+    @media(max-width:768px){
+      #sidebar{transform:translateX(-100%)}
+      #sidebar.open{transform:none}
+      #main{margin-left:0}
+      #sb-toggle{display:flex}
+      .fgrid{grid-template-columns:1fr}
+      .tbl th:nth-child(4),.tbl td:nth-child(4),
+      .tbl th:nth-child(5),.tbl td:nth-child(5){display:none}
+      #body{padding:1rem}
+      .stats{grid-template-columns:1fr 1fr}
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===== ログイン ===== -->
+<div id="pg-login">
+  <div class="lcard">
+    <h1>アンカツ＋</h1>
+    <p>管理画面 / ADMIN</p>
+    <div class="lfield">
+      <label>メールアドレス</label>
+      <input id="l-email" type="email" placeholder="admin@example.com" autocomplete="email" />
+    </div>
+    <div class="lfield">
+      <label>パスワード</label>
+      <input id="l-pw" type="password" placeholder="••••••••" autocomplete="current-password" />
+    </div>
+    <div id="l-error">メールアドレスまたはパスワードが正しくありません。</div>
+    <button id="l-btn">ログイン</button>
+  </div>
+</div>
+
+<!-- ===== 管理画面 ===== -->
+<div id="pg-admin">
+  <div id="overlay"></div>
+
+  <!-- サイドバー -->
+  <nav id="sidebar">
+    <div class="sb-head">
+      <h2>アンカツ＋</h2>
+      <p>管理画面</p>
+    </div>
+    <div class="sb-nav">
+      <div class="sb-sec">メニュー</div>
+      <button class="sb-btn on"  data-v="dashboard">📊 ダッシュボード</button>
+      <button class="sb-btn"     data-v="articles">📰 記事一覧</button>
+      <button class="sb-btn"     data-v="new">✏️ 新規記事作成</button>
+      <button class="sb-btn"     data-v="contacts">✉️ お問い合わせ<span id="sb-unread"></span></button>
+      <button class="sb-btn"     data-v="submissions">📨 投稿申請<span id="sb-submissions"></span></button>
+      <button class="sb-btn"     data-v="drafts">📝 下書き<span id="sb-drafts"></span></button>
+      <button class="sb-btn"     data-v="series">📚 連載・特集</button>
+      <button class="sb-btn"     data-v="breaking">📡 速報バー設定</button>
+      <button class="sb-btn"     data-v="json">📦 JSON入出力</button>
+      <div class="sb-sec" style="margin-top:.5rem">サイト</div>
+      <a class="sb-btn" href="index.html" target="_blank">🌐 サイトを開く</a>
+    </div>
+    <div class="sb-foot">
+      <div class="sb-user">👤 <span id="sb-email"></span></div>
+      <button id="logout-btn">🚪 ログアウト</button>
+    </div>
+  </nav>
+
+  <!-- メイン -->
+  <div id="main">
+    <div id="topbar">
+      <button id="sb-toggle">
+        <span class="bline"></span>
+        <span class="bline"></span>
+        <span class="bline"></span>
+      </button>
+      <div id="page-title">📊 ダッシュボード</div>
+      <button class="btn btn-g btn-sm" onclick="goNew()">✏️ 新規記事</button>
+    </div>
+
+    <div id="body">
+
+      <!-- ダッシュボード -->
+      <div id="v-dashboard" class="view on">
+        <div class="stats">
+          <div class="scard"><div class="slabel">総記事数</div><div class="sval" id="s-total">—</div><div class="ssub">公開中</div></div>
+          <div class="scard"><div class="slabel">注目記事</div><div class="sval" id="s-feat">—</div><div class="ssub">トップ掲載</div></div>
+          <div class="scard"><div class="slabel">カテゴリ数</div><div class="sval" id="s-cat">—</div><div class="ssub">登録済み</div></div>
+          <div class="scard click" onclick="goView('contacts')"><div class="slabel">未読お問い合わせ</div><div class="sval red" id="s-contacts">—</div><div class="ssub">クリックで確認</div></div>
+          <div class="scard click" onclick="goView('submissions')"><div class="slabel">投稿申請（未処理）</div><div class="sval red" id="s-submissions">—</div><div class="ssub">クリックで確認</div></div>
+          <div class="scard click" onclick="goView('drafts')"><div class="slabel">下書き</div><div class="sval org" id="s-drafts-n">—</div><div class="ssub">ローカル保存</div></div>
+          <div class="scard click" onclick="goView('series')"><div class="slabel">連載・特集</div><div class="sval" id="s-series">—</div><div class="ssub">クリックで管理</div></div>
+        </div>
+        <div class="panel">
+          <div class="phead"><span class="ptitle">最近の記事</span><button class="btn btn-o btn-sm" onclick="goView('articles')">すべて見る →</button></div>
+          <div id="dash-list"></div>
+        </div>
+      </div>
+
+      <!-- 記事一覧 -->
+      <div id="v-articles" class="view">
+        <div class="panel">
+          <div class="phead">
+            <span class="ptitle">記事一覧</span>
+            <div style="display:flex;gap:.65rem;align-items:center;flex-wrap:wrap">
+              <div class="sbox"><span>🔍</span><input id="art-search" type="search" placeholder="タイトル・カテゴリで絞り込み…" /></div>
+              <button class="btn btn-g btn-sm" onclick="goNew()">✏️ 新規記事</button>
+            </div>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="tbl">
+              <thead><tr><th style="width:58px"></th><th>タイトル</th><th>カテゴリ</th><th>著者</th><th>日付</th><th style="width:140px">操作</th></tr></thead>
+              <tbody id="art-tbody"></tbody>
+            </table>
+            <div id="art-empty" class="etbl" style="display:none">記事がまだありません。最初の記事を作成しましょう！</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 記事フォーム -->
+      <div id="v-form" class="view">
+        <div class="fcard">
+          <div class="fhead">
+            <button class="btn btn-o btn-sm" onclick="goView('articles')">← 一覧へ</button>
+            <span id="form-title" style="font-weight:700;font-size:.95rem">新規記事作成</span>
+          </div>
+          <div class="fbody">
+            <input type="hidden" id="edit-id" />
+            <div class="fgrid">
+
+              <div class="frow full">
+                <label class="flabel">タイトル <span class="req">*</span></label>
+                <input id="f-title" type="text" class="finput" placeholder="記事のタイトルを入力" />
+              </div>
+
+              <div class="frow">
+                <label class="flabel">スラッグ（URL用） <span class="req">*</span></label>
+                <input id="f-slug" type="text" class="finput" placeholder="sumoto-event-2025" />
+                <span class="fhint">半角英数字・ハイフンのみ</span>
+              </div>
+
+              <div class="frow">
+                <label class="flabel">カテゴリ <span class="req">*</span></label>
+                <select id="f-cat" class="fselect">
+                  <option value="">-- カテゴリを選択 --</option>
+                  <option>まちの話題</option><option>イベント</option><option>空き家活用</option>
+                  <option>商店街</option><option>文化</option><option>インタビュー</option>
+                  <option>学校・子育て</option><option>移住・定住</option><option>お知らせ</option>
+                </select>
+              </div>
+
+              <div class="frow">
+                <label class="flabel">著者</label>
+                <input id="f-author" type="text" class="finput" placeholder="編集部" />
+              </div>
+
+              <div class="frow">
+                <label class="flabel">連載・特集（任意）</label>
+                <select id="f-series" class="fselect">
+                  <option value="">-- 選択しない --</option>
+                </select>
+                <span class="fhint">「📚 連載・特集」から作成できます</span>
+              </div>
+
+              <div class="frow full">
+                <label class="flabel">タグ（カンマ区切り）</label>
+                <input id="f-tags" type="text" class="finput" placeholder="洲本, 移住, イベント" />
+              </div>
+
+              <div class="frow full">
+                <label class="flabel">サムネイル画像URL</label>
+                <input id="f-thumb" type="url" class="finput" placeholder="https://i.imgur.com/xxxxx.jpg" />
+                <img id="f-thumb-prev" class="tprev" alt="プレビュー" />
+                <div class="thint">💡 <a href="https://imgur.com/upload" target="_blank">Imgur</a> に画像をアップして「Direct Link」をコピーして貼ってください。無料・登録不要。</div>
+              </div>
+
+              <div class="frow full">
+                <div class="crow">
+                  <input id="f-feat" type="checkbox" />
+                  <label for="f-feat">⭐ トップページに注目記事として掲載する</label>
+                </div>
+              </div>
+
+              <div class="frow full">
+                <label class="flabel">本文 <span class="req">*</span></label>
+                <!-- モード切替タブ -->
+                <div style="display:flex;gap:0;margin-bottom:0;border:1.5px solid var(--border);border-bottom:none;border-radius:6px 6px 0 0;overflow:hidden;width:fit-content">
+                  <button id="tab-visual" onclick="switchEditorMode('visual')" style="padding:.4rem .9rem;font-size:.78rem;font-weight:600;background:var(--green);color:#fff;border:none;cursor:pointer">✏️ ビジュアル</button>
+                  <button id="tab-html"   onclick="switchEditorMode('html')"   style="padding:.4rem .9rem;font-size:.78rem;font-weight:600;background:var(--bg);color:var(--muted);border:none;cursor:pointer">🖥 HTML直接入力</button>
+                </div>
+                <!-- ビジュアルエディタ -->
+                <div id="editor-visual">
+                  <div class="ebar" style="border-radius:0">
+                    <button class="etool" onclick="ec('bold')" title="太字"><b>B</b></button>
+                    <button class="etool" onclick="ec('italic')" title="斜体"><i>I</i></button>
+                    <button class="etool" onclick="ec('underline')" title="下線"><u>U</u></button>
+                    <div class="esep"></div>
+                    <button class="etool" onclick="eb('h2')" title="見出し2">H2</button>
+                    <button class="etool" onclick="eb('h3')" title="見出し3">H3</button>
+                    <button class="etool" onclick="eb('blockquote')" title="引用">❝</button>
+                    <div class="esep"></div>
+                    <button class="etool" onclick="ec('insertUnorderedList')" title="箇条書き">•≡</button>
+                    <button class="etool" onclick="ec('insertOrderedList')" title="番号付き">1≡</button>
+                    <div class="esep"></div>
+                    <button class="etool" onclick="eLink()" title="リンク">🔗</button>
+                    <button class="etool" onclick="eImg()" title="画像挿入">🖼</button>
+                    <button class="etool" onclick="eb('p')" title="段落">¶</button>
+                    <button class="etool" onclick="ec('removeFormat')" title="書式クリア">✕</button>
+                  </div>
+                  <div id="body-ed" contenteditable="true" spellcheck="false"></div>
+                </div>
+                <!-- HTML直接入力 -->
+                <div id="editor-html" style="display:none">
+                  <textarea id="body-html" style="width:100%;min-height:300px;padding:.9rem;border:1.5px solid var(--border);border-radius:0 0 6px 6px;font-family:monospace;font-size:.83rem;line-height:1.6;resize:vertical;outline:none;background:#1e1e1e;color:#d4d4d4;transition:border-color var(--t)" placeholder="HTMLを直接入力してください。<script>タグも使用できます。"></textarea>
+                </div>
+                <div style="font-size:.72rem;color:var(--light);margin-top:.4rem">💡 HTML直接入力モードでは &lt;script&gt; タグや埋め込みコードも入力できます。ビジュアルモードと切り替え可能です。</div>
+              </div>
+
+            </div>
+            <div class="factions">
+              <button class="btn btn-o" onclick="resetForm()">🔄 リセット</button>
+              <button class="btn btn-w" onclick="saveDraft()">📝 下書き保存</button>
+              <button class="btn btn-g" id="pub-btn" onclick="pubArticle()">💾 公開保存</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- お問い合わせ -->
+      <div id="v-contacts" class="view">
+        <div class="panel">
+          <div class="phead">
+            <span class="ptitle">お問い合わせ一覧</span>
+            <span id="c-count" style="font-size:.8rem;color:var(--muted)"></span>
+          </div>
+          <div id="c-list"></div>
+        </div>
+      </div>
+
+      <!-- 投稿申請管理 -->
+      <div id="v-submissions" class="view">
+        <div class="panel">
+          <div class="phead">
+            <span class="ptitle">投稿申請一覧</span>
+            <span id="sub-count" style="font-size:.8rem;color:var(--muted)"></span>
+          </div>
+          <div id="sub-list"></div>
+        </div>
+      </div>
+
+      <!-- 下書き -->
+      <div id="v-drafts" class="view">
+        <div class="panel">
+          <div class="phead">
+            <span class="ptitle">下書き一覧（ローカル保存）</span>
+            <span style="font-size:.78rem;color:var(--muted)">このブラウザにのみ保存されます</span>
+          </div>
+          <div id="d-list"></div>
+        </div>
+      </div>
+
+      <!-- 連載・特集 -->
+      <div id="v-series" class="view">
+        <div class="panel" id="series-list-panel">
+          <div class="phead">
+            <span class="ptitle">連載・特集一覧</span>
+            <button class="btn btn-g btn-sm" onclick="goSeriesNew()">＋ 新規作成</button>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="tbl">
+              <thead><tr><th style="width:58px"></th><th>タイトル</th><th>スラッグ</th><th>記事数</th><th style="width:140px">操作</th></tr></thead>
+              <tbody id="series-tbody"></tbody>
+            </table>
+            <div id="series-empty" class="etbl" style="display:none">連載・特集はまだありません。「＋ 新規作成」から追加しましょう。</div>
+          </div>
+        </div>
+
+        <div class="fcard" id="series-form-panel" style="display:none">
+          <div class="fhead">
+            <button class="btn btn-o btn-sm" onclick="closeSeriesForm()">← 一覧へ</button>
+            <span id="series-form-title" style="font-weight:700;font-size:.95rem">新規連載・特集</span>
+          </div>
+          <div class="fbody">
+            <input type="hidden" id="sr-id" />
+            <div class="fgrid">
+              <div class="frow full">
+                <label class="flabel">タイトル <span class="req">*</span></label>
+                <input id="sr-title" type="text" class="finput" placeholder="まちをつくる人たち" />
+              </div>
+              <div class="frow full">
+                <label class="flabel">スラッグ（URL用） <span class="req">*</span></label>
+                <input id="sr-slug" type="text" class="finput" placeholder="machi-no-hito" />
+                <span class="fhint">半角英数字・ハイフンのみ</span>
+              </div>
+              <div class="frow full">
+                <label class="flabel">短文（一覧・詳細ページに表示） <span class="req">*</span></label>
+                <textarea id="sr-tagline" class="finput" style="min-height:90px;resize:vertical;font-family:inherit" placeholder="この連載・特集の紹介文を入力してください"></textarea>
+              </div>
+              <div class="frow full">
+                <label class="flabel">ロゴ画像URL</label>
+                <input id="sr-logo" type="url" class="finput" placeholder="https://i.imgur.com/xxxxx.jpg" />
+                <img id="sr-logo-prev" class="tprev" alt="プレビュー" />
+                <div class="thint">💡 <a href="https://imgur.com/upload" target="_blank">Imgur</a> に画像をアップして「Direct Link」をコピーして貼ってください。無料・登録不要。未設定の場合はアイコン表示になります。</div>
+              </div>
+            </div>
+            <div class="factions">
+              <button class="btn btn-o" onclick="resetSeriesForm()">🔄 リセット</button>
+              <button class="btn btn-g" id="sr-save-btn" onclick="saveSeries()">💾 保存する</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 速報バー設定 -->
+      <div id="v-breaking" class="view">
+        <div class="bpanel">
+          <h3>📡 速報バー設定</h3>
+          <div class="trow">
+            <div class="tswitch on" id="b-toggle" onclick="toggleBreaking()"></div>
+            <span id="b-toggle-label">速報バーを表示する（ON）</span>
+          </div>
+          <div class="frow" style="margin-bottom:1rem;max-width:300px">
+            <label class="flabel">ラベル（例：速報・最新情報・お知らせ）</label>
+            <input id="b-label" type="text" class="finput" placeholder="速報" />
+          </div>
+          <div class="flabel" style="margin-bottom:.5rem">流れるテキスト</div>
+          <div class="bilist" id="b-items"></div>
+          <button class="bi-add" onclick="addBI()">＋ テキストを追加</button>
+          <div style="margin-top:1.25rem;display:flex;gap:.65rem">
+            <button class="btn btn-g" onclick="saveBreaking()">💾 保存して反映</button>
+            <button class="btn btn-o" onclick="loadBreaking()">↺ リセット</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- JSON入出力 -->
+      <div id="v-json" class="view">
+        <div class="jpanel">
+          <h3>📤 エクスポート</h3>
+          <p style="font-size:.83rem;color:var(--muted);margin-bottom:1rem">記事データをJSONファイルとしてダウンロードします。</p>
+          <div style="display:flex;gap:.65rem;flex-wrap:wrap">
+            <button class="btn btn-g" onclick="doExport('all')">📥 全記事</button>
+            <button class="btn btn-o" onclick="doExport('pub')">📥 公開記事のみ</button>
+          </div>
+          <div id="exp-res" class="jres"></div>
+        </div>
+        <div class="jpanel">
+          <h3>📥 インポート</h3>
+          <p style="font-size:.83rem;color:var(--muted);margin-bottom:.65rem">エクスポートしたJSONを貼り付けて一括追加します。スラッグ重複はスキップ。PINコードが必要です。</p>
+          <textarea id="imp-json" class="jta" placeholder='[{"title":"タイトル","slug":"slug","category":"まちの話題","body":"<p>本文</p>","author":"編集部","tags":[],"featured":false}]'></textarea>
+          <div style="margin-top:.65rem;display:flex;gap:.65rem">
+            <button class="btn btn-g" onclick="doImport()">📤 インポート実行</button>
+            <button class="btn btn-o" onclick="document.getElementById('imp-json').value=''">クリア</button>
+          </div>
+          <div id="imp-res" class="jres"></div>
+        </div>
+      </div>
+
+    </div><!-- /body -->
+  </div><!-- /main -->
+</div><!-- /pg-admin -->
+
+<!-- PIN確認モーダル -->
+<div class="mback" id="pin-modal">
+  <div class="mbox">
+    <h3 id="pin-title">🔐 削除の確認</h3>
+    <p id="pin-desc"></p>
+    <label class="flabel" style="margin-bottom:.4rem;display:block">削除PINコードを入力</label>
+    <input id="pin-input" type="password" inputmode="numeric" placeholder="••••" />
+    <div id="pin-err">PINコードが違います</div>
+    <div class="macts">
+      <button class="btn btn-o" onclick="closePin()">キャンセル</button>
+      <button class="btn btn-r" id="pin-ok">削除する</button>
+    </div>
+  </div>
+</div>
+
+<!-- お問い合わせ詳細モーダル -->
+<div class="mback" id="contact-modal">
+  <div class="mbox" style="max-width:520px">
+    <h3 id="cm-title"></h3>
+    <div id="cm-body" style="margin-bottom:1.25rem"></div>
+    <div class="macts">
+      <button class="btn btn-o" onclick="closeCM()">閉じる</button>
+      <button class="btn btn-r btn-sm" id="cm-del">🗑️ 削除</button>
+    </div>
+  </div>
+</div>
+
+<!-- トースト -->
+<div id="toasts" style="position:fixed;bottom:1.25rem;right:1.25rem;display:flex;flex-direction:column;gap:.45rem;z-index:9999"></div>
+
+<script>
+// ============================================================
+// 定数
+// ============================================================
+var PIN        = '2506';          // ← 削除PINコード
+var DRAFT_KEY  = 'ankatsu_drafts'; // localStorage キー
+
+// ============================================================
+// 状態
+// ============================================================
+var articles  = [];
+var contacts  = [];
+var series    = [];
+var editingId = null;
+var curContact = null;
+var breakingOn = true;
+var _pinCb    = null;
+
+// ============================================================
+// トースト
+// ============================================================
+function toast(msg, type) {
+  var el = document.createElement('div');
+  el.style.cssText = 'background:'+(type==='error'?'#e63946':type==='warn'?'#f4a261':'#1a3d2b')+';color:#fff;padding:.65rem 1.1rem;border-radius:8px;font-size:.83rem;font-weight:500;box-shadow:0 4px 16px rgba(0,0,0,.2);display:flex;align-items:center;gap:.5rem;animation:sp .25s ease;max-width:300px';
+  el.textContent = (type==='error'?'❌':type==='warn'?'⚠️':'✅') + ' ' + msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(function(){ el.remove(); }, 4000);
+}
+
+// ============================================================
+// サイドバー開閉
+// ============================================================
+function openSB(){
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('overlay').classList.add('on');
+  document.getElementById('sb-toggle').classList.add('open');
+}
+function closeSB(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('on');
+  document.getElementById('sb-toggle').classList.remove('open');
+}
+
+// ============================================================
+// ビュー切替
+// ============================================================
+var VTITLES = {
+  dashboard:'📊 ダッシュボード', articles:'📰 記事一覧',
+  new:'✏️ 新規記事作成', edit:'✏️ 記事編集',
+  contacts:'✉️ お問い合わせ', drafts:'📝 下書き',
+  series:'📚 連載・特集',
+  breaking:'📡 速報バー設定', json:'📦 JSON入出力'
+};
+
+function goView(key) {
+  document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('on'); });
+  var el = document.getElementById('v-' + (key==='new'||key==='edit'?'form':key));
+  if (el) el.classList.add('on');
+  document.getElementById('page-title').textContent = VTITLES[key] || '';
+  if (key==='new'||key==='edit') document.getElementById('form-title').textContent = VTITLES[key];
+  document.querySelectorAll('.sb-btn[data-v]').forEach(function(b){ b.classList.toggle('on', b.dataset.v===key); });
+  if (key==='new')       { resetForm(); editingId=null; }
+  if (key==='articles')  renderArticles();
+  if (key==='dashboard') renderDash();
+  if (key==='contacts')  renderContacts();
+  if (key==='submissions') renderSubmissions();
+  if (key==='drafts')    renderDrafts();
+  if (key==='series')    { closeSeriesForm(); renderSeriesAdminList(); }
+  if (key==='breaking')  loadBreaking();
+  closeSB();
+  window.scrollTo(0,0);
+}
+function goNew(){ goView('new'); }
+
+// ============================================================
+// ログイン
+// ============================================================
+function initLogin() {
+  var btn   = document.getElementById('l-btn');
+  var email = document.getElementById('l-email');
+  var pw    = document.getElementById('l-pw');
+  var err   = document.getElementById('l-error');
+
+  function doLogin() {
+    var e = email.value.trim();
+    var p = pw.value;
+    if (!e || !p) { err.textContent='メールアドレスとパスワードを入力してください'; err.classList.add('show'); return; }
+    err.classList.remove('show');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spin"></span> 認証中…';
+    window._signIn(e, p)
+      .then(function(){ /* onAuthStateChanged が処理 */ })
+      .catch(function(){ err.classList.add('show'); })
+      .finally(function(){ btn.disabled=false; btn.textContent='ログイン'; });
+  }
+
+  btn.addEventListener('click', doLogin);
+  email.addEventListener('keydown', function(ev){ if(ev.key==='Enter') pw.focus(); });
+  pw.addEventListener('keydown',    function(ev){ if(ev.key==='Enter') doLogin(); });
+}
+
+// ============================================================
+// 認証状態監視
+// ============================================================
+function initAuth() {
+  window._onAuth(function(user) {
+    if (user) {
+      document.getElementById('pg-login').style.display  = 'none';
+      document.getElementById('pg-admin').classList.add('on');
+      document.getElementById('sb-email').textContent = user.email;
+      loadAll();
+    } else {
+      document.getElementById('pg-login').style.display  = 'flex';
+      document.getElementById('pg-admin').classList.remove('on');
+    }
+  });
+}
+
+// ============================================================
+// データ取得
+// ============================================================
+function fmtDate(ts) {
+  try { var d=(ts&&ts.toDate)?ts.toDate():new Date(ts); return d.toLocaleDateString('ja-JP',{year:'numeric',month:'2-digit',day:'2-digit'}); }
+  catch(e){ return '—'; }
+}
+
+async function loadAll() {
+  await Promise.all([loadArticles(), loadContacts(), loadSubmissions(), loadSeries()]);
+  renderDash();
+}
+
+async function loadArticles() {
+  try {
+    var snap = await window._getAll('articles');
+    articles = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+    articles.sort(function(a,b){
+      try { var ta=(a.createdAt&&a.createdAt.toDate)?a.createdAt.toDate():new Date(0); var tb=(b.createdAt&&b.createdAt.toDate)?b.createdAt.toDate():new Date(0); return tb-ta; }
+      catch(e){ return 0; }
+    });
+  } catch(e) { console.error('loadArticles:', e); toast('記事の読み込みに失敗: '+e.message,'error'); }
+}
+
+async function loadSeries() {
+  try {
+    var snap = await window._getAll('series');
+    series = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+    series.sort(function(a,b){ return (a.title||'').localeCompare(b.title||'','ja'); });
+    populateSeriesSelect();
+  } catch(e) { console.error('loadSeries:', e); }
+}
+
+function populateSeriesSelect() {
+  var sel = document.getElementById('f-series');
+  if (!sel) return;
+  var cur = sel.value;
+  sel.innerHTML = '<option value="">-- 選択しない --</option>' + series.map(function(s){
+    return '<option value="'+s.id+'">'+s.title+'</option>';
+  }).join('');
+  sel.value = cur;
+}
+
+async function loadContacts() {
+  try {
+    var snap = await window._getAll('contacts');
+    contacts = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+    contacts.sort(function(a,b){
+      try { var ta=(a.createdAt&&a.createdAt.toDate)?a.createdAt.toDate():new Date(0); var tb=(b.createdAt&&b.createdAt.toDate)?b.createdAt.toDate():new Date(0); return tb-ta; }
+      catch(e){ return 0; }
+    });
+    updateUnread();
+  } catch(e) { console.error('loadContacts:', e); }
+}
+
+function updateUnread() {
+  var u = contacts.filter(function(c){ return !c.read; }).length;
+  document.getElementById('sb-unread').innerHTML = u ? '<span class="nbadge">'+u+'</span>' : '';
+  var sc = document.getElementById('s-contacts'); if(sc) sc.textContent = u;
+}
+
+function updateDraftBadge() {
+  var drafts = getDrafts();
+  var n = drafts.length;
+  document.getElementById('sb-drafts').innerHTML  = n ? '<span class="wbadge">'+n+'</span>' : '';
+  var sd = document.getElementById('s-drafts-n'); if(sd) sd.textContent = n;
+}
+
+// ============================================================
+// ダッシュボード
+// ============================================================
+function renderDash() {
+  document.getElementById('s-total').textContent = articles.length;
+  document.getElementById('s-feat').textContent  = articles.filter(function(a){ return a.featured; }).length;
+  document.getElementById('s-cat').textContent   = new Set(articles.map(function(a){ return a.category; }).filter(Boolean)).size;
+  document.getElementById('s-series').textContent = series.length;
+  updateUnread();
+  updateSubBadge();
+  updateDraftBadge();
+  var wrap = document.getElementById('dash-list');
+  var rec  = articles.slice(0,5);
+  if (!rec.length) { wrap.innerHTML = '<div class="etbl">記事がありません。</div>'; return; }
+  wrap.innerHTML = '<table class="tbl"><thead><tr><th></th><th>タイトル</th><th>カテゴリ</th><th>日付</th><th></th></tr></thead><tbody>'
+    + rec.map(function(a){
+        return '<tr>'
+          +'<td>'+(a.thumbnail?'<img src="'+a.thumbnail+'" class="rthumb"/>':'<div class="rthumb-ph">📰</div>')+'</td>'
+          +'<td style="font-weight:600;font-size:.83rem">'+a.title+'</td>'
+          +'<td><span class="tag tag-g">'+(a.category||'—')+'</span></td>'
+          +'<td style="font-size:.76rem;white-space:nowrap">'+fmtDate(a.createdAt)+'</td>'
+          +'<td><button class="btn btn-o btn-sm" onclick="startEdit(\''+a.id+'\')">編集</button></td>'
+          +'</tr>';
+      }).join('') + '</tbody></table>';
+}
+
+// ============================================================
+// 記事一覧テーブル
+// ============================================================
+function renderArticles(filter) {
+  filter = filter || '';
+  var list = filter
+    ? articles.filter(function(a){ return (a.title||'').indexOf(filter)>=0||(a.category||'').indexOf(filter)>=0; })
+    : articles;
+  var tbody = document.getElementById('art-tbody');
+  var empty = document.getElementById('art-empty');
+  if (!list.length) { tbody.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display = 'none';
+  tbody.innerHTML = list.map(function(a){
+    return '<tr>'
+      +'<td>'+(a.thumbnail?'<img src="'+a.thumbnail+'" class="rthumb" loading="lazy"/>':'<div class="rthumb-ph">📰</div>')+'</td>'
+      +'<td><div style="font-weight:600;font-size:.83rem">'+a.title+'</div><div style="font-size:.7rem;color:var(--light)">/'+(a.slug||a.id)+'</div>'+(a.featured?'<span class="tag tag-y">⭐注目</span>':'')+'</td>'
+      +'<td><span class="tag tag-g">'+(a.category||'—')+'</span></td>'
+      +'<td style="font-size:.78rem">'+(a.author||'—')+'</td>'
+      +'<td style="font-size:.76rem;white-space:nowrap">'+fmtDate(a.createdAt)+'</td>'
+      +'<td><div class="acts">'
+      +'<button class="btn btn-o btn-sm" onclick="startEdit(\''+a.id+'\')">✏️</button>'
+      +'<button class="btn btn-r btn-sm" onclick="askDel(\''+a.id+'\',\''+a.title.replace(/'/g,"\\'")+'\')">🗑️</button>'
+      +'</div></td></tr>';
+  }).join('');
+}
+
+// ============================================================
+// エディタモード切替（ビジュアル ↔ HTML直接入力）
+// ============================================================
+var _editorMode = 'visual';
+
+function switchEditorMode(mode) {
+  if (mode === _editorMode) return;
+  if (mode === 'html') {
+    // ビジュアル → HTML: contenteditable の内容をtextareaに移す
+    document.getElementById('body-html').value = document.getElementById('body-ed').innerHTML;
+    document.getElementById('editor-visual').style.display = 'none';
+    document.getElementById('editor-html').style.display   = 'block';
+    document.getElementById('tab-html').style.background   = 'var(--green)';
+    document.getElementById('tab-html').style.color        = '#fff';
+    document.getElementById('tab-visual').style.background = 'var(--bg)';
+    document.getElementById('tab-visual').style.color      = 'var(--muted)';
+  } else {
+    // HTML → ビジュアル: textareaの内容をcontenteditable に移す
+    document.getElementById('body-ed').innerHTML = document.getElementById('body-html').value;
+    document.getElementById('editor-visual').style.display = 'block';
+    document.getElementById('editor-html').style.display   = 'none';
+    document.getElementById('tab-visual').style.background = 'var(--green)';
+    document.getElementById('tab-visual').style.color      = '#fff';
+    document.getElementById('tab-html').style.background   = 'var(--bg)';
+    document.getElementById('tab-html').style.color        = 'var(--muted)';
+  }
+  _editorMode = mode;
+}
+
+// ============================================================
+// エディタ
+// ============================================================
+function ec(cmd){ document.execCommand(cmd,false,null); document.getElementById('body-ed').focus(); }
+function eb(tag){ document.execCommand('formatBlock',false,tag); document.getElementById('body-ed').focus(); }
+function eLink(){
+  var u=prompt('リンクURL:','https://');
+  if(u) document.execCommand('createLink',false,u);
+  document.getElementById('body-ed').focus();
+}
+function eImg(){
+  var u=prompt('画像URL:','https://');
+  if(u) document.execCommand('insertHTML',false,'<img src="'+u+'" style="max-width:100%;height:auto;border-radius:4px;margin:.5em 0" alt="" />');
+  document.getElementById('body-ed').focus();
+}
+
+// 本文取得（モードに関わらず最新値を返す）
+function getBodyHtml() {
+  if (_editorMode === 'html') {
+    return document.getElementById('body-html').value.trim();
+  } else {
+    return document.getElementById('body-ed').innerHTML.trim();
+  }
+}
+
+// 本文セット
+function setBodyHtml(html) {
+  document.getElementById('body-ed').innerHTML = html || '';
+  document.getElementById('body-html').value   = html || '';
+  // ビジュアルモードに戻す
+  if (_editorMode === 'html') switchEditorMode('visual');
+}
+
+// ============================================================
+// 投稿申請管理
+// ============================================================
+var submissions = [];
+var curSub = null;
+
+async function loadSubmissions() {
+  try {
+    var snap = await window._getAll('submissions');
+    submissions = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+    submissions.sort(function(a,b){
+      try{ var ta=(a.createdAt&&a.createdAt.toDate)?a.createdAt.toDate():new Date(0); var tb=(b.createdAt&&b.createdAt.toDate)?b.createdAt.toDate():new Date(0); return tb-ta; }catch(e){return 0;}
+    });
+    updateSubBadge();
+  } catch(e){ console.error('loadSubmissions:', e); }
+}
+
+function updateSubBadge() {
+  var pending = submissions.filter(function(s){ return s.status==='pending'; }).length;
+  document.getElementById('sb-submissions').innerHTML = pending ? '<span class="nbadge">'+pending+'</span>' : '';
+  var ss = document.getElementById('s-submissions'); if(ss) ss.textContent = pending;
+}
+
+async function renderSubmissions() {
+  await loadSubmissions();
+  var pending  = submissions.filter(function(s){ return s.status==='pending'; }).length;
+  var approved = submissions.filter(function(s){ return s.status==='approved'; }).length;
+  var rejected = submissions.filter(function(s){ return s.status==='rejected'; }).length;
+  document.getElementById('sub-count').innerHTML =
+    '全'+submissions.length+'件'
+    +(pending  ? ' <span class="nbadge" style="font-size:.76rem">申請中'+pending+'</span>' :'')
+    +(approved ? ' <span style="background:var(--green);color:#fff;font-size:.72rem;border-radius:8px;padding:.05rem .35rem;margin-left:.2rem">承認'+approved+'</span>' :'')
+    +(rejected ? ' <span style="background:var(--muted);color:#fff;font-size:.72rem;border-radius:8px;padding:.05rem .35rem;margin-left:.2rem">否認'+rejected+'</span>' :'');
+
+  var wrap = document.getElementById('sub-list');
+  if (!submissions.length) { wrap.innerHTML='<div class="etbl">投稿申請はまだありません。</div>'; return; }
+
+  wrap.innerHTML = submissions.map(function(s){
+    var statusTag = s.status==='approved'
+      ? '<span class="tag" style="background:var(--gpale);color:var(--green)">✅ 承認済み</span>'
+      : s.status==='rejected'
+      ? '<span class="tag" style="background:#f3f3f3;color:var(--muted)">❌ 否認</span>'
+      : '<span class="tag tag-r">⏳ 申請中</span>';
+    return '<div class="citem" onclick="openSub(\''+s.id+'\')"> '
+      +'<div class="cdot'+(s.status!=='pending'?' read':'')+'"></div>'
+      +'<div class="cinfo">'
+      +'<div class="cname">'+s.title+'<span style="margin-left:.5rem">'+statusTag+'</span></div>'
+      +'<div class="cmeta">'+(s.authorName||s.author||'—')+' ・ '+(s.category||'—')+' ・ '+fmtDate(s.createdAt)+'</div>'
+      +'<div class="cprev">'+(s.body?s.body.replace(/<[^>]*>/g,'').slice(0,80)+'…':'')+'</div>'
+      +'</div></div>';
+  }).join('');
+}
+
+function openSub(id) {
+  curSub = submissions.find(function(s){ return s.id===id; });
+  if (!curSub) return;
+  var s = curSub;
+
+  // 申請内容をフォームに読み込む
+  editingId = null;
+  setFormData(s);
+  setBodyHtml(s.body||'');
+  document.getElementById('form-title').textContent = '✏️ 申請内容の編集・承認';
+
+  // フォームを申請モードに
+  document.getElementById('pub-btn').textContent = '✅ 承認して公開';
+  document.getElementById('pub-btn').onclick = function(){ approveSubmission(id); };
+
+  // 否認ボタン追加
+  var factions = document.getElementById('sub-factions');
+  if (!factions) {
+    var fa = document.querySelector('.factions');
+    var rejBtn = document.createElement('button');
+    rejBtn.id = 'sub-factions';
+    rejBtn.className = 'btn btn-r';
+    rejBtn.textContent = '❌ 否認する';
+    rejBtn.onclick = function(){ rejectSubmission(id); };
+    fa.insertBefore(rejBtn, fa.firstChild);
+  } else {
+    factions.onclick = function(){ rejectSubmission(id); };
+  }
+
+  // 申請者情報バナーを表示
+  var fbody = document.querySelector('#v-form .fbody');
+  var banner = document.getElementById('sub-banner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'sub-banner';
+    banner.style.cssText = 'background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.83rem;color:#856404';
+    fbody.insertBefore(banner, fbody.firstChild);
+  }
+  banner.style.display = 'block';
+  banner.innerHTML = '📨 <b>投稿申請</b> — 申請者: '+(s.authorName||'—')+' / '+( s.authorEmail||'—')+' / カテゴリ: '+(s.category||'—')
+    + (s.status==='approved'?' ✅ <b>承認済み</b>':s.status==='rejected'?' ❌ <b>否認済み</b>':' ⏳ 未処理')
+    +'<button onclick="goView(\'submissions\')" style="float:right;font-size:.76rem;color:var(--green);text-decoration:underline;background:none;border:none;cursor:pointer">← 申請一覧へ</button>';
+
+  document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('on'); });
+  document.getElementById('v-form').classList.add('on');
+  document.getElementById('page-title').textContent = '✏️ 申請内容の編集・承認';
+  window.scrollTo(0,0);
+}
+
+async function approveSubmission(id) {
+  var d = getFormData();
+  d.body = getBodyHtml();
+  if (!d.title||!d.slug||!d.category) { toast('タイトル・スラッグ・カテゴリを入力してください','warn'); return; }
+  var btn = document.getElementById('pub-btn');
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span> 公開中…';
+  try {
+    d.createdAt = window._ts();
+    await window._addDoc('articles', d);
+    await window._updateDoc('submissions', id, {status:'approved', approvedAt: window._ts()});
+    toast('承認して公開しました ✅');
+    resetSubForm();
+    await loadArticles();
+    await loadSubmissions();
+    goView('submissions');
+  } catch(e) { toast('失敗: '+e.message,'error'); }
+  finally { btn.disabled=false; btn.textContent='✅ 承認して公開'; }
+}
+
+async function rejectSubmission(id) {
+  var reason = prompt('否認理由（任意。申請者への参考メモ）:') || '';
+  try {
+    await window._updateDoc('submissions', id, {status:'rejected', rejectedAt:window._ts(), rejectReason:reason});
+    toast('否認しました');
+    resetSubForm();
+    await loadSubmissions();
+    goView('submissions');
+  } catch(e) { toast('失敗: '+e.message,'error'); }
+}
+
+function resetSubForm() {
+  // 申請モード解除
+  document.getElementById('pub-btn').textContent = '💾 公開保存';
+  document.getElementById('pub-btn').onclick = pubArticle;
+  var b = document.getElementById('sub-banner'); if(b) b.style.display='none';
+  var rb = document.getElementById('sub-factions'); if(rb) rb.remove();
+  curSub = null;
+}
+
+
+
+// ============================================================
+// 記事フォームの値取得
+// ============================================================
+function getFormData() {
+  return {
+    title:     document.getElementById('f-title').value.trim(),
+    slug:      document.getElementById('f-slug').value.trim(),
+    category:  document.getElementById('f-cat').value,
+    author:    document.getElementById('f-author').value.trim() || '編集部',
+    seriesId:  document.getElementById('f-series').value || '',
+    tags:      document.getElementById('f-tags').value.split(',').map(function(t){return t.trim();}).filter(Boolean),
+    thumbnail: document.getElementById('f-thumb').value.trim(),
+    featured:  document.getElementById('f-feat').checked,
+    body:      getBodyHtml()
+  };
+}
+
+function setFormData(d) {
+  document.getElementById('f-title').value  = d.title    || '';
+  document.getElementById('f-slug').value   = d.slug     || '';
+  document.getElementById('f-cat').value    = d.category || '';
+  document.getElementById('f-author').value = d.author   || '';
+  document.getElementById('f-series').value = d.seriesId || '';
+  document.getElementById('f-tags').value   = (d.tags||[]).join(', ');
+  document.getElementById('f-thumb').value  = d.thumbnail|| '';
+  document.getElementById('f-feat').checked = !!d.featured;
+  setBodyHtml(d.body || '');
+  var prev = document.getElementById('f-thumb-prev');
+  if (d.thumbnail) { prev.src=d.thumbnail; prev.style.display='block'; }
+  else { prev.style.display='none'; }
+}
+
+function resetForm() {
+  editingId = null;
+  setFormData({});
+  resetSubForm();
+}
+
+// ============================================================
+// 記事 公開保存
+// ============================================================
+async function pubArticle() {
+  var d = getFormData();
+  if (!d.title)    { toast('タイトルを入力してください','warn'); return; }
+  if (!d.slug)     { toast('スラッグを入力してください','warn'); return; }
+  if (!d.category) { toast('カテゴリを選択してください','warn'); return; }
+  if (!d.body||d.body==='<br>') { toast('本文を入力してください','warn'); return; }
+
+  var btn = document.getElementById('pub-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 保存中…';
+  try {
+    if (editingId) {
+      await window._updateDoc('articles', editingId, d);
+      toast('記事を更新しました ✅');
+    } else {
+      d.createdAt = window._ts();
+      await window._addDoc('articles', d);
+      toast('記事を公開しました ✅');
+    }
+    await loadArticles();
+    goView('articles');
+  } catch(e) {
+    console.error(e); toast('保存失敗: '+e.message,'error');
+  } finally {
+    btn.disabled=false; btn.textContent='💾 公開保存';
+  }
+}
+
+// ============================================================
+// 記事 編集開始
+// ============================================================
+function startEdit(id) {
+  var a = articles.find(function(x){ return x.id===id; });
+  if (!a) return;
+  editingId = id;
+  setFormData(a);
+  goView('edit');
+}
+
+// ============================================================
+// 記事 削除（PIN付き）
+// ============================================================
+function askDel(id, title) {
+  openPin('記事を削除', '「'+title+'」を削除します。\nこの操作は取り消せません。', function(){
+    window._deleteDoc('articles', id)
+      .then(function(){ toast('削除しました'); loadArticles().then(function(){ renderArticles(); renderDash(); }); })
+      .catch(function(e){ toast('削除失敗: '+e.message,'error'); });
+  });
+}
+
+// ============================================================
+// お問い合わせ
+// ============================================================
+function renderContacts() {
+  var u = contacts.filter(function(c){ return !c.read; }).length;
+  document.getElementById('c-count').innerHTML = '全'+contacts.length+'件' + (u?'<span class="nbadge" style="font-size:.76rem">未読'+u+'</span>':'');
+  var wrap = document.getElementById('c-list');
+  if (!contacts.length) { wrap.innerHTML='<div class="etbl">お問い合わせはまだありません。</div>'; return; }
+  wrap.innerHTML = contacts.map(function(c){
+    return '<div class="citem" onclick="openCM(\''+c.id+'\')">'
+      +'<div class="cdot'+(c.read?' read':'')+'"></div>'
+      +'<div class="cinfo">'
+      +'<div class="cname">'+(c.name||'（名前なし）')+'<span style="font-size:.73rem;font-weight:400;color:var(--light)"> — '+(c.type||'一般')+'</span></div>'
+      +'<div class="cmeta">'+(c.email||'')+(c.email?' ・ ':'')+fmtDate(c.createdAt)+'</div>'
+      +'<div class="cprev">'+(c.message||'').replace(/\n/g,' ')+'</div>'
+      +'</div></div>';
+  }).join('');
+}
+
+async function openCM(id) {
+  var c = contacts.find(function(x){ return x.id===id; });
+  if (!c) return;
+  curContact = id;
+  document.getElementById('cm-title').textContent = (c.name||'（名前なし）')+' さんからのお問い合わせ';
+  document.getElementById('cm-body').innerHTML =
+    '<table style="width:100%;border-collapse:collapse;margin-bottom:1rem;font-size:.83rem">'
+    +'<tr><td style="padding:.35rem 0;width:75px;color:var(--light);font-size:.76rem">種別</td><td>'+(c.type||'一般')+'</td></tr>'
+    +'<tr><td style="padding:.35rem 0;color:var(--light);font-size:.76rem">名前</td><td>'+(c.name||'—')+'</td></tr>'
+    +'<tr><td style="padding:.35rem 0;color:var(--light);font-size:.76rem">メール</td><td><a href="mailto:'+c.email+'" style="color:var(--green)">'+(c.email||'—')+'</a></td></tr>'
+    +'<tr><td style="padding:.35rem 0;color:var(--light);font-size:.76rem">日時</td><td>'+fmtDate(c.createdAt)+'</td></tr>'
+    +'</table>'
+    +'<div style="background:var(--bg);border-radius:6px;padding:.9rem;white-space:pre-wrap;font-size:.85rem;line-height:1.8">'+(c.message||'')+'</div>';
+  document.getElementById('contact-modal').classList.add('on');
+  if (!c.read) {
+    try { await window._updateDoc('contacts', id, {read:true}); c.read=true; updateUnread(); } catch(e){}
+  }
+}
+
+function closeCM(){ document.getElementById('contact-modal').classList.remove('on'); curContact=null; }
+
+document.getElementById('cm-del').addEventListener('click', function(){
+  if (!curContact) return;
+  var tid = curContact;
+  closeCM();
+  openPin('お問い合わせを削除', 'このお問い合わせを削除します。', function(){
+    window._deleteDoc('contacts', tid)
+      .then(function(){ toast('削除しました'); loadContacts().then(renderContacts); })
+      .catch(function(e){ toast('削除失敗: '+e.message,'error'); });
+  });
+});
+
+// ============================================================
+// 下書き（localStorage）
+// ============================================================
+function getDrafts() {
+  try { return JSON.parse(localStorage.getItem(DRAFT_KEY)||'[]'); }
+  catch(e){ return []; }
+}
+function saveDraftLS(drafts) {
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(drafts));
+}
+
+function saveDraft() {
+  var d = getFormData();
+  if (!d.title) { toast('タイトルだけは入力してください','warn'); return; }
+  var drafts = getDrafts();
+  var id = editingId || ('draft_'+Date.now());
+  var idx = drafts.findIndex(function(x){ return x._draftId===id; });
+  var item = Object.assign({}, d, {_draftId: id, _savedAt: new Date().toISOString()});
+  if (idx>=0) drafts[idx]=item; else drafts.unshift(item);
+  saveDraftLS(drafts);
+  toast('下書きを保存しました 📝');
+  updateDraftBadge();
+}
+
+function renderDrafts() {
+  var drafts = getDrafts();
+  var wrap   = document.getElementById('d-list');
+  updateDraftBadge();
+  if (!drafts.length) { wrap.innerHTML='<div class="etbl">下書きはありません。</div>'; return; }
+  wrap.innerHTML = drafts.map(function(d){
+    var date = d._savedAt ? new Date(d._savedAt).toLocaleDateString('ja-JP',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+    return '<div class="ditem">'
+      +'<div class="rthumb-ph">📝</div>'
+      +'<div class="dinfo">'
+      +'<div class="dtitle">'+d.title+'</div>'
+      +'<div class="dmeta">'+(d.category||'カテゴリ未設定')+' ・ 保存: '+date+'</div>'
+      +'</div>'
+      +'<div class="acts" style="flex-shrink:0">'
+      +'<button class="btn btn-o btn-sm" onclick="loadDraft(\''+d._draftId+'\')">✏️ 編集</button>'
+      +'<button class="btn btn-g btn-sm" onclick="pubDraft(\''+d._draftId+'\')">🌐 公開</button>'
+      +'<button class="btn btn-r btn-sm" onclick="delDraft(\''+d._draftId+'\')">🗑️</button>'
+      +'</div></div>';
+  }).join('');
+}
+
+function loadDraft(id) {
+  var drafts = getDrafts();
+  var d = drafts.find(function(x){ return x._draftId===id; });
+  if (!d) return;
+  editingId = null; // 下書きからの編集は新規扱い
+  setFormData(d);
+  goView('new');
+}
+
+async function pubDraft(id) {
+  var drafts = getDrafts();
+  var d = drafts.find(function(x){ return x._draftId===id; });
+  if (!d) return;
+  if (!d.title||!d.slug||!d.category) { toast('タイトル・スラッグ・カテゴリが必要です','warn'); loadDraft(id); return; }
+  try {
+    var data = {title:d.title,slug:d.slug,category:d.category,author:d.author||'編集部',tags:d.tags||[],thumbnail:d.thumbnail||'',featured:!!d.featured,body:d.body||'',createdAt:window._ts()};
+    await window._addDoc('articles', data);
+    delDraft(id);
+    await loadArticles();
+    toast('公開しました 🌐');
+    goView('articles');
+  } catch(e){ toast('公開失敗: '+e.message,'error'); }
+}
+
+function delDraft(id) {
+  var drafts = getDrafts().filter(function(x){ return x._draftId!==id; });
+  saveDraftLS(drafts);
+  toast('下書きを削除しました');
+  renderDrafts();
+  updateDraftBadge();
+}
+
+// ============================================================
+// 連載・特集
+// ============================================================
+function renderSeriesAdminList() {
+  var tbody = document.getElementById('series-tbody');
+  var empty = document.getElementById('series-empty');
+  if (!series.length) { tbody.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display = 'none';
+  tbody.innerHTML = series.map(function(s){
+    var cnt = articles.filter(function(a){ return a.seriesId===s.id; }).length;
+    return '<tr>'
+      +'<td>'+(s.logo?'<img src="'+s.logo+'" class="rthumb" loading="lazy"/>':'<div class="rthumb-ph">📚</div>')+'</td>'
+      +'<td><div style="font-weight:600;font-size:.83rem">'+s.title+'</div><div style="font-size:.72rem;color:var(--light);max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(s.tagline||'')+'</div></td>'
+      +'<td style="font-size:.78rem;color:var(--muted)">/'+(s.slug||s.id)+'</td>'
+      +'<td style="font-size:.83rem">'+cnt+'件</td>'
+      +'<td><div class="acts">'
+      +'<button class="btn btn-o btn-sm" onclick="startEditSeries(\''+s.id+'\')">✏️</button>'
+      +'<button class="btn btn-r btn-sm" onclick="askDelSeries(\''+s.id+'\',\''+(s.title||'').replace(/'/g,"\\'")+'\')">🗑️</button>'
+      +'</div></td></tr>';
+  }).join('');
+}
+
+function goSeriesNew() {
+  document.getElementById('sr-id').value = '';
+  document.getElementById('sr-title').value = '';
+  document.getElementById('sr-slug').value = '';
+  document.getElementById('sr-tagline').value = '';
+  document.getElementById('sr-logo').value = '';
+  document.getElementById('sr-logo-prev').style.display = 'none';
+  document.getElementById('series-form-title').textContent = '新規連載・特集';
+  document.getElementById('series-list-panel').style.display = 'none';
+  document.getElementById('series-form-panel').style.display = 'block';
+}
+
+function startEditSeries(id) {
+  var s = series.find(function(x){ return x.id===id; });
+  if (!s) return;
+  document.getElementById('sr-id').value = s.id;
+  document.getElementById('sr-title').value = s.title || '';
+  document.getElementById('sr-slug').value = s.slug || '';
+  document.getElementById('sr-tagline').value = s.tagline || '';
+  document.getElementById('sr-logo').value = s.logo || '';
+  var prev = document.getElementById('sr-logo-prev');
+  if (s.logo) { prev.src=s.logo; prev.style.display='block'; } else { prev.style.display='none'; }
+  document.getElementById('series-form-title').textContent = '連載・特集を編集';
+  document.getElementById('series-list-panel').style.display = 'none';
+  document.getElementById('series-form-panel').style.display = 'block';
+}
+
+function closeSeriesForm() {
+  document.getElementById('series-form-panel').style.display = 'none';
+  document.getElementById('series-list-panel').style.display = 'block';
+  renderSeriesAdminList();
+}
+
+function resetSeriesForm() {
+  var id = document.getElementById('sr-id').value;
+  if (id) startEditSeries(id); else goSeriesNew();
+}
+
+async function saveSeries() {
+  var id      = document.getElementById('sr-id').value;
+  var title   = document.getElementById('sr-title').value.trim();
+  var slug    = document.getElementById('sr-slug').value.trim();
+  var tagline = document.getElementById('sr-tagline').value.trim();
+  var logo    = document.getElementById('sr-logo').value.trim();
+  if (!title)   { toast('タイトルを入力してください','warn'); return; }
+  if (!slug)    { toast('スラッグを入力してください','warn'); return; }
+  if (!tagline) { toast('短文を入力してください','warn'); return; }
+
+  var d = { title:title, slug:slug, tagline:tagline, logo:logo };
+  var btn = document.getElementById('sr-save-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 保存中…';
+  try {
+    if (id) {
+      await window._updateDoc('series', id, d);
+      toast('連載・特集を更新しました ✅');
+    } else {
+      await window._addDoc('series', d);
+      toast('連載・特集を作成しました ✅');
+    }
+    await loadSeries();
+    closeSeriesForm();
+  } catch(e) { toast('保存失敗: '+e.message,'error'); }
+  finally { btn.disabled=false; btn.textContent='💾 保存する'; }
+}
+
+function askDelSeries(id, title) {
+  openPin('連載・特集を削除', '「'+title+'」を削除します。この連載を参照している記事は残りますが、連載ページとしては表示されなくなります。\nこの操作は取り消せません。', function(){
+    window._deleteDoc('series', id)
+      .then(function(){ toast('削除しました'); loadSeries().then(renderSeriesAdminList); })
+      .catch(function(e){ toast('削除失敗: '+e.message,'error'); });
+  });
+}
+
+// ============================================================
+// PIN確認モーダル
+// ============================================================
+function openPin(title, desc, cb) {
+  document.getElementById('pin-title').textContent = '🔐 '+title;
+  document.getElementById('pin-desc').textContent  = desc;
+  document.getElementById('pin-input').value       = '';
+  document.getElementById('pin-err').style.display = 'none';
+  _pinCb = cb;
+  document.getElementById('pin-modal').classList.add('on');
+  setTimeout(function(){ document.getElementById('pin-input').focus(); }, 120);
+}
+function closePin() {
+  document.getElementById('pin-modal').classList.remove('on');
+  document.getElementById('pin-input').value = '';
+  _pinCb = null;
+}
+function checkPin() {
+  if (document.getElementById('pin-input').value === PIN) {
+    var cb = _pinCb;
+    closePin();
+    if (cb) cb();
+  } else {
+    document.getElementById('pin-err').style.display='block';
+    document.getElementById('pin-input').value='';
+    document.getElementById('pin-input').focus();
+  }
+}
+
+// ============================================================
+// 速報バー設定
+// ============================================================
+var DEFAULT_BI = ['洲本市の空き家活用プロジェクト始動 — 移住者向け説明会を開催','洲本城下町ウォーキングマップ完成、市役所で無料配布中','特区構想「生涯活躍のまち」認定申請、来月審査へ'];
+
+async function loadBreaking() {
+  try {
+    var snap = await window._getDoc('settings','breaking');
+    var data = snap.exists() ? snap.data() : {};
+    breakingOn = data.breakingVisible!==false;
+    document.getElementById('b-toggle').classList.toggle('on', breakingOn);
+    document.getElementById('b-toggle-label').textContent = breakingOn?'速報バーを表示する（ON）':'速報バーを非表示（OFF）';
+    document.getElementById('b-label').value = data.breakingLabel||'速報';
+    renderBItems(data.breakingItems&&data.breakingItems.length ? data.breakingItems : DEFAULT_BI.slice());
+  } catch(e) {
+    breakingOn=true;
+    document.getElementById('b-toggle').classList.add('on');
+    document.getElementById('b-label').value='速報';
+    renderBItems(DEFAULT_BI.slice());
+  }
+}
+
+function renderBItems(items) {
+  document.getElementById('b-items').innerHTML = items.map(function(t){
+    return '<div class="birow"><input type="text" value="'+t.replace(/"/g,'&quot;')+'" placeholder="流れるテキスト"/><button class="bi-del" onclick="this.parentElement.remove()">✕</button></div>';
+  }).join('');
+}
+
+function toggleBreaking() {
+  breakingOn = !breakingOn;
+  document.getElementById('b-toggle').classList.toggle('on', breakingOn);
+  document.getElementById('b-toggle-label').textContent = breakingOn?'速報バーを表示する（ON）':'速報バーを非表示（OFF）';
+}
+
+function addBI() {
+  var row = document.createElement('div'); row.className='birow';
+  row.innerHTML='<input type="text" placeholder="流れるテキスト"/><button class="bi-del" onclick="this.parentElement.remove()">✕</button>';
+  document.getElementById('b-items').appendChild(row);
+  row.querySelector('input').focus();
+}
+
+async function saveBreaking() {
+  var label = document.getElementById('b-label').value.trim()||'速報';
+  var items = [];
+  document.querySelectorAll('#b-items .birow input').forEach(function(inp){ var v=inp.value.trim(); if(v) items.push(v); });
+  if (!items.length) { toast('テキストを1件以上入力してください','warn'); return; }
+  try {
+    await window._setDoc('settings','breaking',{breakingVisible:breakingOn,breakingLabel:label,breakingItems:items});
+    toast('速報バー設定を保存しました ✅');
+  } catch(e){ toast('保存失敗: '+e.message,'error'); }
+}
+
+// ============================================================
+// JSON入出力
+// ============================================================
+function doExport(mode) {
+  var data = mode==='pub'
+    ? articles.filter(function(a){ return a.status!=='draft'; })
+    : articles;
+  var clean = data.map(function(a){
+    var o=Object.assign({},a);
+    if(o.createdAt&&o.createdAt.toDate) o.createdAt=o.createdAt.toDate().toISOString();
+    return o;
+  });
+  var blob = new Blob([JSON.stringify(clean,null,2)],{type:'application/json'});
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement('a');
+  a.href=url; a.download='ankatsu_'+mode+'_'+new Date().toISOString().slice(0,10)+'.json'; a.click();
+  URL.revokeObjectURL(url);
+  var res=document.getElementById('exp-res');
+  res.className='jres ok'; res.textContent='✅ '+clean.length+'件をエクスポートしました。';
+}
+
+async function doImport() {
+  var raw = document.getElementById('imp-json').value.trim();
+  var res = document.getElementById('imp-res');
+  res.className='jres'; res.style.display='none';
+  var pin = prompt('インポート実行にはPINコードが必要です：');
+  if (pin!==PIN) { res.className='jres err'; res.textContent='❌ PINコードが違います。'; return; }
+  var data;
+  try { data=JSON.parse(raw); } catch(e){ res.className='jres err'; res.textContent='❌ JSON形式エラー: '+e.message; return; }
+  if (!Array.isArray(data)||!data.length) { res.className='jres err'; res.textContent='❌ 配列形式で入力してください。'; return; }
+  var existing = articles.map(function(a){return a.slug;}).filter(Boolean);
+  var added=0,skipped=0;
+  for (var i=0;i<data.length;i++) {
+    var item=data[i];
+    if (!item.title||!item.slug||existing.indexOf(item.slug)>=0){ skipped++; continue; }
+    try {
+      await window._addDoc('articles',{title:item.title,slug:item.slug,category:item.category||'',body:item.body||'',author:item.author||'編集部',tags:item.tags||[],thumbnail:item.thumbnail||'',featured:!!item.featured,createdAt:window._ts()});
+      existing.push(item.slug); added++;
+    } catch(e){ skipped++; }
+  }
+  await loadArticles(); renderDash();
+  res.className='jres ok'; res.textContent='✅ 追加:'+added+'件 / スキップ:'+skipped+'件';
+}
+
+// ============================================================
+// DOMContentLoaded — すべてのイベントバインドをここに集約
+// ============================================================
+document.addEventListener('DOMContentLoaded', function() {
+
+  // ログイン初期化
+  initLogin();
+
+  // サイドバートグル
+  document.getElementById('sb-toggle').addEventListener('click', function(){
+    document.getElementById('sidebar').classList.contains('open') ? closeSB() : openSB();
+  });
+  document.getElementById('overlay').addEventListener('click', closeSB);
+
+  // サイドバーメニュー
+  document.querySelectorAll('.sb-btn[data-v]').forEach(function(btn){
+    btn.addEventListener('click', function(){ goView(btn.dataset.v); });
+  });
+
+  // ログアウト
+  document.getElementById('logout-btn').addEventListener('click', function(){
+    window._signOut().then(function(){ toast('ログアウトしました'); });
+  });
+
+  // 記事検索
+  document.getElementById('art-search').addEventListener('input', function(e){
+    renderArticles(e.target.value.trim());
+  });
+
+  // サムネプレビュー
+  document.getElementById('f-thumb').addEventListener('input', function(e){
+    var prev = document.getElementById('f-thumb-prev');
+    var url  = e.target.value.trim();
+    if (url){ prev.src=url; prev.style.display='block'; }
+    else    { prev.style.display='none'; }
+  });
+
+  // タイトル→スラッグ自動生成
+  document.getElementById('f-title').addEventListener('blur', function(){
+    var sl = document.getElementById('f-slug');
+    if (!sl.value.trim()) sl.value = 'article-'+Date.now();
+  });
+
+  // 連載・特集フォーム: タイトル→スラッグ自動生成
+  document.getElementById('sr-title').addEventListener('blur', function(){
+    var sl = document.getElementById('sr-slug');
+    if (!sl.value.trim()) sl.value = 'series-'+Date.now();
+  });
+
+  // 連載・特集フォーム: ロゴプレビュー
+  document.getElementById('sr-logo').addEventListener('input', function(e){
+    var prev = document.getElementById('sr-logo-prev');
+    var url  = e.target.value.trim();
+    if (url){ prev.src=url; prev.style.display='block'; }
+    else    { prev.style.display='none'; }
+  });
+
+  // PINモーダル確認ボタン・Enterキー
+  document.getElementById('pin-ok').addEventListener('click', checkPin);
+  document.getElementById('pin-input').addEventListener('keydown', function(e){
+    if (e.key==='Enter') checkPin();
+  });
+
+  // Firebase準備完了後に認証監視開始
+  function startAuth(){
+    if (window._fbReady) { initAuth(); }
+    else { document.addEventListener('fb-ready', initAuth, {once:true}); }
+  }
+  startAuth();
+});
+</script>
+</body>
+</html>
