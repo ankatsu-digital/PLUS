@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ただいまメンテナンス中です | アンカツ＋</title>
+  <meta name="description" content="アンカツ＋は現在メンテナンス中です。終了までしばらくお待ちください。" />
+  <link rel="icon" href="web-app-manifest-512x512.png" type="image/png">
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import {
+      getFirestore, collection, getDocs, getDoc, doc,
+      query, orderBy, where, limit
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey:            "AIzaSyC4HUWd4c5_fdgA-k34i1uthozfqYcRn9A",
+      authDomain:        "ankatsu-d4816.firebaseapp.com",
+      projectId:         "ankatsu-d4816",
+      storageBucket:     "ankatsu-d4816.firebasestorage.app",
+      messagingSenderId: "1005813876395",
+      appId:             "1:1005813876395:web:29153748d2a99c6584d9ee",
+      measurementId:     "G-TJWJXQZSBL"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db  = getFirestore(app);
+    window._db          = db;
+    window._firestoreOp = { collection, getDocs, getDoc, doc, query, orderBy, where, limit };
+    document.dispatchEvent(new Event("firebase-ready"));
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;600;700;900&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet" />
+
+  <style>
+    :root{
+      --bg:#faf9f6; --bg-card:#fff; --bg-sub:#f3f1ec;
+      --text-main:#1a1a18; --text-muted:#6b6b5e; --text-light:#999990;
+      --accent:#2d6a4f; --accent-light:#52b788; --accent-pale:#d8f3dc;
+      --border:#e0ddd4; --shadow:rgba(0,0,0,0.07);
+      --serif:'Noto Serif JP',serif; --sans:'Noto Sans JP',sans-serif;
+      --radius:6px; --tr:.25s ease;
+    }
+    @media(prefers-color-scheme:dark){
+      :root{
+        --bg:#16161a; --bg-card:#1e1e24; --bg-sub:#1a1a20;
+        --text-main:#e8e6df; --text-muted:#9a9a8c; --text-light:#666660;
+        --accent:#52b788; --accent-light:#74c69d; --accent-pale:#1a3d2b;
+        --border:#2e2e38; --shadow:rgba(0,0,0,0.3);
+      }
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+    body{background:var(--bg);color:var(--text-main);font-family:var(--sans);line-height:1.7;min-height:100vh;display:flex;flex-direction:column}
+    a{color:inherit;text-decoration:none}
+    img{max-width:100%;height:auto;display:block}
+    button{cursor:pointer;font-family:inherit;border:none;background:none}
+
+    /* 速報バー */
+    #breaking-bar{background:var(--accent);color:#fff;font-size:.82rem;display:flex;align-items:center;overflow:hidden;height:36px}
+    #breaking-bar.hidden{display:none}
+    .breaking-label{padding:0 1rem;height:100%;display:flex;align-items:center;white-space:nowrap;font-weight:700;font-size:.75rem;letter-spacing:.1em;flex-shrink:0;background:#1a4535;min-width:70px;justify-content:center}
+    .breaking-scroll{overflow:hidden;flex:1;height:100%}
+    .breaking-inner{display:flex;align-items:center;height:100%;gap:3rem;animation:bScroll 30s linear infinite;white-space:nowrap;padding-left:100%}
+    @keyframes bScroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+    .breaking-sep{color:rgba(255,255,255,.4)}
+
+    /* ヘッダー */
+    header{padding:1.75rem 1.5rem 1rem;text-align:center}
+    .logo-main{font-family:var(--serif);font-size:1.6rem;font-weight:900;color:var(--accent);letter-spacing:.05em}
+    .logo-sub{font-size:.65rem;color:var(--text-muted);letter-spacing:.2em;margin-top:.2rem}
+
+    main{flex:1;display:flex;flex-direction:column;align-items:center;padding:1rem 1.5rem 3rem;gap:2rem}
+
+    /* メンテナンスカード */
+    .m-card{max-width:520px;width:100%;text-align:center;background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:2.75rem 2rem;box-shadow:0 10px 30px var(--shadow)}
+    .m-icon{font-size:3.2rem;margin-bottom:1rem}
+    .m-title{font-family:var(--serif);font-size:1.35rem;font-weight:900;margin-bottom:.9rem}
+    .m-message{font-size:.9rem;color:var(--text-muted);line-height:1.9;margin-bottom:1.5rem;white-space:pre-wrap}
+    .m-end-label{font-size:.75rem;color:var(--text-light);letter-spacing:.05em;margin-bottom:.4rem}
+    .m-end-value{font-size:.85rem;color:var(--text-main);font-weight:600;margin-bottom:1.25rem;min-height:1.2em}
+    .m-countdown-label{font-size:.72rem;color:var(--text-light);letter-spacing:.1em;margin-bottom:.35rem}
+    .m-countdown{font-family:var(--serif);font-size:2.1rem;font-weight:700;color:var(--accent);letter-spacing:.05em;margin-bottom:1.75rem;font-variant-numeric:tabular-nums}
+    .m-refresh-btn{display:inline-flex;align-items:center;gap:.5rem;background:var(--accent);color:#fff;padding:.7rem 1.6rem;border-radius:24px;font-size:.85rem;font-weight:700;transition:background var(--tr)}
+    .m-refresh-btn:hover{background:var(--accent-light)}
+    .m-refresh-btn:disabled{opacity:.6;cursor:not-allowed}
+    .m-refresh-note{font-size:.72rem;color:var(--text-light);margin-top:.75rem}
+
+    /* お問い合わせ・SNSリンク */
+    #m-links-section{max-width:520px;width:100%;text-align:center}
+    .m-links-title{font-size:.75rem;font-weight:700;letter-spacing:.12em;color:var(--text-light);margin-bottom:.9rem}
+    #m-links{display:flex;flex-wrap:wrap;justify-content:center;gap:.6rem}
+    .m-link-pill{display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1.1rem;background:var(--bg-card);border:1.5px solid var(--border);border-radius:20px;font-size:.82rem;font-weight:600;color:var(--text-muted);transition:border-color var(--tr),color var(--tr)}
+    .m-link-pill:hover{border-color:var(--accent);color:var(--accent)}
+
+    /* おすすめ記事 */
+    #m-articles-section{max-width:900px;width:100%}
+    .m-articles-title{font-size:.8rem;font-weight:700;letter-spacing:.1em;color:var(--text-light);margin-bottom:1rem;text-align:center;display:flex;align-items:center;justify-content:center;gap:.5rem}
+    .m-articles-title::before,.m-articles-title::after{content:'';width:24px;height:1px;background:var(--border)}
+    .m-articles-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1.1rem}
+    .m-article-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+    .m-article-thumb{width:100%;aspect-ratio:16/9;object-fit:cover;background:var(--bg-sub)}
+    .m-article-thumb-ph{width:100%;aspect-ratio:16/9;background:linear-gradient(135deg,var(--accent-pale),var(--bg-sub));display:flex;align-items:center;justify-content:center;font-size:2rem;color:var(--text-light)}
+    .m-article-body{padding:.9rem 1rem 1.1rem}
+    .m-article-cat{display:inline-block;font-size:.65rem;font-weight:700;letter-spacing:.06em;color:var(--accent);background:var(--accent-pale);padding:.12rem .5rem;border-radius:3px;margin-bottom:.5rem}
+    .m-article-title{font-family:var(--serif);font-size:.9rem;font-weight:700;line-height:1.5;margin-bottom:.4rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .m-article-excerpt{font-size:.76rem;color:var(--text-muted);line-height:1.7;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+    footer{padding:1.5rem;text-align:center;font-size:.72rem;color:var(--text-light)}
+
+    @media(max-width:480px){
+      .m-card{padding:2.1rem 1.25rem}
+      .m-countdown{font-size:1.6rem}
+    }
+  </style>
+</head>
+<body>
+
+  <div id="breaking-bar" class="hidden">
+    <div class="breaking-label" id="breaking-label">速報</div>
+    <div class="breaking-scroll">
+      <div class="breaking-inner" id="breaking-inner"></div>
+    </div>
+  </div>
+
+  <header>
+    <div class="logo-main">アンカツ＋</div>
+    <div class="logo-sub">城下町洲本 / Sumoto city</div>
+  </header>
+
+  <main>
+    <div class="m-card">
+      <div class="m-icon">🛠️</div>
+      <div class="m-title">ただいまメンテナンス中です</div>
+      <p class="m-message" id="m-message">より良いサービスのため、只今サイトのメンテナンスを行っております。<br>ご不便をおかけし申し訳ございません。</p>
+      <div class="m-end-label">終了予定</div>
+      <div class="m-end-value" id="m-end-value">確認中…</div>
+      <div class="m-countdown-label">終了まで残り</div>
+      <div class="m-countdown" id="m-countdown">--:--:--</div>
+      <button class="m-refresh-btn" id="m-refresh-btn" onclick="manualCheck()">🔄 今すぐ確認する</button>
+      <div class="m-refresh-note">メンテナンスが終了すると自動的にトップページへ移動します</div>
+    </div>
+
+    <div id="m-links-section" style="display:none">
+      <div class="m-links-title">お問い合わせ・SNS</div>
+      <div id="m-links"></div>
+    </div>
+
+    <div id="m-articles-section" style="display:none">
+      <div class="m-articles-title">メンテナンス中でも読める記事</div>
+      <div class="m-articles-grid" id="m-articles-grid"></div>
+    </div>
+  </main>
+
+  <footer>
+    © 2025 アンカツ城下町洲本「生涯活躍のまち」の特区にしたい会 ・ 兵庫県洲本市
+  </footer>
+
+  <script>
+  var CAT_EMOJI = {'まちの話題':'🏘️','イベント':'🎉','空き家活用':'🏠','商店街':'🛍️','文化':'🎨','インタビュー':'🎙️','学校・子育て':'📚','移住・定住':'🌱','お知らせ':'📢'};
+  var INDEX_URL = 'index.html';
+  var POLL_INTERVAL = 15000;
+  var DEFAULT_MESSAGE = 'より良いサービスのため、只今サイトのメンテナンスを行っております。\nご不便をおかけし申し訳ございません。';
+
+  var _maintenanceEnd = null;
+
+  function pad(n){ return (n<10?'0':'')+n; }
+
+  function fmtDateTime(d){
+    try{ return d.toLocaleString('ja-JP',{year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'}); }
+    catch(e){ return ''; }
+  }
+
+  /* ---- 速報バー（settings/breaking を index.html と共有） ---- */
+  async function loadBreaking(){
+    var db=window._db; var ops=window._firestoreOp;
+    if(!db||!ops) return;
+    try{
+      var snap=await ops.getDocs(ops.collection(db,'settings'));
+      var cfg={};
+      snap.forEach(function(d){cfg=Object.assign(cfg,d.data());});
+      var bar=document.getElementById('breaking-bar');
+      if(cfg.breakingVisible===false){bar.classList.add('hidden');return;}
+      bar.classList.remove('hidden');
+      if(cfg.breakingLabel) document.getElementById('breaking-label').textContent=cfg.breakingLabel;
+      if(cfg.breakingItems&&cfg.breakingItems.length){
+        var items=cfg.breakingItems;
+        var html=items.map(function(t){return '<span class="breaking-item">'+t+'</span><span class="breaking-sep">◆</span>';}).join('');
+        document.getElementById('breaking-inner').innerHTML=html+html;
+      }
+    }catch(e){ console.error('loadBreaking:', e); }
+  }
+
+  /* ---- メンテナンス状態の取得・監視 ---- */
+  async function pollMaintenanceStatus(auto){
+    var db=window._db; var ops=window._firestoreOp;
+    if(!db||!ops) return;
+    var btn=document.getElementById('m-refresh-btn');
+    if(!auto && btn){ btn.disabled=true; btn.textContent='🔄 確認中…'; }
+    try{
+      var snap=await ops.getDoc(ops.doc(db,'settings','maintenance'));
+      var data=snap.exists()?snap.data():{};
+      var now=new Date();
+      var start=data.startAt?new Date(data.startAt):null;
+      var end=data.endAt?new Date(data.endAt):null;
+      var isActive=!!(start && !isNaN(start) && now>=start && (!end || isNaN(end) || now<end));
+
+      if(!isActive){
+        window.location.href = INDEX_URL;
+        return;
+      }
+
+      document.getElementById('m-message').innerHTML = (data.message||DEFAULT_MESSAGE).replace(/\n/g,'<br>');
+      _maintenanceEnd = (end && !isNaN(end)) ? end : null;
+      document.getElementById('m-end-value').textContent = _maintenanceEnd ? fmtDateTime(_maintenanceEnd) : '未定';
+      updateCountdown();
+    }catch(e){ console.error('pollMaintenanceStatus:', e); }
+    finally{ if(!auto && btn){ btn.disabled=false; btn.textContent='🔄 今すぐ確認する'; } }
+  }
+
+  function manualCheck(){ pollMaintenanceStatus(false); }
+
+  function updateCountdown(){
+    var el=document.getElementById('m-countdown');
+    if(!_maintenanceEnd){ el.textContent='未定'; return; }
+    var diff=_maintenanceEnd-new Date();
+    if(diff<=0){ el.textContent='まもなく再開します'; return; }
+    var h=Math.floor(diff/3600000);
+    var m=Math.floor((diff%3600000)/60000);
+    var s=Math.floor((diff%60000)/1000);
+    el.textContent = pad(h)+':'+pad(m)+':'+pad(s);
+  }
+
+  /* ---- お問い合わせ・SNSリンク & おすすめ記事（settings/maintenancePage） ---- */
+  function renderContactLinks(links){
+    var section=document.getElementById('m-links-section');
+    if(!links||!links.length){ section.style.display='none'; return; }
+    document.getElementById('m-links').innerHTML = links.map(function(l){
+      var isExternal=/^https?:\/\//.test(l.url||'');
+      return '<a class="m-link-pill" href="'+(l.url||'#')+'"'+(isExternal?' target="_blank" rel="noopener"':'')+'>'+(l.label||'リンク')+'</a>';
+    }).join('');
+    section.style.display='block';
+  }
+
+  async function loadMaintenancePage(){
+    var db=window._db; var ops=window._firestoreOp;
+    var artSection=document.getElementById('m-articles-section');
+    if(!db||!ops){ artSection.style.display='none'; return; }
+    try{
+      var snap=await ops.getDoc(ops.doc(db,'settings','maintenancePage'));
+      var data=snap.exists()?snap.data():{};
+      renderContactLinks(data.contactLinks||[]);
+
+      var ids=(data.featuredArticleIds||[]).slice(0,6);
+      if(!ids.length){ artSection.style.display='none'; return; }
+
+      var docs=await Promise.all(ids.map(function(id){ return ops.getDoc(ops.doc(db,'articles',id)); }));
+      var arts=docs.filter(function(d){return d.exists();}).map(function(d){return Object.assign({id:d.id},d.data());});
+      if(!arts.length){ artSection.style.display='none'; return; }
+
+      document.getElementById('m-articles-grid').innerHTML=arts.map(function(a){
+        var excerpt=(a.body||'').replace(/<[^>]*>/g,'').trim().slice(0,58);
+        return '<div class="m-article-card">'
+          +(a.thumbnail?'<img src="'+a.thumbnail+'" class="m-article-thumb" loading="lazy"/>':'<div class="m-article-thumb-ph">'+(CAT_EMOJI[a.category]||'📰')+'</div>')
+          +'<div class="m-article-body">'
+          +'<span class="m-article-cat">'+(a.category||'')+'</span>'
+          +'<div class="m-article-title">'+a.title+'</div>'
+          +'<div class="m-article-excerpt">'+excerpt+(excerpt.length>=58?'…':'')+'</div>'
+          +'</div></div>';
+      }).join('');
+      artSection.style.display='block';
+    }catch(e){ console.error('loadMaintenancePage:', e); artSection.style.display='none'; }
+  }
+
+  /* ---- 初期化 ---- */
+  document.addEventListener('firebase-ready', function(){
+    loadBreaking();
+    pollMaintenanceStatus(true);
+    loadMaintenancePage();
+    setInterval(function(){ pollMaintenanceStatus(true); }, POLL_INTERVAL);
+    setInterval(updateCountdown, 1000);
+  });
+  </script>
+</body>
+</html>
