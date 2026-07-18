@@ -1,0 +1,1433 @@
+
+<!DOCTYPE html>
+<div id="jma-emergency-alert-embed">
+  <div id="jma-emergency-banner" onclick="openJmaEmergencyModal()">
+    【災害情報】現在、洲本市に気象警報が発表されています。タップして詳細を確認してください。
+  </div>
+
+  <div id="jma-emergency-modal" onclick="closeJmaEmergencyModal(event)">
+    <div class="jma-modal-card" onclick="event.stopPropagation()">
+      <div class="jma-modal-header">
+        <span>淡路島 気象警報・注意報 詳細</span>
+        <button class="jma-modal-close-btn" onclick="closeJmaEmergencyModal(null)">&times;</button>
+      </div>
+      <div class="jma-modal-body">
+        <div class="jma-meta-info">
+          <span id="jma-report-time">発表時刻: --:--:--</span>｜
+          <span id="jma-update-time">最終更新: --:--:--</span>
+        </div>
+        
+        <div class="jma-city-box">
+          <div class="jma-city-name">淡路市</div>
+          <div id="jma-alerts-awaji" class="jma-alert-list"></div>
+        </div>
+        <div class="jma-city-box">
+          <div class="jma-city-name">洲本市</div>
+          <div id="jma-alerts-sumoto" class="jma-alert-list"></div>
+        </div>
+        <div class="jma-city-box">
+          <div class="jma-city-name">南あわじ市</div>
+          <div id="jma-alerts-minamiawaji" class="jma-alert-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    /* 既存のサイトのデザインと衝突（バグ）を起こさないよう、ID・クラス名はすべて「jma-」を付与 */
+    #jma-emergency-alert-embed {
+      --jma-purple: #9c27b0;
+      --jma-red: #d32f2f;
+      --jma-yellow: #fbc02d;
+      --jma-gray: #e0e0e0;
+      --jma-text-main: #202124;
+      --jma-text-sub: #5f6368;
+      --jma-border-color: #dadce0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    /* 1. 防災警告バナー（親の観光サイト最上部、または既存のヘッダーの下など任意の場所に表示） */
+    #jma-emergency-banner {
+      display: none;
+      background-color: var(--jma-red);
+      color: white;
+      text-align: center;
+      padding: 12px 20px;
+      font-weight: bold;
+      font-size: 1rem;
+      line-height: 1.4;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+      position: relative;
+      z-index: 9999;
+      animation: jmaPulse 2s infinite;
+    }
+    @keyframes jmaPulse {
+      0% { background-color: #d32f2f; }
+      50% { background-color: #b71c1c; }
+      100% { background-color: #d32f2f; }
+    }
+
+    /* 2. ポップアップ（モーダルウィンドウ） */
+    #jma-emergency-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.6);
+      z-index: 10000;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    .jma-modal-card {
+      background-color: #ffffff;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 600px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      overflow: hidden;
+      animation: jmaSlideIn 0.3s ease-out;
+    }
+    @keyframes jmaSlideIn {
+      from { transform: translateY(-30px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .jma-modal-header {
+      background-color: #333333;
+      color: white;
+      padding: 16px 20px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .jma-modal-close-btn {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 1.6rem;
+      cursor: pointer;
+      padding: 0 5px;
+      line-height: 1;
+    }
+    .jma-modal-body {
+      padding: 20px;
+      max-height: 70vh;
+      overflow-y: auto;
+      text-align: left;
+    }
+
+    /* 淡路島全体の詳細表示用スタイル */
+    .jma-meta-info {
+      font-size: 0.8rem;
+      color: var(--jma-text-sub);
+      margin-bottom: 15px;
+      text-align: right;
+    }
+    .jma-city-box {
+      margin-bottom: 20px;
+    }
+    .jma-city-box:last-child {
+      margin-bottom: 0;
+    }
+    .jma-city-name {
+      font-size: 1rem;
+      font-weight: bold;
+      margin-bottom: 10px;
+      padding-left: 8px;
+      border-left: 4px solid #1976d2;
+      color: var(--jma-text-main);
+    }
+    .jma-alert-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .jma-alert-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 0.9rem;
+      box-sizing: border-box;
+    }
+    .jma-alert-status {
+      font-size: 0.75rem;
+      padding: 2px 6px;
+      background: rgba(255,255,255,0.75);
+      border-radius: 4px;
+      color: #000000;
+    }
+
+    /* レベル別カラー */
+    .jma-bg-purple { background-color: var(--jma-purple) !important; color: #ffffff !important; }
+    .jma-bg-red { background-color: var(--jma-red) !important; color: #ffffff !important; }
+    .jma-bg-yellow { background-color: var(--jma-yellow) !important; color: #202124 !important; }
+  </style>
+
+  <script>
+    const JMA_FEED_URL = 'https://www.data.jma.go.jp/developer/xml/feed/extra.xml';
+    const JMA_TARGET_CITIES = ['淡路市', '洲本市', '南あわじ市'];
+
+    function openJmaEmergencyModal() {
+      document.getElementById('jma-emergency-modal').style.display = 'flex';
+    }
+    
+    function closeJmaEmergencyModal(event) {
+      if (!event || event.target === document.getElementById('jma-emergency-modal') || event.target.classList.contains('jma-modal-close-btn')) {
+        document.getElementById('jma-emergency-modal').style.display = 'none';
+      }
+    }
+
+    async function checkJmaWeatherAlerts() {
+      const banner = document.getElementById('jma-emergency-banner');
+      const updateTimeDisplay = document.getElementById('jma-update-time');
+      const reportTimeDisplay = document.getElementById('jma-report-time');
+
+      try {
+        const feedRes = await fetch(JMA_FEED_URL);
+        if (!feedRes.ok) throw new Error('Feed fetch failed');
+        const feedText = await feedRes.text();
+        const parser = new DOMParser();
+        const feedXml = parser.parseFromString(feedText, 'application/xml');
+
+        const entries = feedXml.getElementsByTagName('entry');
+        let targetXmlUrl = null;
+
+        for (let i = 0; i < entries.length; i++) {
+          const title = entries[i].getElementsByTagName('title')[0]?.textContent || '';
+          const content = entries[i].getElementsByTagName('content')[0]?.textContent || '';
+          const author = entries[i].getElementsByTagName('name')[0]?.textContent || '';
+
+          if (title.includes('警報') && title.includes('注意報') && (content.includes('兵庫県') || author.includes('神戸'))) {
+            targetXmlUrl = entries[i].getElementsByTagName('link')[0]?.getAttribute('href');
+            break;
+          }
+        }
+
+        const now = new Date();
+        updateTimeDisplay.textContent = `最終更新: ${now.toLocaleTimeString('ja-JP')}`;
+
+        if (!targetXmlUrl) {
+          banner.style.display = 'none';
+          return;
+        }
+
+        const xmlRes = await fetch(targetXmlUrl);
+        if (!xmlRes.ok) throw new Error('XML fetch failed');
+        const xmlText = await xmlRes.text();
+        const xmlDoc = parser.parseFromString(xmlText, 'application/xml');
+
+        const reportDateTime = xmlDoc.getElementsByTagName('ReportDateTime')[0]?.textContent;
+        if (reportDateTime) {
+          reportTimeDisplay.textContent = `発表時刻: ${new Date(reportDateTime).toLocaleString('ja-JP')}`;
+        }
+
+        const cityAlerts = { '淡路市': [], '洲本市': [], '南あわじ市': [] };
+        let hasSumotoWarningOrHigher = false;
+
+        const items = xmlDoc.getElementsByTagName('Item');
+        for (let i = 0; i < items.length; i++) {
+          const areas = items[i].getElementsByTagName('Area');
+          let areaName = null;
+          
+          for (let j = 0; j < areas.length; j++) {
+            const nameNode = areas[j].getElementsByTagName('Name')[0];
+            if (nameNode && JMA_TARGET_CITIES.includes(nameNode.textContent)) {
+              areaName = nameNode.textContent;
+              break;
+            }
+          }
+
+          if (areaName) {
+            const kinds = items[i].getElementsByTagName('Kind');
+            for (let k = 0; k < kinds.length; k++) {
+              const alertName = kinds[k].getElementsByTagName('Name')[0]?.textContent;
+              const status = kinds[k].getElementsByTagName('Status')[0]?.textContent;
+
+              if (alertName && status && status !== '解除' && status !== '発表なし') {
+                cityAlerts[areaName].push({ name: alertName, status: status });
+
+                if (areaName === '洲本市' && (alertName.includes('警報') || alertName.includes('特別警報'))) {
+                  hasSumotoWarningOrHigher = true;
+                }
+              }
+            }
+          }
+        }
+
+        if (hasSumotoWarningOrHigher) {
+          const sumotoAlertNames = cityAlerts['洲本市'].map(a => a.name).join('');
+          if (sumotoAlertNames.includes('特別警報')) {
+            banner.textContent = '【緊急災害情報】洲本市に「特別警報」が発表されています。安全を確保し、詳細を確認してください。';
+            banner.style.backgroundColor = 'var(--jma-purple)';
+          } else {
+            banner.textContent = '【災害情報】現在、洲本市に「気象警報」が発表されています。タップして詳細を確認してください。';
+            banner.style.backgroundColor = 'var(--jma-red)';
+          }
+          banner.style.display = 'block';
+        } else {
+          banner.style.display = 'none';
+        }
+
+        renderJmaCityAlerts('jma-alerts-awaji', cityAlerts['淡路市']);
+        renderJmaCityAlerts('jma-alerts-sumoto', cityAlerts['洲本市']);
+        renderJmaCityAlerts('jma-alerts-minamiawaji', cityAlerts['南あわじ市']);
+
+      } catch (error) {
+        console.error('防災情報取得エラー:', error);
+      }
+    }
+
+    function renderJmaCityAlerts(containerId, alerts) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = '';
+
+      if (!alerts || alerts.length === 0) {
+        container.innerHTML = '<div class="jma-alert-item" style="background-color:var(--jma-gray); color:var(--jma-text-sub)">発表なし</div>';
+        return;
+      }
+
+      alerts.sort((a, b) => {
+        const score = (name) => name.includes('特別警報') ? 3 : name.includes('警報') ? 2 : 1;
+        return score(b.name) - score(a.name);
+      });
+
+      alerts.forEach(alert => {
+        const div = document.createElement('div');
+        div.className = 'jma-alert-item';
+        
+        if (alert.name.includes('特別警報')) div.classList.add('jma-bg-purple');
+        else if (alert.name.includes('警報')) div.classList.add('jma-bg-red');
+        else if (alert.name.includes('注意報')) div.classList.add('jma-bg-yellow');
+
+        div.innerHTML = `<span>${alert.name}</span><span class="jma-alert-status">${alert.status}</span>`;
+        container.appendChild(div);
+      });
+    }
+
+    checkJmaWeatherAlerts();
+    setInterval(checkJmaWeatherAlerts, 5 * 60 * 1000);
+  </script>
+</div>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" href="web-app-manifest-512x512.png" type="image/png">
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-TJWJXQZSBL"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-TJWJXQZSBL');
+</script>
+  <title>アンカツ＋ | 城下町洲本のデジタルアーカイブ</title>
+  <meta name="description" content="兵庫県洲本市の地域情報メディア。まちの声、人、文化を記録するデジタルアーカイブ。" />
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import {
+      getFirestore, collection, getDocs, getDoc, doc,
+      query, orderBy, where, limit, addDoc, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey:            "AIzaSyC4HUWd4c5_fdgA-k34i1uthozfqYcRn9A",
+      authDomain:        "ankatsu-d4816.firebaseapp.com",
+      projectId:         "ankatsu-d4816",
+      storageBucket:     "ankatsu-d4816.firebasestorage.app",
+      messagingSenderId: "1005813876395",
+      appId:             "1:1005813876395:web:29153748d2a99c6584d9ee",
+      measurementId:     "G-TJWJXQZSBL"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db  = getFirestore(app);
+    window._db          = db;
+    window._firestoreOp = { collection, getDocs, getDoc, doc, query, orderBy, where, limit, addDoc, serverTimestamp };
+    document.dispatchEvent(new Event("firebase-ready"));
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;600;700;900&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg:#faf9f6; --bg-card:#fff; --bg-sub:#f3f1ec;
+      --text-main:#1a1a18; --text-muted:#6b6b5e; --text-light:#999990;
+      --accent:#2d6a4f; --accent-light:#52b788; --accent-pale:#d8f3dc;
+      --danger:#e63946; --border:#e0ddd4; --shadow:rgba(0,0,0,0.07);
+      --header-h:64px;
+      --serif:'Noto Serif JP',serif; --sans:'Noto Sans JP',sans-serif;
+      --radius:6px; --tr:0.25s ease;
+    }
+    [data-theme="dark"] {
+      --bg:#16161a; --bg-card:#1e1e24; --bg-sub:#1a1a20;
+      --text-main:#e8e6df; --text-muted:#9a9a8c; --text-light:#666660;
+      --accent:#52b788; --accent-light:#74c69d; --accent-pale:#1a3d2b;
+      --border:#2e2e38; --shadow:rgba(0,0,0,0.3);
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth;font-size:16px;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+    body{background:var(--bg);color:var(--text-main);font-family:var(--sans);line-height:1.7;transition:background var(--tr),color var(--tr);min-height:100vh}
+    a{color:inherit;text-decoration:none}
+    img{max-width:100%;height:auto;display:block}
+    button{cursor:pointer;font-family:inherit;border:none;background:none}
+
+    /* ローディング */
+    #loading-screen{position:fixed;inset:0;background:var(--accent);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .6s,visibility .6s}
+    #loading-screen.hidden{opacity:0;visibility:hidden}
+    .loading-logo{color:#fff;font-family:var(--serif);font-size:clamp(1.8rem,5vw,3rem);font-weight:900;letter-spacing:.1em;margin-bottom:.5rem}
+    .loading-sub{color:rgba(255,255,255,.7);font-size:.85rem;letter-spacing:.15em}
+    .loading-bar{width:200px;height:2px;background:rgba(255,255,255,.2);margin-top:2rem;border-radius:2px;overflow:hidden}
+    .loading-bar-inner{height:100%;background:#fff;width:0;animation:loadBar 1.8s ease forwards}
+    @keyframes loadBar{to{width:100%}}
+
+    /* ヘッダー */
+    #site-header{position:sticky;top:0;z-index:100;background:var(--bg-card);border-bottom:1px solid var(--border);height:var(--header-h);box-shadow:0 2px 8px var(--shadow);transition:background var(--tr)}
+    .header-inner{max-width:1200px;margin:0 auto;padding:0 1.5rem;height:100%;display:flex;align-items:center;gap:1rem}
+    #menu-toggle{display:none;flex-direction:column;gap:5px;padding:4px}
+    .burger-line{width:24px;height:2px;background:var(--text-main);border-radius:2px;transition:transform .3s,opacity .3s}
+    #menu-toggle.open .burger-line:nth-child(1){transform:translateY(7px) rotate(45deg)}
+    #menu-toggle.open .burger-line:nth-child(2){opacity:0}
+    #menu-toggle.open .burger-line:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+    .site-logo{display:flex;flex-direction:column;line-height:1;flex:1;min-width:0;cursor:pointer}
+    .logo-main{font-family:var(--serif);font-size:clamp(1.2rem,3vw,1.6rem);font-weight:900;color:var(--accent);letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .logo-sub{font-size:.6rem;color:var(--text-muted);letter-spacing:.2em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #main-nav{display:flex;align-items:center;gap:.25rem;flex-shrink:1;min-width:0;overflow-x:auto;scrollbar-width:none}
+    #main-nav::-webkit-scrollbar{display:none}
+    .nav-link{padding:.4rem .75rem;font-size:.85rem;font-weight:500;color:var(--text-muted);border-radius:var(--radius);transition:background var(--tr),color var(--tr);white-space:nowrap;cursor:pointer;flex-shrink:0}
+    .nav-link:hover,.nav-link.active{background:var(--accent-pale);color:var(--accent)}
+    .search-box{display:flex;align-items:center;background:var(--bg-sub);border:1px solid var(--border);border-radius:20px;padding:.35rem .9rem;gap:.5rem;transition:border-color var(--tr),box-shadow var(--tr);flex-shrink:0}
+    .search-box:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-pale)}
+    .search-box input{background:none;border:none;outline:none;font-family:var(--sans);font-size:.85rem;color:var(--text-main);width:180px}
+    .search-box input::placeholder{color:var(--text-light)}
+    #dark-toggle{width:44px;height:24px;background:var(--border);border-radius:12px;position:relative;transition:background var(--tr);flex-shrink:0}
+    #dark-toggle::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;background:#fff;border-radius:50%;transition:transform var(--tr);box-shadow:0 1px 3px rgba(0,0,0,.2)}
+    [data-theme="dark"] #dark-toggle{background:var(--accent)}
+    [data-theme="dark"] #dark-toggle::after{transform:translateX(20px)}
+    #mobile-nav{display:none;position:fixed;top:var(--header-h);left:0;right:0;background:var(--bg-card);border-bottom:1px solid var(--border);padding:1rem 1.5rem;z-index:99;flex-direction:column;gap:.25rem}
+    #mobile-nav.open{display:flex}
+    #mobile-nav .nav-link{font-size:1rem;padding:.6rem 1rem}
+
+    /* 速報バー */
+    #breaking-bar{background:var(--accent);color:#fff;font-size:.82rem;display:flex;align-items:center;overflow:hidden;height:36px}
+    #breaking-bar.hidden{display:none}
+    .breaking-label{padding:0 1rem;height:100%;display:flex;align-items:center;white-space:nowrap;font-weight:700;font-size:.75rem;letter-spacing:.1em;flex-shrink:0;background:#1a4535;min-width:70px;justify-content:center}
+    .breaking-scroll{overflow:hidden;flex:1;height:100%}
+    .breaking-inner{display:flex;align-items:center;height:100%;gap:3rem;animation:bScroll 30s linear infinite;white-space:nowrap;padding-left:100%}
+    @keyframes bScroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+    .breaking-inner:hover{animation-play-state:paused}
+    .breaking-sep{color:rgba(255,255,255,.4)}
+
+    /* カテゴリ帯 */
+    #category-bar{background:var(--bg-card);border-bottom:2px solid var(--accent);overflow-x:auto;scrollbar-width:none}
+    #category-bar::-webkit-scrollbar{display:none}
+    .cat-list{max-width:1200px;margin:0 auto;padding:0 1.5rem;display:flex}
+    .cat-btn{padding:.65rem 1.1rem;font-size:.82rem;font-weight:500;color:var(--text-muted);border-bottom:3px solid transparent;margin-bottom:-2px;transition:color var(--tr),border-color var(--tr);white-space:nowrap;cursor:pointer}
+    .cat-btn:hover{color:var(--accent)}
+    .cat-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+    /* メイン */
+    #main-content{max-width:1200px;margin:0 auto;padding:2rem 1.5rem}
+    #top-view.hidden{display:none}
+    #top-layout{display:grid;grid-template-columns:1fr 340px;gap:2rem}
+
+    /* 注目記事 */
+    .main-feature-card{background:var(--bg-card);border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);box-shadow:0 4px 16px var(--shadow);cursor:pointer;transition:transform var(--tr),box-shadow var(--tr)}
+    .main-feature-card:hover{transform:translateY(-3px);box-shadow:0 8px 28px var(--shadow)}
+    .main-feature-img{width:100%;aspect-ratio:16/9;object-fit:cover;background:var(--bg-sub)}
+    .main-feature-img-ph{width:100%;aspect-ratio:16/9;background:linear-gradient(135deg,var(--accent-pale),var(--bg-sub));display:flex;align-items:center;justify-content:center;color:var(--text-light);font-size:3rem}
+    .main-feature-body{padding:1.5rem 2rem 2rem}
+    .feature-cat-tag{display:inline-block;background:var(--accent);color:#fff;font-size:.72rem;font-weight:700;letter-spacing:.1em;padding:.2rem .6rem;border-radius:3px;margin-bottom:.75rem}
+    .main-feature-title{font-family:var(--serif);font-size:clamp(1.3rem,2.8vw,1.75rem);font-weight:700;line-height:1.45;margin-bottom:.75rem}
+    .main-feature-lead{font-size:.92rem;color:var(--text-muted);line-height:1.8;margin-bottom:1.25rem;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+    .feature-meta{display:flex;align-items:center;gap:1rem;font-size:.78rem;color:var(--text-light);border-top:1px solid var(--border);padding-top:1rem;flex-wrap:wrap}
+    .read-more-btn{display:inline-flex;align-items:center;gap:.4rem;background:var(--accent);color:#fff;padding:.5rem 1.1rem;border-radius:4px;font-size:.82rem;font-weight:600;transition:background var(--tr)}
+    .read-more-btn:hover{background:var(--accent-light)}
+
+    /* 関連記事 */
+    .related-section{margin-top:1.5rem}
+    .related-title{font-size:.75rem;font-weight:700;letter-spacing:.12em;color:var(--text-light);margin-bottom:.75rem;display:flex;align-items:center;gap:.5rem}
+    .related-title::before{content:'';width:3px;height:14px;background:var(--accent);display:inline-block;border-radius:2px}
+    .related-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+    .related-card{background:var(--bg-sub);border-radius:4px;border:1px solid var(--border);cursor:pointer;transition:background var(--tr);display:flex;gap:.75rem;padding:.75rem;align-items:flex-start}
+    .related-card:hover{background:var(--accent-pale)}
+    .related-thumb{width:64px;height:64px;object-fit:cover;border-radius:3px;flex-shrink:0;background:var(--border)}
+    .related-thumb-ph{width:64px;height:64px;background:var(--border);border-radius:3px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--text-light);font-size:1.2rem}
+    .related-card-title{font-size:.8rem;font-weight:600;line-height:1.4;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+
+    /* サイドバー */
+    .sidebar-news{display:flex;flex-direction:column}
+    .sidebar-head{font-family:var(--serif);font-size:1rem;font-weight:700;padding-bottom:.6rem;border-bottom:2px solid var(--accent)}
+    .news-list{border:1px solid var(--border);border-top:none;background:var(--bg-card);border-radius:0 0 var(--radius) var(--radius)}
+    .news-item{display:flex;gap:.75rem;padding:.9rem 1rem;border-bottom:1px solid var(--border);cursor:pointer;transition:background var(--tr)}
+    .news-item:last-child{border-bottom:none}
+    .news-item:hover{background:var(--bg-sub)}
+    .news-thumb{width:72px;height:52px;object-fit:cover;border-radius:3px;flex-shrink:0;background:var(--border)}
+    .news-thumb-ph{width:72px;height:52px;background:linear-gradient(135deg,var(--accent-pale),var(--bg-sub));border-radius:3px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--text-light);font-size:1.1rem}
+    .news-info{flex:1;min-width:0}
+    .news-cat-tag{display:inline-block;font-size:.67rem;font-weight:700;letter-spacing:.08em;color:var(--accent);background:var(--accent-pale);padding:.1rem .45rem;border-radius:3px;margin-bottom:.3rem}
+    .news-item-title{font-size:.82rem;font-weight:600;line-height:1.45;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+    .news-item-date{font-size:.7rem;color:var(--text-light);margin-top:.3rem}
+    .tag-section{margin-top:1.5rem}
+    .tag-section-title{font-size:.75rem;font-weight:700;letter-spacing:.12em;color:var(--text-light);margin-bottom:.6rem}
+    .tag-cloud{display:flex;flex-wrap:wrap;gap:.4rem}
+    .tag-chip{font-size:.75rem;padding:.3rem .7rem;background:var(--bg-sub);border:1px solid var(--border);border-radius:20px;color:var(--text-muted);cursor:pointer;transition:background var(--tr),border-color var(--tr),color var(--tr)}
+    .tag-chip:hover,.tag-chip.active{background:var(--accent-pale);border-color:var(--accent);color:var(--accent)}
+
+    /* 記事ページ */
+    #article-view{display:none}
+    #article-view.visible{display:block}
+    .article-header{max-width:760px;margin:0 auto 2rem;padding:2rem 0 0}
+    .article-cat-badge{display:inline-flex;align-items:center;gap:.5rem;font-size:.78rem;color:var(--accent);font-weight:700;letter-spacing:.1em;margin-bottom:1rem}
+    .article-cat-badge::before{content:'';width:12px;height:2px;background:var(--accent)}
+    .article-title{font-family:var(--serif);font-size:clamp(1.5rem,4vw,2.4rem);font-weight:900;line-height:1.4;margin-bottom:1rem}
+    .article-meta{display:flex;flex-wrap:wrap;gap:1.2rem;font-size:.8rem;color:var(--text-muted);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:.75rem 0}
+    .article-hero{width:100%;max-width:760px;margin:1.5rem auto;aspect-ratio:16/9;object-fit:cover;border-radius:var(--radius)}
+    .article-hero-ph{max-width:760px;margin:1.5rem auto;aspect-ratio:16/9;background:linear-gradient(135deg,var(--accent-pale),var(--bg-sub));border-radius:var(--radius);display:flex;align-items:center;justify-content:center;font-size:4rem;color:var(--text-light)}
+    .article-body{max-width:760px;margin:0 auto;font-size:1rem;line-height:1.9}
+    .article-body p{margin-bottom:1.4em}
+    .article-body h2{font-family:var(--serif);font-size:1.35rem;font-weight:700;margin:2.5em 0 .75em;padding-left:1em;border-left:4px solid var(--accent)}
+    .article-body h3{font-family:var(--serif);font-size:1.1rem;font-weight:700;margin:2em 0 .5em;color:var(--accent)}
+    .article-body blockquote{background:var(--accent-pale);border-left:4px solid var(--accent);padding:1rem 1.5rem;border-radius:0 4px 4px 0;margin:1.5em 0;color:var(--text-muted);font-style:italic}
+    .article-tags{display:flex;flex-wrap:wrap;gap:.4rem;margin:2rem auto;max-width:760px}
+    .article-share-bar{max-width:760px;margin:1.25rem auto 0;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
+    .share-label{font-size:.78rem;color:var(--text-muted);font-weight:600;flex-shrink:0}
+    .share-buttons{display:flex;gap:.5rem;flex-wrap:wrap}
+    .share-btn{display:inline-flex;align-items:center;gap:.35rem;padding:.4rem .85rem;border-radius:20px;border:1px solid var(--border);background:var(--bg-card);font-size:.78rem;font-weight:600;color:var(--text-muted);transition:background var(--tr),color var(--tr),border-color var(--tr)}
+    .share-btn:hover{border-color:var(--accent);color:var(--accent)}
+    .share-btn.share-x:hover{border-color:var(--text-main);color:var(--text-main)}
+    .share-btn.share-line:hover{border-color:#06c755;color:#06c755}
+    .share-btn.share-fb:hover{border-color:#1877f2;color:#1877f2}
+    #share-toast-container{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);z-index:9998;display:flex;flex-direction:column;align-items:center;gap:.5rem}
+    .share-toast{background:var(--text-main);color:var(--bg);padding:.6rem 1.25rem;border-radius:20px;font-size:.82rem;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.25);animation:jmaSlideIn .2s ease-out}
+    .back-btn{display:inline-flex;align-items:center;gap:.5rem;font-size:.85rem;color:var(--text-muted);padding:.5rem 1rem;border:1px solid var(--border);border-radius:4px;margin-bottom:1.5rem;transition:background var(--tr);cursor:pointer}
+    .back-btn:hover{background:var(--bg-sub);color:var(--accent)}
+
+    /* 一覧 */
+    #list-view{display:none}
+    #list-view.visible{display:block}
+    .list-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem}
+    .list-title{font-family:var(--serif);font-size:1.4rem;font-weight:700}
+    .list-count{font-size:.82rem;color:var(--text-muted)}
+    .articles-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.25rem}
+    .grid-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:transform var(--tr),box-shadow var(--tr)}
+    .grid-card:hover{transform:translateY(-4px);box-shadow:0 8px 24px var(--shadow)}
+    .grid-card-img{width:100%;aspect-ratio:16/9;object-fit:cover;background:var(--bg-sub)}
+    .grid-card-img-ph{width:100%;aspect-ratio:16/9;background:linear-gradient(135deg,var(--accent-pale),var(--bg-sub));display:flex;align-items:center;justify-content:center;color:var(--text-light);font-size:2rem}
+    .grid-card-body{padding:1rem}
+    .grid-card-title{font-family:var(--serif);font-size:.95rem;font-weight:700;line-height:1.45;margin-bottom:.5rem;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+    .grid-card-date{font-size:.73rem;color:var(--text-light)}
+
+    /* 連載・特集 */
+    #series-view{display:none}
+    #series-view.visible{display:block}
+    .series-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1.25rem}
+    .series-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:transform var(--tr),box-shadow var(--tr);display:flex;flex-direction:column}
+    .series-card:hover{transform:translateY(-4px);box-shadow:0 8px 24px var(--shadow)}
+    .series-card-logo{width:100%;aspect-ratio:16/9;object-fit:cover;background:linear-gradient(135deg,var(--accent-pale),var(--bg-sub))}
+    .series-card-logo-ph{width:100%;aspect-ratio:16/9;background:linear-gradient(135deg,var(--accent-pale),var(--bg-sub));display:flex;align-items:center;justify-content:center;font-size:2.2rem;color:var(--accent)}
+    .series-card-body{padding:1rem 1.1rem 1.25rem}
+    .series-card-title{font-family:var(--serif);font-weight:700;font-size:1rem;margin-bottom:.4rem;line-height:1.4}
+    .series-card-tagline{font-size:.82rem;color:var(--text-muted);line-height:1.7;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .series-card-count{font-size:.72rem;color:var(--text-light);margin-top:.6rem;font-weight:600;letter-spacing:.03em}
+
+    #series-detail-view{display:none}
+    #series-detail-view.visible{display:block}
+    .series-detail-header{max-width:820px;margin:0 auto 2.5rem;display:flex;align-items:center;gap:1.75rem;text-align:left}
+    .series-detail-logo{width:110px;height:110px;border-radius:50%;object-fit:cover;flex-shrink:0;box-shadow:0 4px 16px var(--shadow)}
+    .series-detail-logo-ph{width:110px;height:110px;border-radius:50%;background:linear-gradient(135deg,var(--accent-pale),var(--bg-sub));display:flex;align-items:center;justify-content:center;font-size:2.6rem;color:var(--accent);flex-shrink:0;box-shadow:0 4px 16px var(--shadow)}
+    .series-detail-body{flex:1;min-width:0}
+    .series-detail-eyebrow{font-size:.72rem;font-weight:700;letter-spacing:.15em;color:var(--accent);margin-bottom:.4rem}
+    .series-detail-title{font-family:var(--serif);font-size:clamp(1.3rem,3vw,1.9rem);font-weight:900;line-height:1.4;margin-bottom:.6rem}
+    .series-detail-tagline{font-size:.9rem;color:var(--text-muted);line-height:1.85}
+    @media(max-width:640px){
+      .series-detail-header{flex-direction:column;text-align:center;gap:1rem}
+    }
+    .series-detail-articles-head{max-width:1200px;margin:0 auto 1rem;font-size:.8rem;font-weight:700;letter-spacing:.1em;color:var(--text-light);display:flex;align-items:center;gap:.5rem}
+    .series-detail-articles-head::before{content:'';width:3px;height:14px;background:var(--accent);display:inline-block;border-radius:2px}
+    .article-series-badge{display:inline-flex;align-items:center;gap:.4rem;background:var(--accent-pale);color:var(--accent);font-size:.78rem;font-weight:700;padding:.4rem .9rem;border-radius:20px;margin-bottom:1rem;cursor:pointer;width:fit-content}
+    .article-series-badge:hover{background:var(--accent);color:#fff}
+
+    /* 静的ページ */
+    #static-view{display:none}
+    #static-view.visible{display:block}
+    .static-page{max-width:760px;margin:0 auto;padding:2rem 0 3rem}
+    .static-page-title{font-family:var(--serif);font-size:clamp(1.5rem,3vw,2rem);font-weight:900;margin-bottom:.5rem}
+    .static-page-lead{font-size:.88rem;color:var(--text-muted);border-bottom:2px solid var(--accent);padding-bottom:1rem;margin-bottom:2rem;letter-spacing:.05em}
+    .static-page h2{font-family:var(--serif);font-size:1.15rem;font-weight:700;margin:2rem 0 .6rem;padding-left:.85rem;border-left:4px solid var(--accent)}
+    .static-page p{font-size:.93rem;line-height:1.9;color:var(--text-muted);margin-bottom:1em}
+    .static-page ul{padding-left:1.5rem;margin-bottom:1em}
+    .static-page ul li{font-size:.93rem;line-height:1.9;color:var(--text-muted)}
+
+    /* お問い合わせ */
+    .contact-form{display:flex;flex-direction:column;gap:1.25rem;margin-top:1.5rem}
+    .contact-row{display:flex;flex-direction:column;gap:.35rem}
+    .contact-label{font-size:.82rem;font-weight:600;color:var(--text-muted)}
+    .req{color:var(--danger);margin-left:2px}
+    .contact-input,.contact-select,.contact-textarea{padding:.7rem .9rem;border:1.5px solid var(--border);border-radius:6px;font-size:.92rem;color:var(--text-main);background:var(--bg-card);outline:none;transition:border-color var(--tr),box-shadow var(--tr);font-family:var(--sans)}
+    .contact-input:focus,.contact-select:focus,.contact-textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-pale)}
+    .contact-textarea{min-height:160px;resize:vertical;line-height:1.7}
+    .contact-submit{background:var(--accent);color:#fff;padding:.8rem 2rem;border-radius:6px;font-size:.95rem;font-weight:700;align-self:flex-start;transition:background var(--tr)}
+    .contact-submit:hover{background:var(--accent-light)}
+    .contact-submit:disabled{opacity:.6;cursor:not-allowed}
+    .contact-done{background:var(--accent-pale);border:1px solid var(--accent-light);border-radius:8px;padding:1.5rem;text-align:center;color:var(--accent);font-weight:700;font-size:1rem;display:none;margin-top:1rem}
+    .contact-done.visible{display:block}
+
+    /* スケルトン */
+    .skeleton{background:linear-gradient(90deg,var(--bg-sub) 25%,var(--border) 50%,var(--bg-sub) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:4px}
+    @keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+    .skel-img{width:100%;aspect-ratio:16/9}
+    .skel-title{height:28px;margin-bottom:.5rem}
+    .skel-text{height:16px;margin-bottom:.4rem}
+
+    /* 空状態 */
+    .empty-state{text-align:center;padding:4rem 1rem;color:var(--text-muted)}
+    .empty-state .icon{font-size:3.5rem;margin-bottom:1rem;opacity:.4}
+
+    /* スピナー */
+    .spinner{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block;vertical-align:middle}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* フッター */
+    #site-footer{background:var(--text-main);color:rgba(255,255,255,.7);padding:3rem 1.5rem 2rem;margin-top:4rem}
+    .footer-inner{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr 1fr;gap:2rem}
+    .footer-logo{font-family:var(--serif);font-size:1.6rem;font-weight:900;color:#fff;margin-bottom:.5rem}
+    .footer-desc{font-size:.8rem;line-height:1.8;color:rgba(255,255,255,.5)}
+    .footer-col-title{font-size:.75rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:.75rem}
+    .footer-links{display:flex;flex-direction:column;gap:.4rem}
+    .footer-links a{font-size:.83rem;color:rgba(255,255,255,.6);transition:color var(--tr);cursor:pointer}
+    .footer-links a:hover{color:var(--accent-light)}
+    .footer-bottom{max-width:1200px;margin:2rem auto 0;padding-top:1.5rem;border-top:1px solid rgba(255,255,255,.1);display:flex;justify-content:space-between;align-items:center;font-size:.75rem;color:rgba(255,255,255,.3);flex-wrap:wrap;gap:.5rem}
+
+    /* メンテナンス画面 */
+    #maintenance-overlay{display:none;position:fixed;inset:0;background:var(--bg);z-index:20000;align-items:center;justify-content:center;padding:2rem}
+    .maintenance-box{max-width:480px;width:100%;text-align:center;background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:3rem 2rem;box-shadow:0 20px 50px var(--shadow)}
+    .maintenance-icon{font-size:3.5rem;margin-bottom:1rem}
+    .maintenance-title{font-family:var(--serif);font-size:1.4rem;font-weight:900;margin-bottom:1rem;color:var(--text-main)}
+    .maintenance-desc{font-size:.9rem;color:var(--text-muted);line-height:1.9;margin-bottom:1.25rem}
+    .maintenance-end{font-size:.82rem;color:var(--accent);font-weight:700;margin-bottom:1.5rem;min-height:1.2em}
+    .maintenance-note{font-size:.75rem;color:var(--text-light);letter-spacing:.05em}
+
+    /* メンテナンス後お知らせポップアップ */
+    #popup-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:15000;align-items:center;justify-content:center;padding:1.25rem}
+    .popup-modal-card{background:var(--bg-card);border-radius:14px;max-width:520px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.3);overflow:hidden;animation:jmaSlideIn .3s ease-out}
+    .popup-modal-header{background:var(--accent);color:#fff;padding:1rem 1.25rem;display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:1rem}
+    .popup-modal-close-btn{background:none;border:none;color:#fff;font-size:1.6rem;cursor:pointer;line-height:1;padding:0 .2rem}
+    .popup-modal-body{padding:1.5rem;max-height:60vh;overflow-y:auto;font-size:.9rem;line-height:1.85;color:var(--text-main)}
+    .popup-modal-body p{margin-bottom:1em}
+    .popup-modal-body h2,.popup-modal-body h3{font-family:var(--serif);margin:1em 0 .5em}
+    .popup-modal-body img{border-radius:6px;margin:.75em 0}
+    .popup-modal-footer{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;border-top:1px solid var(--border);gap:1rem;flex-wrap:wrap}
+    .popup-dont-show-label{display:flex;align-items:center;gap:.4rem;font-size:.82rem;color:var(--text-muted);cursor:pointer}
+    .popup-dont-show-label input{width:16px;height:16px;accent-color:var(--accent)}
+    .popup-close-btn{background:var(--accent);color:#fff;padding:.5rem 1.2rem;border-radius:6px;font-size:.85rem;font-weight:700;cursor:pointer;flex-shrink:0}
+    .popup-close-btn:hover{background:var(--accent-light)}
+
+    /* レスポンシブ */
+    @media(max-width:900px){
+      #top-layout{grid-template-columns:1fr}
+      .related-grid{grid-template-columns:1fr}
+      .footer-inner{grid-template-columns:1fr}
+    }
+    /* タブレット（iPad含む）～スマホ：ヘッダーのフルナビは崩れやすいのでハンバーガーメニューに切り替え */
+    @media(max-width:1024px){
+      #menu-toggle{display:flex}
+      #main-nav,.search-box{display:none}
+    }
+    @media(max-width:640px){
+      :root{--header-h:56px}
+      .logo-main{font-size:1.3rem}
+      .articles-grid{grid-template-columns:1fr}
+      .main-feature-body{padding:1rem 1.25rem 1.5rem}
+    }
+    @media(min-width:641px) and (max-width:900px){
+      .articles-grid{grid-template-columns:1fr 1fr}
+    }
+    @media(min-width:901px) and (max-width:1024px){
+      .articles-grid{grid-template-columns:1fr 1fr 1fr}
+    }
+  </style>
+</head>
+<body>
+
+  <div id="loading-screen">
+    <div class="loading-logo">アンカツ＋</div>
+    <div class="loading-sub">城下町洲本 デジタルアーカイブ</div>
+    <div class="loading-bar"><div class="loading-bar-inner"></div></div>
+  </div>
+
+  <!-- メンテナンス画面（adminで設定した期間中に全画面表示） -->
+  <div id="maintenance-overlay">
+    <div class="maintenance-box">
+      <div class="maintenance-icon">🛠️</div>
+      <div class="maintenance-title">ただいまメンテナンス中です</div>
+      <p class="maintenance-desc">より良いサービスのため、只今サイトのメンテナンスを行っております。<br>ご不便をおかけし申し訳ございません。</p>
+      <div class="maintenance-end" id="maintenance-overlay-end"></div>
+      <div class="maintenance-note" id="maintenance-overlay-note">まもなく専用ページへ移動します…</div>
+    </div>
+  </div>
+
+  <!-- メンテナンス後お知らせポップアップ（adminで設定） -->
+  <div id="popup-modal">
+    <div class="popup-modal-card">
+      <div class="popup-modal-header">
+        <span>📣 お知らせ</span>
+        <button class="popup-modal-close-btn" onclick="closePopupModal()">&times;</button>
+      </div>
+      <div class="popup-modal-body" id="popup-modal-body"></div>
+      <div class="popup-modal-footer">
+        <label class="popup-dont-show-label"><input type="checkbox" id="popup-dont-show" /> 次回から表示しない</label>
+        <button class="popup-close-btn" onclick="closePopupModal()">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 記事共有用トースト -->
+  <div id="share-toast-container"></div>
+
+  <header id="site-header">
+    <div class="header-inner">
+      <button id="menu-toggle" aria-label="メニュー">
+        <span class="burger-line"></span><span class="burger-line"></span><span class="burger-line"></span>
+      </button>
+      <div class="site-logo" id="logo-link">
+        <span class="logo-main">アンカツ＋</span>
+        <span class="logo-sub">城下町洲本 / Sumoto city</span>
+      </div>
+      <nav id="main-nav">
+        <span class="nav-link active" data-cat="all">すべて</span>
+        <span class="nav-link" data-cat="まちの話題">まちの話題</span>
+        <span class="nav-link" data-cat="イベント">イベント</span>
+        <span class="nav-link" data-cat="空き家活用">空き家活用</span>
+        <span class="nav-link" data-cat="商店街">商店街</span>
+        <span class="nav-link" data-cat="文化">文化</span>
+        <span class="nav-link" data-cat="インタビュー">インタビュー</span>
+        <span class="nav-link" data-cat="series">連載・特集</span>
+      </nav>
+      <div class="search-box">
+        <span>🔍</span>
+        <input id="search-input" type="search" placeholder="記事を検索..." />
+      </div>
+      <button id="dark-toggle" aria-label="ダークモード切替"></button>
+    </div>
+  </header>
+
+  <nav id="mobile-nav">
+    <span class="nav-link" data-cat="all">すべて</span>
+    <span class="nav-link" data-cat="まちの話題">まちの話題</span>
+    <span class="nav-link" data-cat="イベント">イベント</span>
+    <span class="nav-link" data-cat="空き家活用">空き家活用</span>
+    <span class="nav-link" data-cat="商店街">商店街</span>
+    <span class="nav-link" data-cat="文化">文化</span>
+    <span class="nav-link" data-cat="インタビュー">インタビュー</span>
+    <span class="nav-link" data-cat="series">連載・特集</span>
+    <div style="padding:.75rem 1rem">
+      <div class="search-box"><span>🔍</span><input id="search-input-mob" type="search" placeholder="記事を検索..." style="width:100%" /></div>
+    </div>
+  </nav>
+
+  <!-- 速報バー（adminのON/OFF・ラベル・文面に連動） -->
+  <div id="breaking-bar">
+    <div class="breaking-label" id="breaking-label">速報</div>
+    <div class="breaking-scroll">
+      <div class="breaking-inner" id="breaking-inner"></div>
+    </div>
+  </div>
+
+  <div id="category-bar">
+    <div class="cat-list">
+      <button class="cat-btn active" data-cat="all">すべて</button>
+      <button class="cat-btn" data-cat="まちの話題">まちの話題</button>
+      <button class="cat-btn" data-cat="イベント">イベント</button>
+      <button class="cat-btn" data-cat="空き家活用">空き家活用</button>
+      <button class="cat-btn" data-cat="商店街">商店街</button>
+      <button class="cat-btn" data-cat="文化">文化</button>
+      <button class="cat-btn" data-cat="インタビュー">インタビュー</button>
+      <button class="cat-btn" data-cat="学校・子育て">学校・子育て</button>
+      <button class="cat-btn" data-cat="移住・定住">移住・定住</button>
+      <button class="cat-btn" data-cat="お知らせ">お知らせ</button>
+      <button class="cat-btn" data-cat="series">📚 連載・特集</button>
+    </div>
+  </div>
+
+  <main id="main-content">
+    <section id="top-view">
+      <div id="top-layout">
+        <div>
+          <div id="feature-skeleton">
+            <div class="skeleton skel-img" style="border-radius:6px"></div>
+            <div style="padding:1.5rem 0 0">
+              <div class="skeleton skel-title" style="width:40%;margin-bottom:1rem"></div>
+              <div class="skeleton skel-title"></div>
+              <div class="skeleton skel-title" style="width:80%;margin-bottom:1rem"></div>
+              <div class="skeleton skel-text"></div>
+              <div class="skeleton skel-text"></div>
+            </div>
+          </div>
+          <div id="feature-card" style="display:none"></div>
+          <div id="related-articles" style="display:none" class="related-section">
+            <div class="related-title">関連記事</div>
+            <div class="related-grid" id="related-grid"></div>
+          </div>
+        </div>
+        <aside>
+          <div class="sidebar-news">
+            <div class="sidebar-head">最新ニュース</div>
+            <div class="news-list" id="news-list">
+              <div id="news-skeleton">
+                <div class="news-item"><div class="skeleton" style="width:72px;height:52px;border-radius:3px;flex-shrink:0"></div><div style="flex:1"><div class="skeleton skel-text" style="margin-bottom:.4rem"></div><div class="skeleton skel-text" style="width:70%"></div></div></div>
+                <div class="news-item"><div class="skeleton" style="width:72px;height:52px;border-radius:3px;flex-shrink:0"></div><div style="flex:1"><div class="skeleton skel-text" style="margin-bottom:.4rem"></div><div class="skeleton skel-text" style="width:70%"></div></div></div>
+              </div>
+            </div>
+            <div class="tag-section" id="tag-section">
+              <div class="tag-section-title">🏷 タグ一覧</div>
+              <div class="tag-cloud" id="tag-cloud"></div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="article-view">
+      <button class="back-btn" onclick="goBack()">← 一覧へ戻る</button>
+      <div id="article-content"></div>
+    </section>
+
+    <section id="list-view">
+      <div class="list-header">
+        <h2 class="list-title" id="list-title"></h2>
+        <span class="list-count" id="list-count"></span>
+      </div>
+      <div class="articles-grid" id="articles-grid"></div>
+    </section>
+
+    <section id="series-view">
+      <div class="list-header">
+        <h2 class="list-title">📚 連載・特集</h2>
+        <span class="list-count" id="series-count"></span>
+      </div>
+      <div class="series-grid" id="series-grid"></div>
+    </section>
+
+    <section id="series-detail-view">
+      <button class="back-btn" onclick="goBack()">← 連載・特集一覧へ戻る</button>
+      <div id="series-detail-content"></div>
+    </section>
+
+    <section id="static-view">
+      <div id="static-content"></div>
+    </section>
+  </main>
+
+  <footer id="site-footer">
+    <div class="footer-inner">
+      <div>
+        <div class="footer-logo">アンカツ＋</div>
+        <p class="footer-desc">兵庫県洲本市で発行される<br>アンカツ城下町すもとの<br>デジタル版<br>「地域を面でつなぐ」</p>
+      </div>
+      <div>
+        <div class="footer-col-title">カテゴリ</div>
+        <div class="footer-links">
+          <a data-cat-foot="まちの話題">まちの話題</a>
+          <a data-cat-foot="イベント">イベント</a>
+          <a data-cat-foot="空き家活用">空き家活用</a>
+          <a data-cat-foot="商店街">商店街</a>
+          <a data-cat-foot="文化">文化</a>
+          <a data-cat-foot="インタビュー">インタビュー</a>
+          <a data-cat-foot="移住・定住">移住・定住</a>
+        </div>
+      </div>
+      <div>
+        <div class="footer-col-title">運営情報</div>
+        <div class="footer-links">
+          <a data-page="about">発行団体について</a>
+          <a data-page="tokku">「生涯活躍のまち」特区</a>
+          <a data-page="privacy">プライバシーポリシー</a>
+          <a data-page="contact">お問い合わせ</a>
+          <a href="admin.html">管理ページ</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2025 アンカツ城下町洲本「生涯活躍のまち」の特区にしたい会</span>
+      <span>兵庫県洲本市</span>
+    </div>
+  </footer>
+
+  <script>
+  var allArticles = [];
+  var allSeries = [];
+  var currentView = 'top';
+
+  var CAT_EMOJI = {'まちの話題':'🏘️','イベント':'🎉','空き家活用':'🏠','商店街':'🛍️','文化':'🎨','インタビュー':'🎙️','学校・子育て':'📚','移住・定住':'🌱','お知らせ':'📢'};
+
+  /* ---- メンテナンス設定 ---- */
+  var MAINTENANCE_REDIRECT_URL = 'maintenance.html'; /* ← 別途用意する簡易ページのURL・パスに書き換えてください */
+  var MAINTENANCE_REDIRECT_DELAY = 30000; /* メンテナンス画面表示から自動遷移までの時間（ミリ秒） */
+  var MAINTENANCE_CHECK_INTERVAL = 20000; /* メンテナンス状態を再チェックする間隔（ミリ秒） */
+  var POPUP_DISMISS_KEY = 'ankatsu_dismissed_popups';
+  var _maintenanceOverlayShown = false;
+  var _maintenanceTimer = null;
+  var _popupCheckedThisSession = false;
+
+
+  /* 連載・特集（デモデータ。Firestoreの「series」コレクションが優先されます） */
+  var DEMO_SERIES = [
+    {id:'sr1',slug:'machi-no-hito',title:'まちをつくる人たち',tagline:'洲本のまちづくりに関わる人々の声を届けるインタビュー連載。移住者、Uターン組、地元の商店主まで、様々な立場から「まち」への思いを聞きます。',logo:''},
+    {id:'sr2',slug:'akiya-saisei',title:'空き家再生ストーリー',tagline:'眠っていた空き家が、新たな役割を得て動き出すまでの記録。城下町洲本で進む空き家活用プロジェクトを追いかけます。',logo:''}
+  ];
+
+  var DEMO_ARTICLES = [
+    {id:'d1',title:'洲本城下町に新たな息吹 — 空き家をシェアアトリエに',slug:'sumoto-akiya-share-atelier',category:'空き家活用',thumbnail:'',seriesId:'sr2',body:'<p>洲本城下町エリアで長年空き家となっていた築100年の古民家が、地域のアーティストや職人が集うシェアアトリエとして生まれ変わりました。</p><p>このプロジェクトは「生涯活躍のまち」の特区にしたい会が主導し、市内外から7名のクリエイターが入居。陶芸、染色、木工の工房として活用されています。</p><h2>移住者も加わり始動</h2><p>大阪から移住した陶芸家・田中さん（32歳）は「洲本の土と空気が作品に合う。ここで根を張りたい」と語ります。</p>',author:'編集部',featured:true,tags:['空き家','移住','アート','城下町'],createdAt:{toDate:function(){return new Date('2025-06-10')}}},
+    {id:'d2',title:'夏の洲本城まつり、今年も開催へ — 地元高校生が企画運営',slug:'sumoto-castle-matsuri-2025',category:'イベント',thumbnail:'',body:'<p>今年で第20回を迎える洲本城まつりの実行委員会が発足しました。今年は洲本高校の生徒が中心となり、体験型プログラムが企画されています。</p>',author:'田村記者',featured:false,tags:['祭り','洲本城','高校生'],createdAt:{toDate:function(){return new Date('2025-06-08')}}},
+    {id:'d3',title:'本町商店街に「よりみち食堂」オープン',slug:'hommachi-yorimichi',category:'商店街',thumbnail:'',body:'<p>洲本市本町商店街に、地元食材を使った定食屋「よりみち食堂」がオープンしました。</p>',author:'山田記者',featured:false,tags:['商店街','飲食'],createdAt:{toDate:function(){return new Date('2025-06-05')}}},
+    {id:'d4',title:'淡路水仙の里を記録する — 市民写真家たちのアーカイブ活動',slug:'awaji-suisen-photo',category:'文化',thumbnail:'',body:'<p>洲本市内の市民写真家グループ「まちカメラ隊」が、淡路島の自然と文化を記録する写真アーカイブ活動を本格始動させました。</p>',author:'松本記者',featured:false,tags:['写真','文化'],createdAt:{toDate:function(){return new Date('2025-06-01')}}},
+    {id:'d5',title:'「洲本に移り住んで5年」— 元会社員・木村さんのUターン物語',slug:'kimura-uturn',category:'インタビュー',thumbnail:'',seriesId:'sr1',body:'<p>大阪の広告会社を退職し、Uターンで洲本市に戻った木村健一さん（45歳）。農業と古民家再生を組み合わせた事業を営んでいます。</p>',author:'岡田記者',featured:false,tags:['移住','Uターン','農業'],createdAt:{toDate:function(){return new Date('2025-05-28')}}},
+    {id:'d6',title:'洲本小学校、地域の職人と連携した「ものづくり授業」を開始',slug:'sumoto-school-crafts',category:'学校・子育て',thumbnail:'',body:'<p>洲本小学校で、地域の職人・作家と連携した「ものづくり体験授業」がスタートしました。</p>',author:'中野記者',featured:false,tags:['学校','子育て','ものづくり'],createdAt:{toDate:function(){return new Date('2025-05-22')}}}
+  ];
+
+  /* ---- 日付フォーマット ---- */
+  function fmtDate(ts){
+    try{var d=(ts&&typeof ts.toDate==='function')?ts.toDate():new Date(ts);return d.toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric'});}catch(e){return '';}
+  }
+
+  /* ---- 速報バー読み込み ---- */
+  function restartBreakingAnimation(){
+    var inner=document.getElementById('breaking-inner');
+    inner.style.animation='none';
+    void inner.offsetWidth; /* 強制リフローでアニメーションを最初からリセット */
+    inner.style.animation='';
+  }
+
+  async function loadBreaking(){
+    var db=window._db; var ops=window._firestoreOp;
+    if(!db||!ops) return;
+    try{
+      var snap=await ops.getDocs(ops.collection(db,'settings'));
+      var cfg={};
+      snap.forEach(function(d){cfg=Object.assign(cfg,d.data());});
+      var bar=document.getElementById('breaking-bar');
+      if(cfg.breakingVisible===false){bar.classList.add('hidden');return;}
+      bar.classList.remove('hidden');
+      if(cfg.breakingLabel) document.getElementById('breaking-label').textContent=cfg.breakingLabel;
+      if(cfg.breakingItems&&cfg.breakingItems.length){
+        var items=cfg.breakingItems;
+        var html=items.map(function(t){return '<span class="breaking-item">'+t+'</span><span class="breaking-sep">◆</span>';}).join('');
+        document.getElementById('breaking-inner').innerHTML=html+html;
+      } else {
+        setDefaultBreaking();
+      }
+      restartBreakingAnimation();
+    }catch(e){setDefaultBreaking(); restartBreakingAnimation();}
+  }
+
+  function setDefaultBreaking(){
+    var defaults=['洲本市の空き家活用プロジェクト始動','洲本城下町ウォーキングマップ完成、市役所で無料配布中','特区構想「生涯活躍のまち」認定申請、来月審査へ','商店街の若手経営者グループが新カフェをオープン予定'];
+    var html=defaults.map(function(t){return '<span class="breaking-item">'+t+'</span><span class="breaking-sep">◆</span>';}).join('');
+    document.getElementById('breaking-inner').innerHTML=html+html;
+  }
+
+  /* ---- メンテナンス状態チェック（settings/maintenance を参照） ---- */
+  async function checkMaintenance(){
+    var db=window._db; var ops=window._firestoreOp;
+    if(!db||!ops) return;
+    try{
+      var snap=await ops.getDoc(ops.doc(db,'settings','maintenance'));
+      var data=snap.exists()?snap.data():{};
+      var now=new Date();
+      var start=data.startAt?new Date(data.startAt):null;
+      var end=data.endAt?new Date(data.endAt):null;
+      var isActive=!!(start && !isNaN(start) && now>=start && (!end || isNaN(end) || now<end));
+      if(isActive){
+        showMaintenanceOverlay(end && !isNaN(end) ? end : null);
+      } else {
+        hideMaintenanceOverlay();
+        if(!_popupCheckedThisSession){
+          _popupCheckedThisSession=true;
+          checkPopup();
+        }
+      }
+    }catch(e){ console.error('checkMaintenance:', e); }
+  }
+
+  function showMaintenanceOverlay(end){
+    var loadingScreen=document.getElementById('loading-screen');
+    if(loadingScreen) loadingScreen.classList.add('hidden');
+    var endEl=document.getElementById('maintenance-overlay-end');
+    endEl.textContent = end ? ('終了予定：'+end.toLocaleString('ja-JP',{year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})) : '';
+    document.getElementById('maintenance-overlay').style.display='flex';
+    document.body.style.overflow='hidden';
+    if(_maintenanceOverlayShown) return; /* 既にタイマーが動いている場合は再スタートしない */
+    _maintenanceOverlayShown=true;
+    if(_maintenanceTimer) clearTimeout(_maintenanceTimer);
+    _maintenanceTimer=setTimeout(function(){
+      window.location.href = MAINTENANCE_REDIRECT_URL;
+    }, MAINTENANCE_REDIRECT_DELAY);
+  }
+
+  function hideMaintenanceOverlay(){
+    if(!_maintenanceOverlayShown) return;
+    _maintenanceOverlayShown=false;
+    if(_maintenanceTimer){ clearTimeout(_maintenanceTimer); _maintenanceTimer=null; }
+    document.getElementById('maintenance-overlay').style.display='none';
+    document.body.style.overflow='';
+  }
+
+  /* ---- メンテナンス後お知らせポップアップ（settings/popup を参照） ---- */
+  function getDismissedPopups(){
+    try{ return JSON.parse(localStorage.getItem(POPUP_DISMISS_KEY)||'[]'); }
+    catch(e){ return []; }
+  }
+  function dismissPopup(id){
+    if(!id) return;
+    var list=getDismissedPopups();
+    if(list.indexOf(id)<0){ list.push(id); localStorage.setItem(POPUP_DISMISS_KEY, JSON.stringify(list)); }
+  }
+
+  async function checkPopup(){
+    var db=window._db; var ops=window._firestoreOp;
+    if(!db||!ops) return;
+    try{
+      var snap=await ops.getDoc(ops.doc(db,'settings','popup'));
+      var data=snap.exists()?snap.data():{};
+      if(!data.enabled || !data.popupId || !data.html) return;
+      var dismissed=getDismissedPopups();
+      if(dismissed.indexOf(data.popupId)>=0) return;
+      document.getElementById('popup-modal-body').innerHTML = data.html;
+      document.getElementById('popup-modal').dataset.popupId = data.popupId;
+      document.getElementById('popup-dont-show').checked = false;
+      document.getElementById('popup-modal').style.display='flex';
+    }catch(e){ console.error('checkPopup:', e); }
+  }
+
+  function closePopupModal(){
+    var modal=document.getElementById('popup-modal');
+    var dontShow=document.getElementById('popup-dont-show').checked;
+    if(dontShow) dismissPopup(modal.dataset.popupId);
+    modal.style.display='none';
+  }
+
+  /* ---- Firestore 記事取得 ---- */
+  async function loadArticles(){
+    var db=window._db; var ops=window._firestoreOp;
+    if(!db||!ops){allArticles=DEMO_ARTICLES;renderAll();return;}
+    try{
+      var snap=await ops.getDocs(ops.collection(db,'articles'));
+      var now=new Date();
+      allArticles=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());})
+        .filter(function(a){
+          /* 予約投稿（createdAtが未来日時）はサイトにはまだ表示しない */
+          try{
+            var createdAtDate=(a.createdAt&&a.createdAt.toDate)?a.createdAt.toDate():(a.createdAt?new Date(a.createdAt):null);
+            return !createdAtDate || isNaN(createdAtDate) || createdAtDate<=now;
+          }catch(e){ return true; }
+        });
+      allArticles.sort(function(a,b){try{var ta=a.createdAt&&a.createdAt.toDate?a.createdAt.toDate():new Date(a.createdAt||0);var tb=b.createdAt&&b.createdAt.toDate?b.createdAt.toDate():new Date(b.createdAt||0);return tb-ta;}catch(e){return 0;}});
+      if(!allArticles.length) allArticles=DEMO_ARTICLES;
+    }catch(e){console.error(e);allArticles=DEMO_ARTICLES;}
+    renderAll();
+  }
+
+  /* ---- Firestore 連載・特集取得 ---- */
+  async function loadSeries(){
+    var db=window._db; var ops=window._firestoreOp;
+    if(!db||!ops){allSeries=DEMO_SERIES;return;}
+    try{
+      var snap=await ops.getDocs(ops.collection(db,'series'));
+      allSeries=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+      if(!allSeries.length) allSeries=DEMO_SERIES;
+    }catch(e){console.error(e);allSeries=DEMO_SERIES;}
+  }
+
+  /* ---- 描画 ---- */
+  function renderAll(){
+    document.getElementById('loading-screen').classList.add('hidden');
+    document.getElementById('feature-skeleton').style.display='none';
+    document.getElementById('news-skeleton').style.display='none';
+    document.getElementById('feature-card').style.display='';
+    renderFeature();
+    renderNewsList();
+    renderTagCloud();
+  }
+
+  function renderFeature(){
+    var feat=allArticles.find(function(a){return a.featured;})||allArticles[0];
+    if(!feat) return;
+    var img=feat.thumbnail
+      ?'<img src="'+feat.thumbnail+'" class="main-feature-img" alt="'+feat.title+'" />'
+      :'<div class="main-feature-img-ph">'+(CAT_EMOJI[feat.category]||'📰')+'</div>';
+    document.getElementById('feature-card').innerHTML=
+      '<article class="main-feature-card" onclick="openArticle(\''+feat.id+'\')">'
+      +img+'<div class="main-feature-body">'
+      +'<span class="feature-cat-tag">'+(feat.category||'記事')+'</span>'
+      +'<h2 class="main-feature-title">'+feat.title+'</h2>'
+      +'<p class="main-feature-lead">'+(feat.body?feat.body.replace(/<[^>]*>/g,''):'')+'</p>'
+      +'<div class="feature-meta"><span>✍️ '+(feat.author||'編集部')+'</span><span>📅 '+fmtDate(feat.createdAt)+'</span>'
+      +'<span class="read-more-btn">続きを読む ›</span></div>'
+      +'</div></article>';
+
+    var rel=allArticles.filter(function(a){return a.id!==feat.id;}).slice(0,4);
+    if(rel.length){
+      document.getElementById('related-grid').innerHTML=rel.map(function(a){
+        return '<div class="related-card" onclick="openArticle(\''+a.id+'\')"> '
+          +(a.thumbnail?'<img src="'+a.thumbnail+'" class="related-thumb" loading="lazy"/>':'<div class="related-thumb-ph">'+(CAT_EMOJI[a.category]||'📰')+'</div>')
+          +'<div class="related-card-title">'+a.title+'</div></div>';
+      }).join('');
+      document.getElementById('related-articles').style.display='';
+    }
+  }
+
+  function renderNewsList(){
+    document.getElementById('news-list').innerHTML=allArticles.slice(0,12).map(function(a){
+      return '<div class="news-item" onclick="openArticle(\''+a.id+'\')"> '
+        +(a.thumbnail?'<img src="'+a.thumbnail+'" class="news-thumb" loading="lazy"/>':'<div class="news-thumb-ph">'+(CAT_EMOJI[a.category]||'📰')+'</div>')
+        +'<div class="news-info"><span class="news-cat-tag">'+(a.category||'ニュース')+'</span>'
+        +'<div class="news-item-title">'+a.title+'</div>'
+        +'<div class="news-item-date">'+fmtDate(a.createdAt)+'</div></div></div>';
+    }).join('');
+  }
+
+  function renderTagCloud(){
+    var tags=[];
+    allArticles.forEach(function(a){if(Array.isArray(a.tags))a.tags.forEach(function(t){if(tags.indexOf(t)<0)tags.push(t);});});
+    if(!tags.length){document.getElementById('tag-section').style.display='none';return;}
+    document.getElementById('tag-cloud').innerHTML=tags.map(function(t){
+      return '<button class="tag-chip" onclick="filterByTag(\''+t+'\')"> #'+t+'</button>';
+    }).join('');
+  }
+
+  /* ---- ビュー切替 ---- */
+  function showView(v){
+    document.getElementById('top-view').classList.toggle('hidden',v!=='top');
+    document.getElementById('article-view').classList.toggle('visible',v==='article');
+    document.getElementById('list-view').classList.toggle('visible',v==='list');
+    document.getElementById('static-view').classList.toggle('visible',v==='static');
+    document.getElementById('series-view').classList.toggle('visible',v==='series');
+    document.getElementById('series-detail-view').classList.toggle('visible',v==='series-detail');
+    currentView=v; window.scrollTo(0,0);
+  }
+
+  /* ---- 記事 ---- */
+  function openArticle(id){
+    var a=allArticles.find(function(x){return x.id===id||x.slug===id;});
+    if(!a) return;
+    history.pushState({view:'article',id:id},'','#article/'+(a.slug||a.id));
+    renderArticle(a); showView('article');
+  }
+
+  function renderArticle(a){
+    var img=a.thumbnail
+      ?'<img src="'+a.thumbnail+'" class="article-hero" alt="'+a.title+'" />'
+      :'<div class="article-hero-ph">'+(CAT_EMOJI[a.category]||'📰')+'</div>';
+    var tags=Array.isArray(a.tags)?a.tags.map(function(t){return '<button class="tag-chip" onclick="filterByTag(\''+t+'\')">'+t+'</button>';}).join(''):'';
+    var seriesBadge='';
+    if(a.seriesId){
+      var ser=allSeries.find(function(s){return s.id===a.seriesId||s.slug===a.seriesId;});
+      if(ser) seriesBadge='<div class="article-series-badge" onclick="openSeries(\''+(ser.slug||ser.id)+'\')">📚 連載：'+ser.title+'</div>';
+    }
+    var shareUrl=buildShareUrl(a);
+    var titleEsc=(a.title||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    var shareBar='<div class="article-share-bar">'
+      +'<span class="share-label">この記事をシェア</span>'
+      +'<div class="share-buttons">'
+      +'<button class="share-btn share-x" onclick="shareArticle(\'x\',\''+titleEsc+'\',\''+shareUrl+'\')">𝕏 X</button>'
+      +'<button class="share-btn share-line" onclick="shareArticle(\'line\',\''+titleEsc+'\',\''+shareUrl+'\')">LINE</button>'
+      +'<button class="share-btn share-fb" onclick="shareArticle(\'facebook\',\''+titleEsc+'\',\''+shareUrl+'\')">Facebook</button>'
+      +'<button class="share-btn share-copy" onclick="copyArticleLink(\''+shareUrl+'\')">🔗 リンクをコピー</button>'
+      +(typeof navigator!=='undefined'&&navigator.share?'<button class="share-btn share-native" onclick="nativeShareArticle(\''+titleEsc+'\',\''+shareUrl+'\')">📤 共有</button>':'')
+      +'</div></div>';
+    document.getElementById('article-content').innerHTML=
+      '<header class="article-header">'
+      +seriesBadge
+      +'<div class="article-cat-badge">'+(a.category||'記事')+'</div>'
+      +'<h1 class="article-title">'+a.title+'</h1>'
+      +'<div class="article-meta"><span>✍️ '+(a.author||'編集部')+'</span><span>📅 '+fmtDate(a.createdAt)+'</span></div>'
+      +shareBar
+      +'</header>'+img
+      +'<div class="article-body">'+(a.body||'<p>本文がありません。</p>')+'</div>'
+      +'<div class="article-tags">'+tags+'</div>';
+    document.title=a.title+' | アンカツ＋';
+  }
+
+  /* ---- 記事共有機能 ---- */
+  function buildShareUrl(a){
+    return location.origin+location.pathname+'#article/'+encodeURIComponent(a.slug||a.id);
+  }
+
+  function shareArticle(platform, title, url){
+    var encodedUrl=encodeURIComponent(url);
+    var encodedTitle=encodeURIComponent(title);
+    var links={
+      x:'https://twitter.com/intent/tweet?text='+encodedTitle+'&url='+encodedUrl,
+      line:'https://social-plugins.line.me/lineit/share?url='+encodedUrl+'&text='+encodedTitle,
+      facebook:'https://www.facebook.com/sharer/sharer.php?u='+encodedUrl
+    };
+    if(links[platform]) window.open(links[platform], '_blank', 'noopener,width=600,height=520');
+  }
+
+  function copyArticleLink(url){
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(url).then(function(){ showShareToast('リンクをコピーしました 🔗'); }).catch(function(){ fallbackCopyLink(url); });
+    } else {
+      fallbackCopyLink(url);
+    }
+  }
+
+  function fallbackCopyLink(url){
+    try{
+      var ta=document.createElement('textarea');
+      ta.value=url; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showShareToast('リンクをコピーしました 🔗');
+    }catch(e){ showShareToast('コピーに失敗しました'); }
+  }
+
+  function nativeShareArticle(title, url){
+    if(navigator.share){
+      navigator.share({title:title, url:url}).catch(function(){});
+    }
+  }
+
+  function showShareToast(msg){
+    var wrap=document.getElementById('share-toast-container');
+    if(!wrap) return;
+    var el=document.createElement('div');
+    el.className='share-toast';
+    el.textContent=msg;
+    wrap.appendChild(el);
+    setTimeout(function(){ el.remove(); }, 2400);
+  }
+
+  function goBack(){
+    history.back();
+    setTimeout(function(){if(currentView!=='top'){showView('top');document.title='アンカツ＋ | 城下町洲本のデジタルアーカイブ';}},150);
+  }
+
+  /* ---- フィルタ ---- */
+  function filterByCategory(cat){
+    document.querySelectorAll('.nav-link,.cat-btn').forEach(function(el){el.classList.toggle('active',el.dataset.cat===cat);});
+    if(cat==='all'){showView('top');history.pushState(null,'',location.pathname);document.title='アンカツ＋ | 城下町洲本のデジタルアーカイブ';return;}
+    if(cat==='series'){
+      renderSeriesList();showView('series');
+      history.pushState({view:'series'},'','#series');
+      document.title='連載・特集 | アンカツ＋';
+      return;
+    }
+    showListView('カテゴリ：'+cat,allArticles.filter(function(a){return a.category===cat;}));
+    history.pushState({view:'list',cat:cat},'','#cat/'+encodeURIComponent(cat));
+  }
+
+  /* ---- 連載・特集 一覧 ---- */
+  function renderSeriesList(){
+    document.getElementById('series-count').textContent=allSeries.length+'件';
+    document.getElementById('series-grid').innerHTML=!allSeries.length
+      ?'<div class="empty-state" style="grid-column:1/-1"><div class="icon">📚</div><p>連載・特集はまだありません</p></div>'
+      :allSeries.map(function(s){
+          var cnt=allArticles.filter(function(a){return a.seriesId===s.id||a.seriesId===s.slug;}).length;
+          return '<article class="series-card" onclick="openSeries(\''+(s.slug||s.id)+'\')">'
+            +(s.logo?'<img src="'+s.logo+'" class="series-card-logo"/>':'<div class="series-card-logo-ph">📚</div>')
+            +'<div class="series-card-body">'
+            +'<div class="series-card-title">'+s.title+'</div>'
+            +'<div class="series-card-tagline">'+(s.tagline||'')+'</div>'
+            +'<div class="series-card-count">記事 '+cnt+'件</div>'
+            +'</div></article>';
+        }).join('');
+  }
+
+  /* ---- 連載・特集 詳細 ---- */
+  function openSeries(id){
+    var s=allSeries.find(function(x){return x.slug===id||x.id===id;});
+    if(!s) return;
+    history.pushState({view:'series-detail',id:id},'','#series/'+encodeURIComponent(s.slug||s.id));
+    renderSeriesDetail(s);
+    showView('series-detail');
+  }
+
+  function renderSeriesDetail(s){
+    var arts=allArticles.filter(function(a){return a.seriesId===s.id||a.seriesId===s.slug;});
+    var artsHtml=!arts.length
+      ?'<div class="empty-state"><div class="icon">📭</div><p>この連載・特集にはまだ記事がありません</p></div>'
+      :'<div class="articles-grid">'+arts.map(function(a){
+          return '<article class="grid-card" onclick="openArticle(\''+a.id+'\')"> '
+            +(a.thumbnail?'<img src="'+a.thumbnail+'" class="grid-card-img" loading="lazy"/>':'<div class="grid-card-img-ph">'+(CAT_EMOJI[a.category]||'📰')+'</div>')
+            +'<div class="grid-card-body"><span class="news-cat-tag">'+(a.category||'')+'</span><div class="grid-card-title">'+a.title+'</div><div class="grid-card-date">'+fmtDate(a.createdAt)+'</div></div></article>';
+        }).join('')+'</div>';
+    document.getElementById('series-detail-content').innerHTML=
+      '<div class="series-detail-header">'
+      +(s.logo?'<img src="'+s.logo+'" class="series-detail-logo"/>':'<div class="series-detail-logo-ph">📚</div>')
+      +'<div class="series-detail-body">'
+      +'<div class="series-detail-eyebrow">連載・特集</div>'
+      +'<h1 class="series-detail-title">'+s.title+'</h1>'
+      +'<p class="series-detail-tagline">'+(s.tagline||'')+'</p>'
+      +'</div>'
+      +'</div>'
+      +'<div class="series-detail-articles-head">記事一覧（'+arts.length+'件）</div>'
+      +artsHtml;
+    document.title=s.title+' | アンカツ＋';
+  }
+
+  function filterByTag(tag){
+    showListView('タグ：#'+tag,allArticles.filter(function(a){return Array.isArray(a.tags)&&a.tags.indexOf(tag)>=0;}));
+    history.pushState({view:'list',tag:tag},'','#tag/'+encodeURIComponent(tag));
+  }
+
+  function doSearch(q){
+    if(!q.trim()){filterByCategory('all');return;}
+    var kw=q.toLowerCase();
+    showListView('「'+q+'」の検索結果',allArticles.filter(function(a){
+      return (a.title&&a.title.toLowerCase().indexOf(kw)>=0)
+          ||(a.body&&a.body.replace(/<[^>]*>/g,'').toLowerCase().indexOf(kw)>=0)
+          ||(a.category&&a.category.toLowerCase().indexOf(kw)>=0)
+          ||(Array.isArray(a.tags)&&a.tags.some(function(t){return t.toLowerCase().indexOf(kw)>=0;}));
+    }));
+    history.pushState({view:'list',q:q},'','#search/'+encodeURIComponent(q));
+  }
+
+  function showListView(title,articles){
+    document.getElementById('list-title').textContent=title;
+    document.getElementById('list-count').textContent=articles.length+'件';
+    document.getElementById('articles-grid').innerHTML=!articles.length
+      ?'<div class="empty-state" style="grid-column:1/-1"><div class="icon">📭</div><p>該当する記事がありません</p></div>'
+      :articles.map(function(a){
+          return '<article class="grid-card" onclick="openArticle(\''+a.id+'\')"> '
+            +(a.thumbnail?'<img src="'+a.thumbnail+'" class="grid-card-img" loading="lazy"/>':'<div class="grid-card-img-ph">'+(CAT_EMOJI[a.category]||'📰')+'</div>')
+            +'<div class="grid-card-body"><span class="news-cat-tag">'+(a.category||'')+'</span><div class="grid-card-title">'+a.title+'</div><div class="grid-card-date">'+fmtDate(a.createdAt)+'</div></div></article>';
+        }).join('');
+    showView('list'); document.title=title+' | アンカツ＋';
+  }
+
+  /* ---- 静的ページ ---- */
+  var STATIC_PAGES={
+    about:{title:'発行団体について',lead:'アンカツ城下町洲本 発行団体のご紹介',body:'<h2>発行団体</h2><p>「生涯活躍のまち」の特区にしたい会は、兵庫県洲本市を拠点に活動する地域団体です。洲本城下町の文化・歴史・人を記録し、デジタルとアナログの両面から地域情報を発信しています。</p><h2>ミッション</h2><p>「地方の小さな声を、デジタルで広げる」をテーマに、まちの人・商店・イベント・空き家活用など、地域のあらゆる活動をアーカイブします。</p><h2>発行メディア</h2><ul><li>地域密着型ミニコミ誌「アンカツ城下町洲本」（印刷版）</li><li>デジタル版Webメディア「アンカツ＋」（本サイト）</li></ul><h2>所在地</h2><p>兵庫県洲本市（南あわじ市・淡路島）</p>'},
+    tokku:{title:'「生涯活躍のまち」特区',lead:'洲本市が目指す特区構想について',body:'<h2>特区構想とは</h2><p>「生涯活躍のまち」特区は、高齢者をはじめすべての世代が健康で活躍し続けられるまちづくりを推進する国家戦略特区の構想です。</p><h2>洲本市での取り組み</h2><ul><li>空き家バンクの整備と移住者サポート</li><li>生涯学習・就労支援プログラム</li><li>高齢者・若者・移住者の交流拠点づくり</li><li>商店街の活性化と新規出店支援</li></ul>'},
+    privacy:{title:'プライバシーポリシー',lead:'個人情報の取り扱いについて',body:'<h2>個人情報の収集</h2><p>本サイトでは、お問い合わせフォームにてお名前・メールアドレス等をお預かりする場合があります。</p><h2>利用目的</h2><ul><li>お問い合わせへの回答・連絡</li><li>本サイトの改善・運営のための分析</li></ul><h2>第三者への提供</h2><p>法令に基づく場合を除き、個人情報を第三者に提供することはありません。</p>'},
+    contact:{title:'お問い合わせ',lead:'ご意見・ご感想・取材のご依頼など、お気軽にどうぞ',body:''}
+  };
+
+  function showStaticPage(key){
+    var page=STATIC_PAGES[key];
+    if(!page) return;
+    document.getElementById('static-content').innerHTML=
+      '<div class="static-page">'
+      +'<button class="back-btn" onclick="goBack()">← トップへ戻る</button>'
+      +'<h1 class="static-page-title">'+page.title+'</h1>'
+      +'<div class="static-page-lead">'+page.lead+'</div>'
+      +(key==='contact'?buildContactForm():page.body)
+      +'</div>';
+    showView('static'); document.title=page.title+' | アンカツ＋';
+  }
+
+  function buildContactForm(){
+    return '<form class="contact-form" id="contact-form" onsubmit="return false">'
+      +'<div class="contact-row"><label class="contact-label">お名前 <span class="req">*</span></label><input id="c-name" type="text" class="contact-input" placeholder="山田 太郎" /></div>'
+      +'<div class="contact-row"><label class="contact-label">メールアドレス <span class="req">*</span></label><input id="c-email" type="email" class="contact-input" placeholder="example@email.com" /></div>'
+      +'<div class="contact-row"><label class="contact-label">種別</label><select id="c-type" class="contact-select"><option value="一般">一般的なお問い合わせ</option><option value="取材">取材・掲載依頼</option><option value="移住">移住・空き家について</option><option value="特区">特区構想について</option><option value="その他">その他</option></select></div>'
+      +'<div class="contact-row"><label class="contact-label">メッセージ <span class="req">*</span></label><textarea id="c-msg" class="contact-textarea" placeholder="お問い合わせ内容をご記入ください"></textarea></div>'
+      +'<button type="button" class="contact-submit" id="c-submit" onclick="submitContact()">送信する →</button>'
+      +'</form>'
+      +'<div class="contact-done" id="contact-done">✅ お問い合わせを受け付けました。<br>内容を確認のうえ、ご連絡いたします。</div>';
+  }
+
+  async function submitContact(){
+    var name=(document.getElementById('c-name')||{}).value||'';
+    var email=(document.getElementById('c-email')||{}).value||'';
+    var type=(document.getElementById('c-type')||{}).value||'一般';
+    var msg=(document.getElementById('c-msg')||{}).value||'';
+    name=name.trim();email=email.trim();msg=msg.trim();
+    if(!name){alert('お名前を入力してください');return;}
+    if(!email){alert('メールアドレスを入力してください');return;}
+    if(!msg){alert('メッセージを入力してください');return;}
+    var btn=document.getElementById('c-submit');
+    btn.disabled=true;btn.innerHTML='<span class="spinner"></span> 送信中…';
+    var db=window._db;var ops=window._firestoreOp;
+    try{
+      await ops.addDoc(ops.collection(db,'contacts'),{name:name,email:email,type:type,message:msg,createdAt:ops.serverTimestamp(),read:false});
+      document.getElementById('contact-form').style.display='none';
+      document.getElementById('contact-done').classList.add('visible');
+      document.title='お問い合わせ完了 | アンカツ＋';
+    }catch(e){
+      console.error(e);btn.disabled=false;btn.textContent='送信する →';
+      alert('送信に失敗しました。しばらくしてから再度お試しください。');
+    }
+  }
+
+  /* ---- ルーティング ---- */
+  window.addEventListener('popstate',function(){
+    var h=location.hash;
+    if(!h||h==='#'){showView('top');return;}
+    if(h.startsWith('#article/')){var id=decodeURIComponent(h.slice(9));var a=allArticles.find(function(x){return x.slug===id||x.id===id;});if(a){renderArticle(a);showView('article');}}
+    else if(h==='#series')          filterByCategory('series');
+    else if(h.startsWith('#series/')){var sid=decodeURIComponent(h.slice(8));var s=allSeries.find(function(x){return x.slug===sid||x.id===sid;});if(s){renderSeriesDetail(s);showView('series-detail');}}
+    else if(h.startsWith('#cat/'))   filterByCategory(decodeURIComponent(h.slice(5)));
+    else if(h.startsWith('#tag/'))   filterByTag(decodeURIComponent(h.slice(5)));
+    else if(h.startsWith('#search/'))doSearch(decodeURIComponent(h.slice(8)));
+    else if(h.startsWith('#page/')) showStaticPage(decodeURIComponent(h.slice(6)));
+  });
+
+  function handleInitialHash(){
+    var h=location.hash;
+    if(!h) return;
+    if(h.startsWith('#article/')){var id=decodeURIComponent(h.slice(9));var a=allArticles.find(function(x){return x.slug===id||x.id===id;});if(a){renderArticle(a);showView('article');}}
+    else if(h==='#series')          filterByCategory('series');
+    else if(h.startsWith('#series/')){var sid=decodeURIComponent(h.slice(8));var s=allSeries.find(function(x){return x.slug===sid||x.id===sid;});if(s){renderSeriesDetail(s);showView('series-detail');}}
+    else if(h.startsWith('#page/')) showStaticPage(decodeURIComponent(h.slice(6)));
+  }
+
+  /* ---- ダークモード ---- */
+  function initDarkMode(){
+    var s=localStorage.getItem('theme');
+    if(s==='dark'||(!s&&window.matchMedia('(prefers-color-scheme:dark)').matches))
+      document.documentElement.setAttribute('data-theme','dark');
+    document.getElementById('dark-toggle').addEventListener('click',function(){
+      var d=document.documentElement.getAttribute('data-theme')==='dark';
+      document.documentElement.setAttribute('data-theme',d?'light':'dark');
+      localStorage.setItem('theme',d?'light':'dark');
+    });
+  }
+
+  /* ---- イベント ---- */
+  function bindEvents(){
+    document.querySelectorAll('.cat-btn').forEach(function(b){b.addEventListener('click',function(){filterByCategory(b.dataset.cat);});});
+    document.querySelectorAll('.nav-link[data-cat]').forEach(function(el){el.addEventListener('click',function(){filterByCategory(el.dataset.cat);document.getElementById('mobile-nav').classList.remove('open');document.getElementById('menu-toggle').classList.remove('open');});});
+    document.querySelectorAll('[data-cat-foot]').forEach(function(el){el.addEventListener('click',function(){filterByCategory(el.dataset.catFoot);});});
+    document.querySelectorAll('[data-page]').forEach(function(el){el.addEventListener('click',function(){var p=el.dataset.page;showStaticPage(p);history.pushState({view:'static',page:p},'','#page/'+p);});});
+    document.getElementById('logo-link').addEventListener('click',function(){filterByCategory('all');});
+    document.getElementById('search-input').addEventListener('keydown',function(e){if(e.key==='Enter')doSearch(e.target.value);});
+    document.getElementById('search-input-mob').addEventListener('keydown',function(e){if(e.key==='Enter'){doSearch(e.target.value);document.getElementById('mobile-nav').classList.remove('open');}});
+    document.getElementById('menu-toggle').addEventListener('click',function(){var o=document.getElementById('mobile-nav').classList.toggle('open');document.getElementById('menu-toggle').classList.toggle('open',o);});
+  }
+
+  /* ---- 初期化 ---- */
+  var _fbReady=false,_domReady=false;
+  function tryStart(){
+    if(_fbReady&&_domReady){
+      loadBreaking();
+      checkMaintenance();
+      setInterval(checkMaintenance, MAINTENANCE_CHECK_INTERVAL);
+      Promise.all([loadArticles(), loadSeries()]).then(handleInitialHash);
+    }
+  }
+  document.addEventListener('firebase-ready',function(){_fbReady=true;tryStart();});
+  document.addEventListener('DOMContentLoaded',function(){
+    initDarkMode();bindEvents();_domReady=true;tryStart();
+    setTimeout(function(){if(!allArticles.length){allArticles=DEMO_ARTICLES;allSeries=DEMO_SERIES;renderAll();handleInitialHash();setDefaultBreaking();}},6000);
+  });
+  </script>
+</body>
+</html>
