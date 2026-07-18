@@ -175,6 +175,13 @@
   }
 
   /* ---- 速報バー（settings/breaking を index.html と共有） ---- */
+  function restartBreakingAnimation(){
+    var inner=document.getElementById('breaking-inner');
+    inner.style.animation='none';
+    void inner.offsetWidth; /* 強制リフローでアニメーションを最初からリセット */
+    inner.style.animation='';
+  }
+
   async function loadBreaking(){
     var db=window._db; var ops=window._firestoreOp;
     if(!db||!ops) return;
@@ -190,6 +197,7 @@
         var items=cfg.breakingItems;
         var html=items.map(function(t){return '<span class="breaking-item">'+t+'</span><span class="breaking-sep">◆</span>';}).join('');
         document.getElementById('breaking-inner').innerHTML=html+html;
+        restartBreakingAnimation();
       }
     }catch(e){ console.error('loadBreaking:', e); }
   }
@@ -249,30 +257,44 @@
     var db=window._db; var ops=window._firestoreOp;
     var artSection=document.getElementById('m-articles-section');
     if(!db||!ops){ artSection.style.display='none'; return; }
+
+    var pageData={};
     try{
       var snap=await ops.getDoc(ops.doc(db,'settings','maintenancePage'));
-      var data=snap.exists()?snap.data():{};
-      renderContactLinks(data.contactLinks||[]);
+      pageData = snap.exists() ? snap.data() : {};
+    }catch(e){ console.error('loadMaintenancePage(settings):', e); }
 
-      var ids=(data.featuredArticleIds||[]).slice(0,6);
-      if(!ids.length){ artSection.style.display='none'; return; }
+    renderContactLinks(pageData.contactLinks||[]);
 
-      var docs=await Promise.all(ids.map(function(id){ return ops.getDoc(ops.doc(db,'articles',id)); }));
-      var arts=docs.filter(function(d){return d.exists();}).map(function(d){return Object.assign({id:d.id},d.data());});
-      if(!arts.length){ artSection.style.display='none'; return; }
+    var ids=(pageData.featuredArticleIds||[]).filter(Boolean).slice(0,6);
+    if(!ids.length){ artSection.style.display='none'; return; }
 
-      document.getElementById('m-articles-grid').innerHTML=arts.map(function(a){
-        var excerpt=(a.body||'').replace(/<[^>]*>/g,'').trim().slice(0,58);
-        return '<div class="m-article-card">'
-          +(a.thumbnail?'<img src="'+a.thumbnail+'" class="m-article-thumb" loading="lazy"/>':'<div class="m-article-thumb-ph">'+(CAT_EMOJI[a.category]||'📰')+'</div>')
-          +'<div class="m-article-body">'
-          +'<span class="m-article-cat">'+(a.category||'')+'</span>'
-          +'<div class="m-article-title">'+a.title+'</div>'
-          +'<div class="m-article-excerpt">'+excerpt+(excerpt.length>=58?'…':'')+'</div>'
-          +'</div></div>';
-      }).join('');
-      artSection.style.display='block';
-    }catch(e){ console.error('loadMaintenancePage:', e); artSection.style.display='none'; }
+    var results=await Promise.allSettled(ids.map(function(id){
+      return ops.getDoc(ops.doc(db,'articles',id));
+    }));
+
+    var arts=[];
+    results.forEach(function(r){
+      if(r.status==='fulfilled' && r.value && r.value.exists()){
+        arts.push(Object.assign({id:r.value.id}, r.value.data()));
+      } else if(r.status==='rejected'){
+        console.error('記事の取得に失敗しました:', r.reason);
+      }
+    });
+
+    if(!arts.length){ artSection.style.display='none'; return; }
+
+    document.getElementById('m-articles-grid').innerHTML=arts.map(function(a){
+      var excerpt=(a.body||'').replace(/<[^>]*>/g,'').trim().slice(0,58);
+      return '<div class="m-article-card">'
+        +(a.thumbnail?'<img src="'+a.thumbnail+'" class="m-article-thumb" loading="lazy"/>':'<div class="m-article-thumb-ph">'+(CAT_EMOJI[a.category]||'📰')+'</div>')
+        +'<div class="m-article-body">'
+        +'<span class="m-article-cat">'+(a.category||'')+'</span>'
+        +'<div class="m-article-title">'+a.title+'</div>'
+        +'<div class="m-article-excerpt">'+excerpt+(excerpt.length>=58?'…':'')+'</div>'
+        +'</div></div>';
+    }).join('');
+    artSection.style.display='block';
   }
 
   /* ---- 初期化 ---- */
