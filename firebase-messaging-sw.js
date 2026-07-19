@@ -16,6 +16,15 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
+/* インストール後すぐ有効化し、既存タブもすぐ制御下に置く
+   （これが無いと、次回リロードまで待たないと push を受け取れないことがある） */
+self.addEventListener('install', function(event){
+  self.skipWaiting();
+});
+self.addEventListener('activate', function(event){
+  event.waitUntil(clients.claim());
+});
+
 /* タブが閉じている・バックグラウンドの時に届く通知 */
 messaging.onBackgroundMessage(function(payload) {
   var title = (payload.notification && payload.notification.title) || 'アンカツ＋';
