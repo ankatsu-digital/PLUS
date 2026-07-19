@@ -496,6 +496,14 @@
     .news-item:hover{background:var(--bg-sub)}
     .news-thumb{width:72px;height:52px;object-fit:cover;border-radius:3px;flex-shrink:0;background:var(--border)}
     .news-thumb-ph{width:72px;height:52px;background:linear-gradient(135deg,var(--accent-pale),var(--bg-sub));border-radius:3px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--text-light);font-size:1.1rem}
+
+    /* アンカツMAP連携：サムネイル上の地図ピンバッジ（mapSpotIdを持つ記事にのみ表示） */
+    .thumb-map-wrap{position:relative;display:block;flex-shrink:0}
+    .map-pin-badge{position:absolute;top:5px;right:5px;z-index:2;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:var(--accent);color:#fff;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.3);font-size:.72rem;text-decoration:none;transition:transform var(--tr),background var(--tr)}
+    .map-pin-badge:hover{background:var(--accent-light);transform:scale(1.1)}
+    .map-pin-badge-lg{width:34px;height:34px;top:12px;right:12px;font-size:1rem}
+    .article-map-link{display:inline-flex;align-items:center;gap:.4rem;background:var(--accent);color:#fff;padding:.5rem 1.1rem;border-radius:20px;font-size:.82rem;font-weight:700;margin-top:.9rem;transition:background var(--tr)}
+    .article-map-link:hover{background:var(--accent-light)}
     .news-info{flex:1;min-width:0}
     .news-cat-tag{display:inline-block;font-size:.67rem;font-weight:700;letter-spacing:.08em;color:var(--accent);background:var(--accent-pale);padding:.1rem .45rem;border-radius:3px;margin-bottom:.3rem}
     .news-item-title{font-size:.82rem;font-weight:600;line-height:1.45;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
@@ -1009,6 +1017,17 @@
   var CAT_EMOJI = {'まちの話題':'🏘️','イベント':'🎉','空き家活用':'🏠','商店街':'🛍️','文化':'🎨','インタビュー':'🎙️','学校・子育て':'📚','移住・定住':'🌱','お知らせ':'📢'};
 
   /* ---- メンテナンス設定 ---- */
+  /* ---- アンカツMAP連携 ---- */
+  var ANKATSU_MAP_URL = 'ankatsu-map.html'; /* ← 実際に公開する「アンカツMAP」のURLに書き換えてください（別ドメインでもOK） */
+  function mapSpotUrl(spotId){ return ANKATSU_MAP_URL + '#spot/' + encodeURIComponent(spotId); }
+  /* 記事に mapSpotId（アンカツMAP側のspotドキュメントID）が設定されている場合のみ、
+     サムネイル上に📍バッジを表示し、地図上の該当ピンへ直接リンクする */
+  function mapPinBadge(a, size){
+    if(!a || !a.mapSpotId) return '';
+    var cls = size==='lg' ? 'map-pin-badge map-pin-badge-lg' : 'map-pin-badge';
+    return '<a class="'+cls+'" href="'+mapSpotUrl(a.mapSpotId)+'" target="_blank" rel="noopener" title="アンカツMAPでこの場所を見る" onclick="event.stopPropagation()">📍</a>';
+  }
+
   var MAINTENANCE_REDIRECT_URL = 'maintenance.html'; /* ← 別途用意する簡易ページのURL・パスに書き換えてください */
   var MAINTENANCE_REDIRECT_DELAY = 30000; /* メンテナンス画面表示から自動遷移までの時間（ミリ秒） */
   var MAINTENANCE_CHECK_INTERVAL = 20000; /* メンテナンス状態を再チェックする間隔（ミリ秒） */
@@ -1025,8 +1044,8 @@
   ];
 
   var DEMO_ARTICLES = [
-    {id:'d1',title:'洲本城下町に新たな息吹 — 空き家をシェアアトリエに',slug:'sumoto-akiya-share-atelier',category:'空き家活用',thumbnail:'',seriesId:'sr2',body:'<p>洲本城下町エリアで長年空き家となっていた築100年の古民家が、地域のアーティストや職人が集うシェアアトリエとして生まれ変わりました。</p><p>このプロジェクトは「生涯活躍のまち」の特区にしたい会が主導し、市内外から7名のクリエイターが入居。陶芸、染色、木工の工房として活用されています。</p><h2>移住者も加わり始動</h2><p>大阪から移住した陶芸家・田中さん（32歳）は「洲本の土と空気が作品に合う。ここで根を張りたい」と語ります。</p>',author:'編集部',featured:true,tags:['空き家','移住','アート','城下町'],createdAt:{toDate:function(){return new Date('2025-06-10')}}},
-    {id:'d2',title:'夏の洲本城まつり、今年も開催へ — 地元高校生が企画運営',slug:'sumoto-castle-matsuri-2025',category:'イベント',thumbnail:'',body:'<p>今年で第20回を迎える洲本城まつりの実行委員会が発足しました。今年は洲本高校の生徒が中心となり、体験型プログラムが企画されています。</p>',author:'田村記者',featured:false,tags:['祭り','洲本城','高校生'],createdAt:{toDate:function(){return new Date('2025-06-08')}}},
+    {id:'d1',title:'洲本城下町に新たな息吹 — 空き家をシェアアトリエに',slug:'sumoto-akiya-share-atelier',category:'空き家活用',thumbnail:'',seriesId:'sr2',mapSpotId:'ak1',body:'<p>洲本城下町エリアで長年空き家となっていた築100年の古民家が、地域のアーティストや職人が集うシェアアトリエとして生まれ変わりました。</p><p>このプロジェクトは「生涯活躍のまち」の特区にしたい会が主導し、市内外から7名のクリエイターが入居。陶芸、染色、木工の工房として活用されています。</p><h2>移住者も加わり始動</h2><p>大阪から移住した陶芸家・田中さん（32歳）は「洲本の土と空気が作品に合う。ここで根を張りたい」と語ります。</p>',author:'編集部',featured:true,tags:['空き家','移住','アート','城下町'],createdAt:{toDate:function(){return new Date('2025-06-10')}}},
+    {id:'d2',title:'夏の洲本城まつり、今年も開催へ — 地元高校生が企画運営',slug:'sumoto-castle-matsuri-2025',category:'イベント',thumbnail:'',mapSpotId:'ev1',body:'<p>今年で第20回を迎える洲本城まつりの実行委員会が発足しました。今年は洲本高校の生徒が中心となり、体験型プログラムが企画されています。</p>',author:'田村記者',featured:false,tags:['祭り','洲本城','高校生'],createdAt:{toDate:function(){return new Date('2025-06-08')}}},
     {id:'d3',title:'本町商店街に「よりみち食堂」オープン',slug:'hommachi-yorimichi',category:'商店街',thumbnail:'',body:'<p>洲本市本町商店街に、地元食材を使った定食屋「よりみち食堂」がオープンしました。</p>',author:'山田記者',featured:false,tags:['商店街','飲食'],createdAt:{toDate:function(){return new Date('2025-06-05')}}},
     {id:'d4',title:'淡路水仙の里を記録する — 市民写真家たちのアーカイブ活動',slug:'awaji-suisen-photo',category:'文化',thumbnail:'',body:'<p>洲本市内の市民写真家グループ「まちカメラ隊」が、淡路島の自然と文化を記録する写真アーカイブ活動を本格始動させました。</p>',author:'松本記者',featured:false,tags:['写真','文化'],createdAt:{toDate:function(){return new Date('2025-06-01')}}},
     {id:'d5',title:'「洲本に移り住んで5年」— 元会社員・木村さんのUターン物語',slug:'kimura-uturn',category:'インタビュー',thumbnail:'',seriesId:'sr1',body:'<p>大阪の広告会社を退職し、Uターンで洲本市に戻った木村健一さん（45歳）。農業と古民家再生を組み合わせた事業を営んでいます。</p>',author:'岡田記者',featured:false,tags:['移住','Uターン','農業'],createdAt:{toDate:function(){return new Date('2025-05-28')}}},
@@ -1203,9 +1222,10 @@
     var img=feat.thumbnail
       ?'<img src="'+feat.thumbnail+'" class="main-feature-img" alt="'+feat.title+'" />'
       :'<div class="main-feature-img-ph">'+(CAT_EMOJI[feat.category]||'📰')+'</div>';
+    var imgWrap='<div class="thumb-map-wrap">'+img+mapPinBadge(feat,'lg')+'</div>';
     document.getElementById('feature-card').innerHTML=
       '<article class="main-feature-card" onclick="openArticle(\''+feat.id+'\')">'
-      +img+'<div class="main-feature-body">'
+      +imgWrap+'<div class="main-feature-body">'
       +'<span class="feature-cat-tag">'+(feat.category||'記事')+'</span>'
       +'<h2 class="main-feature-title">'+feat.title+'</h2>'
       +'<p class="main-feature-lead">'+(feat.body?feat.body.replace(/<[^>]*>/g,''):'')+'</p>'
@@ -1227,7 +1247,10 @@
   function renderNewsList(){
     document.getElementById('news-list').innerHTML=allArticles.slice(0,12).map(function(a){
       return '<div class="news-item" onclick="openArticle(\''+a.id+'\')"> '
+        +'<div class="thumb-map-wrap">'
         +(a.thumbnail?'<img src="'+a.thumbnail+'" class="news-thumb" loading="lazy"/>':'<div class="news-thumb-ph">'+(CAT_EMOJI[a.category]||'📰')+'</div>')
+        +mapPinBadge(a)
+        +'</div>'
         +'<div class="news-info"><span class="news-cat-tag">'+(a.category||'ニュース')+'</span>'
         +'<div class="news-item-title">'+a.title+'</div>'
         +'<div class="news-item-date">'+fmtDate(a.createdAt)+'</div></div></div>';
@@ -1277,6 +1300,9 @@
     }
     var shareUrl=buildShareUrl(a);
     var titleEsc=(a.title||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    var mapLink=a.mapSpotId
+      ?'<a class="article-map-link" href="'+mapSpotUrl(a.mapSpotId)+'" target="_blank" rel="noopener">🗺️ この場所をアンカツMAPで見る</a>'
+      :'';
     var shareBar='<div class="article-share-bar">'
       +'<span class="share-label">この記事をシェア</span>'
       +'<div class="share-buttons">'
@@ -1293,6 +1319,7 @@
       +'<div class="article-cat-badge">'+(a.category||'記事')+'</div>'
       +'<h1 class="article-title">'+a.title+'</h1>'
       +'<div class="article-meta"><span>✍️ <span class="author-name-link" onclick="openAuthor(\''+(a.author||'編集部').replace(/'/g,"\\'")+'\')">'+(a.author||'編集部')+'</span></span><span>📅 '+fmtDate(a.createdAt)+'</span></div>'
+      +mapLink
       +shareBar
       +'</header>'+img
       +'<div class="article-body">'+(a.body||'<p>本文がありません。</p>')+'</div>'
@@ -1365,8 +1392,8 @@
   }
 
   /* ---- プッシュ通知（Firebase Cloud Messaging + Google Apps Script） ---- */
-  var PUSH_GAS_URL = 'https://script.google.com/macros/s/AKfycbxeTli1z1R07rXNLsF7syg0sUKtYvCA_FYpqLTQnoKyYz68OyKqzWLq0kJW9cO6q4-UTA/exec'; /* ← 発行したGASウェブアプリのURLに書き換えてください */
-  var PUSH_VAPID_KEY = 'BDqjF0LvOpdNacP5bOQWqsd3SSO3MrhZzPerQLVKP5v6n4g1ulQUnK2VOSVGcetYQT4p1YybwL45t10rjEo6eXk'; /* ← FirebaseコンソールのWeb Push証明書の鍵に書き換えてください */
+  var PUSH_GAS_URL = 'https://script.google.com/macros/s/XXXXXXXXXXXXXXXX/exec'; /* ← 発行したGASウェブアプリのURLに書き換えてください */
+  var PUSH_VAPID_KEY = 'YOUR_VAPID_KEY_HERE'; /* ← FirebaseコンソールのWeb Push証明書の鍵に書き換えてください */
   var PUSH_DISMISS_KEY = 'ankatsu_push_prompt_dismissed';
 
   function initPushNotifications(){
