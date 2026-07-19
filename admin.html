@@ -320,6 +320,7 @@
       <button class="sb-btn"     data-v="submissions">📨 投稿申請<span id="sb-submissions"></span></button>
       <button class="sb-btn"     data-v="drafts">📝 下書き<span id="sb-drafts"></span></button>
       <button class="sb-btn"     data-v="series">📚 連載・特集</button>
+      <button class="sb-btn"     data-v="authors">🖊 執筆者プロフィール</button>
       <button class="sb-btn"     data-v="breaking">📡 速報バー設定</button>
       <button class="sb-btn"     data-v="json">📦 JSON入出力</button>
       <div class="sb-sec" style="margin-top:.5rem">サイト</div>
@@ -407,12 +408,18 @@
 
               <div class="frow">
                 <label class="flabel">カテゴリ <span class="req">*</span></label>
-                <select id="f-cat" class="fselect">
+                <select id="f-cat" class="fselect" onchange="toggleEventDateField()">
                   <option value="">-- カテゴリを選択 --</option>
                   <option>まちの話題</option><option>イベント</option><option>空き家活用</option>
                   <option>商店街</option><option>文化</option><option>インタビュー</option>
                   <option>学校・子育て</option><option>移住・定住</option><option>お知らせ</option>
                 </select>
+              </div>
+
+              <div class="frow" id="event-date-wrap" style="display:none">
+                <label class="flabel">開催日（イベントカレンダーに表示）</label>
+                <input id="f-event-date" type="date" class="finput" />
+                <span class="fhint">未入力の場合は公開日がカレンダーの日付として使われます</span>
               </div>
 
               <div class="frow">
@@ -456,6 +463,14 @@
                   <input id="f-publish-at" type="datetime-local" class="finput" />
                   <div class="fhint">指定日時になると自動的に公開されます（更新の手間は不要）。管理画面の一覧には「⏰予約中」と表示されます。</div>
                 </div>
+              </div>
+
+              <div class="frow full">
+                <div class="crow">
+                  <input id="f-push" type="checkbox" />
+                  <label for="f-push">🔔 保存時にプッシュ通知を送る</label>
+                </div>
+                <div class="fhint" style="margin-top:.3rem">予約投稿と併用する場合、通知は「保存した瞬間」に送られます（公開日時まで待ちません）。ご注意ください。</div>
               </div>
 
               <div class="frow full">
@@ -588,6 +603,54 @@
         </div>
       </div>
 
+      <!-- 執筆者プロフィール -->
+      <div id="v-authors" class="view">
+        <div class="panel" id="authors-list-panel">
+          <div class="phead">
+            <span class="ptitle">執筆者プロフィール一覧</span>
+            <button class="btn btn-g btn-sm" onclick="goAuthorNew()">＋ 新規作成</button>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="tbl">
+              <thead><tr><th style="width:58px"></th><th>名前</th><th>記事数</th><th style="width:140px">操作</th></tr></thead>
+              <tbody id="authors-tbody"></tbody>
+            </table>
+            <div id="authors-empty" class="etbl" style="display:none">執筆者プロフィールはまだありません。記事の「著者」欄と同じ名前で登録すると、その執筆者ページにプロフィールが表示されます。</div>
+          </div>
+        </div>
+
+        <div class="fcard" id="authors-form-panel" style="display:none">
+          <div class="fhead">
+            <button class="btn btn-o btn-sm" onclick="closeAuthorForm()">← 一覧へ</button>
+            <span id="authors-form-title" style="font-weight:700;font-size:.95rem">新規執筆者プロフィール</span>
+          </div>
+          <div class="fbody">
+            <input type="hidden" id="au-id" />
+            <div class="fgrid">
+              <div class="frow full">
+                <label class="flabel">名前 <span class="req">*</span></label>
+                <input id="au-name" type="text" class="finput" placeholder="編集部 / 田村記者 など、記事の「著者」欄と同じ表記" />
+                <span class="fhint">記事フォームの「著者」欄と完全に同じ文字列にしてください（一致した記事がこのプロフィールに紐づきます）</span>
+              </div>
+              <div class="frow full">
+                <label class="flabel">プロフィール文</label>
+                <textarea id="au-bio" class="finput" style="min-height:90px;resize:vertical;font-family:inherit" placeholder="担当分野や自己紹介などを入力してください"></textarea>
+              </div>
+              <div class="frow full">
+                <label class="flabel">プロフィール画像URL</label>
+                <input id="au-photo" type="url" class="finput" placeholder="https://i.imgur.com/xxxxx.jpg" />
+                <img id="au-photo-prev" class="tprev" alt="プレビュー" />
+                <div class="thint">💡 <a href="https://imgur.com/upload" target="_blank">Imgur</a> に画像をアップして「Direct Link」をコピーして貼ってください。無料・登録不要。未設定の場合はアイコン表示になります。</div>
+              </div>
+            </div>
+            <div class="factions">
+              <button class="btn btn-o" onclick="resetAuthorForm()">🔄 リセット</button>
+              <button class="btn btn-g" id="au-save-btn" onclick="saveAuthor()">💾 保存する</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- 速報バー設定 -->
       <div id="v-breaking" class="view">
         <div class="bpanel">
@@ -673,6 +736,7 @@
 // ============================================================
 var PIN        = '2506';          // ← 削除PINコード
 var DRAFT_KEY  = 'ankatsu_drafts'; // localStorage キー
+var PUSH_GAS_URL = 'https://script.google.com/macros/s/XXXXXXXXXXXXXXXX/exec'; // ← index.htmlと同じGASウェブアプリURLに書き換えてください
 
 // ============================================================
 // 状態
@@ -680,6 +744,7 @@ var DRAFT_KEY  = 'ankatsu_drafts'; // localStorage キー
 var articles  = [];
 var contacts  = [];
 var series    = [];
+var authors   = [];
 var editingId = null;
 var curContact = null;
 var breakingOn = true;
@@ -717,7 +782,7 @@ var VTITLES = {
   dashboard:'📊 ダッシュボード', articles:'📰 記事一覧',
   new:'✏️ 新規記事作成', edit:'✏️ 記事編集',
   contacts:'✉️ お問い合わせ', drafts:'📝 下書き',
-  series:'📚 連載・特集',
+  series:'📚 連載・特集', authors:'🖊 執筆者プロフィール',
   breaking:'📡 速報バー設定', json:'📦 JSON入出力'
 };
 
@@ -735,6 +800,7 @@ function goView(key) {
   if (key==='submissions') renderSubmissions();
   if (key==='drafts')    renderDrafts();
   if (key==='series')    { closeSeriesForm(); renderSeriesAdminList(); }
+  if (key==='authors')   { closeAuthorForm(); renderAuthorsAdminList(); }
   if (key==='breaking')  loadBreaking();
   closeSB();
   window.scrollTo(0,0);
@@ -794,7 +860,7 @@ function fmtDate(ts) {
 }
 
 async function loadAll() {
-  await Promise.all([loadArticles(), loadContacts(), loadSubmissions(), loadSeries()]);
+  await Promise.all([loadArticles(), loadContacts(), loadSubmissions(), loadSeries(), loadAuthors()]);
   renderDash();
 }
 
@@ -1132,6 +1198,11 @@ function toggleScheduleField(){
   document.getElementById('schedule-datetime-wrap').style.display = on ? 'block' : 'none';
 }
 
+function toggleEventDateField(){
+  var isEvent = document.getElementById('f-cat').value === 'イベント';
+  document.getElementById('event-date-wrap').style.display = isEvent ? 'block' : 'none';
+}
+
 function getFormData() {
   return {
     title:     document.getElementById('f-title').value.trim(),
@@ -1139,6 +1210,7 @@ function getFormData() {
     category:  document.getElementById('f-cat').value,
     author:    document.getElementById('f-author').value.trim() || '編集部',
     seriesId:  document.getElementById('f-series').value || '',
+    eventDate: document.getElementById('f-cat').value==='イベント' ? (document.getElementById('f-event-date').value || '') : '',
     tags:      document.getElementById('f-tags').value.split(',').map(function(t){return t.trim();}).filter(Boolean),
     thumbnail: document.getElementById('f-thumb').value.trim(),
     featured:  document.getElementById('f-feat').checked,
@@ -1152,10 +1224,13 @@ function setFormData(d) {
   document.getElementById('f-cat').value    = d.category || '';
   document.getElementById('f-author').value = d.author   || '';
   document.getElementById('f-series').value = d.seriesId || '';
+  document.getElementById('f-event-date').value = d.eventDate || '';
+  document.getElementById('f-push').checked = false;
   document.getElementById('f-tags').value   = (d.tags||[]).join(', ');
   document.getElementById('f-thumb').value  = d.thumbnail|| '';
   document.getElementById('f-feat').checked = !!d.featured;
   setBodyHtml(d.body || '');
+  toggleEventDateField();
   var prev = document.getElementById('f-thumb-prev');
   if (d.thumbnail) { prev.src=d.thumbnail; prev.style.display='block'; }
   else { prev.style.display='none'; }
@@ -1204,12 +1279,40 @@ async function pubArticle() {
       await window._addDoc('articles', d);
       toast(scheduleOn ? '予約投稿を設定しました ⏰' : '記事を公開しました ✅');
     }
+    if (document.getElementById('f-push').checked) {
+      var excerpt = (d.body||'').replace(/<[^>]*>/g,'').trim().slice(0,60);
+      sendPushNotification(d.title, excerpt, d.slug);
+    }
     await loadArticles();
     goView('articles');
   } catch(e) {
     console.error(e); toast('保存失敗: '+e.message,'error');
   } finally {
     btn.disabled=false; btn.textContent='💾 公開保存';
+  }
+}
+
+// ============================================================
+// プッシュ通知送信（Google Apps Script経由）
+// ============================================================
+async function sendPushNotification(title, body, slug) {
+  try {
+    var url = location.origin + location.pathname.replace(/admin\.html$/, 'index.html') + '#article/' + encodeURIComponent(slug || '');
+    var res = await fetch(PUSH_GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'send', title: title, message: body, url: url })
+    });
+    var data = null;
+    try { data = await res.json(); } catch(e) {}
+    if (data && data.ok) {
+      toast('プッシュ通知を送信しました 🔔（送信'+data.sent+'件 / 失敗'+data.failed+'件）');
+    } else {
+      toast('プッシュ通知の送信結果を確認できませんでした（GASのURL設定をご確認ください）','warn');
+    }
+  } catch(e) {
+    console.error('push send error:', e);
+    toast('プッシュ通知の送信でエラーが発生しました','error');
   }
 }
 
@@ -1459,6 +1562,103 @@ function askDelSeries(id, title) {
 }
 
 // ============================================================
+// 執筆者プロフィール
+// ============================================================
+async function loadAuthors() {
+  try {
+    var snap = await window._getAll('authors');
+    authors = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+    authors.sort(function(a,b){ return (a.name||'').localeCompare(b.name||'','ja'); });
+  } catch(e) { console.error('loadAuthors:', e); }
+}
+
+function renderAuthorsAdminList() {
+  var tbody = document.getElementById('authors-tbody');
+  var empty = document.getElementById('authors-empty');
+  if (!authors.length) { tbody.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display = 'none';
+  tbody.innerHTML = authors.map(function(au){
+    var cnt = articles.filter(function(a){ return (a.author||'編集部')===au.name; }).length;
+    return '<tr>'
+      +'<td>'+(au.photo?'<img src="'+au.photo+'" class="rthumb" style="border-radius:50%;width:38px;height:38px;object-fit:cover"/>':'<div class="rthumb-ph" style="border-radius:50%;width:38px;height:38px">✍️</div>')+'</td>'
+      +'<td><div style="font-weight:600;font-size:.83rem">'+au.name+'</div><div style="font-size:.72rem;color:var(--light);max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(au.bio||'')+'</div></td>'
+      +'<td style="font-size:.83rem">'+cnt+'件</td>'
+      +'<td><div class="acts">'
+      +'<button class="btn btn-o btn-sm" onclick="startEditAuthor(\''+au.id+'\')">✏️</button>'
+      +'<button class="btn btn-r btn-sm" onclick="askDelAuthor(\''+au.id+'\',\''+(au.name||'').replace(/'/g,"\\'")+'\')">🗑️</button>'
+      +'</div></td></tr>';
+  }).join('');
+}
+
+function goAuthorNew() {
+  document.getElementById('au-id').value = '';
+  document.getElementById('au-name').value = '';
+  document.getElementById('au-bio').value = '';
+  document.getElementById('au-photo').value = '';
+  document.getElementById('au-photo-prev').style.display = 'none';
+  document.getElementById('authors-form-title').textContent = '新規執筆者プロフィール';
+  document.getElementById('authors-list-panel').style.display = 'none';
+  document.getElementById('authors-form-panel').style.display = 'block';
+}
+
+function startEditAuthor(id) {
+  var au = authors.find(function(x){ return x.id===id; });
+  if (!au) return;
+  document.getElementById('au-id').value = au.id;
+  document.getElementById('au-name').value = au.name || '';
+  document.getElementById('au-bio').value = au.bio || '';
+  document.getElementById('au-photo').value = au.photo || '';
+  var prev = document.getElementById('au-photo-prev');
+  if (au.photo) { prev.src=au.photo; prev.style.display='block'; } else { prev.style.display='none'; }
+  document.getElementById('authors-form-title').textContent = 'プロフィールを編集';
+  document.getElementById('authors-list-panel').style.display = 'none';
+  document.getElementById('authors-form-panel').style.display = 'block';
+}
+
+function closeAuthorForm() {
+  document.getElementById('authors-form-panel').style.display = 'none';
+  document.getElementById('authors-list-panel').style.display = 'block';
+  renderAuthorsAdminList();
+}
+
+function resetAuthorForm() {
+  var id = document.getElementById('au-id').value;
+  if (id) startEditAuthor(id); else goAuthorNew();
+}
+
+async function saveAuthor() {
+  var id    = document.getElementById('au-id').value;
+  var name  = document.getElementById('au-name').value.trim();
+  var bio   = document.getElementById('au-bio').value.trim();
+  var photo = document.getElementById('au-photo').value.trim();
+  if (!name) { toast('名前を入力してください','warn'); return; }
+
+  var d = { name:name, bio:bio, photo:photo };
+  var btn = document.getElementById('au-save-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 保存中…';
+  try {
+    if (id) {
+      await window._updateDoc('authors', id, d);
+      toast('プロフィールを更新しました ✅');
+    } else {
+      await window._addDoc('authors', d);
+      toast('プロフィールを作成しました ✅');
+    }
+    await loadAuthors();
+    closeAuthorForm();
+  } catch(e) { toast('保存失敗: '+e.message,'error'); }
+  finally { btn.disabled=false; btn.textContent='💾 保存する'; }
+}
+
+function askDelAuthor(id, name) {
+  openPin('執筆者プロフィールを削除', '「'+name+'」のプロフィールを削除します。記事自体は残ります。\nこの操作は取り消せません。', function(){
+    window._deleteDoc('authors', id)
+      .then(function(){ toast('削除しました'); loadAuthors().then(renderAuthorsAdminList); })
+      .catch(function(e){ toast('削除失敗: '+e.message,'error'); });
+  });
+}
+
+// ============================================================
 // PIN確認モーダル
 // ============================================================
 function openPin(title, desc, cb) {
@@ -1635,6 +1835,14 @@ document.addEventListener('DOMContentLoaded', function() {
   // 連載・特集フォーム: ロゴプレビュー
   document.getElementById('sr-logo').addEventListener('input', function(e){
     var prev = document.getElementById('sr-logo-prev');
+    var url  = e.target.value.trim();
+    if (url){ prev.src=url; prev.style.display='block'; }
+    else    { prev.style.display='none'; }
+  });
+
+  // 執筆者プロフィールフォーム: 画像プレビュー
+  document.getElementById('au-photo').addEventListener('input', function(e){
+    var prev = document.getElementById('au-photo-prev');
     var url  = e.target.value.trim();
     if (url){ prev.src=url; prev.style.display='block'; }
     else    { prev.style.display='none'; }

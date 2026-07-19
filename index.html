@@ -341,6 +341,9 @@
       getFirestore, collection, getDocs, getDoc, doc,
       query, orderBy, where, limit, addDoc, serverTimestamp
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import {
+      getMessaging, getToken, onMessage, isSupported
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js";
 
     const firebaseConfig = {
       apiKey:            "AIzaSyC4HUWd4c5_fdgA-k34i1uthozfqYcRn9A",
@@ -356,7 +359,22 @@
     const db  = getFirestore(app);
     window._db          = db;
     window._firestoreOp = { collection, getDocs, getDoc, doc, query, orderBy, where, limit, addDoc, serverTimestamp };
-    document.dispatchEvent(new Event("firebase-ready"));
+
+    isSupported().then(function(supported){
+      if (supported) {
+        try {
+          const messaging = getMessaging(app);
+          window._messaging = messaging;
+          window._getToken  = getToken;
+          onMessage(messaging, function(payload){
+            window.dispatchEvent(new CustomEvent('push-foreground-message', { detail: payload }));
+          });
+        } catch(e) { console.error('messaging init error:', e); }
+      }
+      document.dispatchEvent(new Event("firebase-ready"));
+    }).catch(function(){
+      document.dispatchEvent(new Event("firebase-ready"));
+    });
   </script>
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -506,14 +524,31 @@
     .article-tags{display:flex;flex-wrap:wrap;gap:.4rem;margin:2rem auto;max-width:760px}
     .article-share-bar{max-width:760px;margin:1.25rem auto 0;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
     .share-label{font-size:.78rem;color:var(--text-muted);font-weight:600;flex-shrink:0}
-    .share-buttons{display:flex;gap:.5rem;flex-wrap:wrap}
+    .share-buttons{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+    .share-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:50%;border:1px solid var(--border);background:var(--bg-card);color:var(--text-muted);transition:background var(--tr),color var(--tr),border-color var(--tr);flex-shrink:0}
+    .share-icon-btn svg{width:18px;height:18px}
+    .share-icon-btn:hover{color:#fff;border-color:transparent}
+    .share-icon-btn.share-instagram:hover{background:linear-gradient(45deg,#f58529,#dd2a7b,#8134af,#515bd4)}
+    .share-icon-btn.share-x:hover{background:#000}
+    .share-icon-btn.share-fb:hover{background:#1877f2}
+    .share-icon-btn.share-line:hover{background:#06c755}
     .share-btn{display:inline-flex;align-items:center;gap:.35rem;padding:.4rem .85rem;border-radius:20px;border:1px solid var(--border);background:var(--bg-card);font-size:.78rem;font-weight:600;color:var(--text-muted);transition:background var(--tr),color var(--tr),border-color var(--tr)}
     .share-btn:hover{border-color:var(--accent);color:var(--accent)}
-    .share-btn.share-x:hover{border-color:var(--text-main);color:var(--text-main)}
-    .share-btn.share-line:hover{border-color:#06c755;color:#06c755}
-    .share-btn.share-fb:hover{border-color:#1877f2;color:#1877f2}
     #share-toast-container{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);z-index:9998;display:flex;flex-direction:column;align-items:center;gap:.5rem}
     .share-toast{background:var(--text-main);color:var(--bg);padding:.6rem 1.25rem;border-radius:20px;font-size:.82rem;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.25);animation:jmaSlideIn .2s ease-out}
+
+    /* プッシュ通知バナー */
+    #push-banner{display:none;position:fixed;bottom:1.25rem;left:1.25rem;right:1.25rem;z-index:9997;justify-content:center}
+    .push-banner-card{max-width:480px;width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:14px;box-shadow:0 10px 30px var(--shadow);padding:1.1rem 1.25rem;display:flex;align-items:center;gap:.9rem;flex-wrap:wrap;animation:jmaSlideIn .3s ease-out}
+    .push-banner-icon{font-size:1.6rem;flex-shrink:0}
+    .push-banner-text{flex:1;min-width:160px}
+    .push-banner-title{font-size:.87rem;font-weight:700;margin-bottom:.2rem;color:var(--text-main)}
+    .push-banner-sub{font-size:.74rem;color:var(--text-muted)}
+    .push-banner-actions{display:flex;gap:.5rem;flex-shrink:0}
+    .push-banner-btn{padding:.45rem .9rem;border-radius:20px;font-size:.8rem;font-weight:700}
+    .push-banner-btn-primary{background:var(--accent);color:#fff}
+    .push-banner-btn-primary:hover{background:var(--accent-light)}
+    .push-banner-btn-secondary{background:var(--bg-sub);color:var(--text-muted);border:1px solid var(--border)}
     .back-btn{display:inline-flex;align-items:center;gap:.5rem;font-size:.85rem;color:var(--text-muted);padding:.5rem 1rem;border:1px solid var(--border);border-radius:4px;margin-bottom:1.5rem;transition:background var(--tr);cursor:pointer}
     .back-btn:hover{background:var(--bg-sub);color:var(--accent)}
 
@@ -561,6 +596,56 @@
     .series-detail-articles-head::before{content:'';width:3px;height:14px;background:var(--accent);display:inline-block;border-radius:2px}
     .article-series-badge{display:inline-flex;align-items:center;gap:.4rem;background:var(--accent-pale);color:var(--accent);font-size:.78rem;font-weight:700;padding:.4rem .9rem;border-radius:20px;margin-bottom:1rem;cursor:pointer;width:fit-content}
     .article-series-badge:hover{background:var(--accent);color:#fff}
+
+    /* イベントカレンダー */
+    #calendar-view{display:none}
+    #calendar-view.visible{display:block}
+    .cal-nav{display:flex;align-items:center;justify-content:center;gap:1.5rem;margin-bottom:1.25rem}
+    .cal-nav-btn{padding:.45rem 1rem;border:1px solid var(--border);border-radius:20px;font-size:.82rem;font-weight:600;color:var(--text-muted);background:var(--bg-card);transition:border-color var(--tr),color var(--tr)}
+    .cal-nav-btn:hover{border-color:var(--accent);color:var(--accent)}
+    .cal-month-label{font-family:var(--serif);font-size:1.15rem;font-weight:700;min-width:140px;text-align:center}
+    .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:.4rem;max-width:760px;margin:0 auto}
+    .cal-dow{text-align:center;font-size:.72rem;font-weight:700;color:var(--text-light);padding-bottom:.4rem}
+    .cal-cell{aspect-ratio:1/1;border:1px solid var(--border);border-radius:6px;padding:.35rem;display:flex;flex-direction:column;align-items:center;gap:.25rem;cursor:pointer;transition:background var(--tr),border-color var(--tr);background:var(--bg-card)}
+    .cal-cell:hover{border-color:var(--accent)}
+    .cal-cell.empty{border:none;background:none;cursor:default}
+    .cal-cell.today{border-color:var(--accent);border-width:2px}
+    .cal-cell.selected{background:var(--accent-pale);border-color:var(--accent)}
+    .cal-date-num{font-size:.8rem;font-weight:600;color:var(--text-main)}
+    .cal-dot{width:6px;height:6px;border-radius:50%;background:var(--accent)}
+    .cal-day-events{max-width:760px;margin:1.75rem auto 0}
+    .cal-day-events-title{font-size:.85rem;font-weight:700;color:var(--text-muted);margin-bottom:.75rem}
+    @media(max-width:640px){
+      .cal-cell{padding:.2rem}
+      .cal-date-num{font-size:.7rem}
+    }
+
+    /* アーカイブ */
+    #archive-view{display:none}
+    #archive-view.visible{display:block}
+    .archive-groups{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:1.75rem}
+    .archive-year-block{}
+    .archive-year-title{font-family:var(--serif);font-size:1.2rem;font-weight:900;margin-bottom:.85rem;padding-bottom:.5rem;border-bottom:2px solid var(--accent)}
+    .archive-month-list{display:flex;flex-direction:column;gap:.4rem}
+    .archive-month-row{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:background var(--tr),border-color var(--tr)}
+    .archive-month-row:hover{border-color:var(--accent);background:var(--accent-pale)}
+    .archive-month-name{font-size:.9rem;font-weight:600}
+    .archive-month-count{font-size:.78rem;color:var(--text-light)}
+
+    /* 執筆者ページ */
+    #author-view{display:none}
+    #author-view.visible{display:block}
+    .author-header{max-width:700px;margin:0 auto 2rem;display:flex;align-items:center;gap:1.5rem;text-align:left}
+    .author-avatar{width:88px;height:88px;border-radius:50%;object-fit:cover;flex-shrink:0;box-shadow:0 4px 16px var(--shadow)}
+    .author-avatar-ph{width:88px;height:88px;border-radius:50%;background:linear-gradient(135deg,var(--accent-pale),var(--bg-sub));display:flex;align-items:center;justify-content:center;font-size:2rem;color:var(--accent);flex-shrink:0;box-shadow:0 4px 16px var(--shadow)}
+    .author-name{font-family:var(--serif);font-size:1.35rem;font-weight:900;margin-bottom:.4rem}
+    .author-bio{font-size:.86rem;color:var(--text-muted);line-height:1.8}
+    .author-count{font-size:.75rem;color:var(--text-light);margin-top:.4rem}
+    .author-name-link{cursor:pointer}
+    .author-name-link:hover{color:var(--accent);text-decoration:underline}
+    @media(max-width:640px){
+      .author-header{flex-direction:column;text-align:center}
+    }
 
     /* 静的ページ */
     #static-view{display:none}
@@ -699,6 +784,21 @@
   <!-- 記事共有用トースト -->
   <div id="share-toast-container"></div>
 
+  <!-- プッシュ通知 購読案内バナー -->
+  <div id="push-banner">
+    <div class="push-banner-card">
+      <span class="push-banner-icon">🔔</span>
+      <div class="push-banner-text">
+        <div class="push-banner-title">新着記事をプッシュ通知で受け取りますか？</div>
+        <div class="push-banner-sub">速報やイベント情報をいち早くお届けします</div>
+      </div>
+      <div class="push-banner-actions">
+        <button class="push-banner-btn push-banner-btn-primary" onclick="enablePushNotifications()">許可する</button>
+        <button class="push-banner-btn push-banner-btn-secondary" onclick="dismissPushBanner(true)">あとで</button>
+      </div>
+    </div>
+  </div>
+
   <header id="site-header">
     <div class="header-inner">
       <button id="menu-toggle" aria-label="メニュー">
@@ -717,6 +817,8 @@
         <span class="nav-link" data-cat="文化">文化</span>
         <span class="nav-link" data-cat="インタビュー">インタビュー</span>
         <span class="nav-link" data-cat="series">連載・特集</span>
+        <span class="nav-link" data-cat="calendar">イベントカレンダー</span>
+        <span class="nav-link" data-cat="archive">アーカイブ</span>
       </nav>
       <div class="search-box">
         <span>🔍</span>
@@ -735,6 +837,8 @@
     <span class="nav-link" data-cat="文化">文化</span>
     <span class="nav-link" data-cat="インタビュー">インタビュー</span>
     <span class="nav-link" data-cat="series">連載・特集</span>
+    <span class="nav-link" data-cat="calendar">イベントカレンダー</span>
+    <span class="nav-link" data-cat="archive">アーカイブ</span>
     <div style="padding:.75rem 1rem">
       <div class="search-box"><span>🔍</span><input id="search-input-mob" type="search" placeholder="記事を検索..." style="width:100%" /></div>
     </div>
@@ -761,6 +865,8 @@
       <button class="cat-btn" data-cat="移住・定住">移住・定住</button>
       <button class="cat-btn" data-cat="お知らせ">お知らせ</button>
       <button class="cat-btn" data-cat="series">📚 連載・特集</button>
+      <button class="cat-btn" data-cat="calendar">📅 イベントカレンダー</button>
+      <button class="cat-btn" data-cat="archive">🗄 アーカイブ</button>
     </div>
   </div>
 
@@ -826,6 +932,33 @@
     <section id="series-detail-view">
       <button class="back-btn" onclick="goBack()">← 連載・特集一覧へ戻る</button>
       <div id="series-detail-content"></div>
+    </section>
+
+    <section id="calendar-view">
+      <div class="list-header">
+        <h2 class="list-title">📅 イベントカレンダー</h2>
+        <span class="list-count" id="calendar-count"></span>
+      </div>
+      <div class="cal-nav">
+        <button class="cal-nav-btn" onclick="calendarMove(-1)">‹ 前月</button>
+        <div class="cal-month-label" id="cal-month-label"></div>
+        <button class="cal-nav-btn" onclick="calendarMove(1)">次月 ›</button>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+      <div class="cal-day-events" id="cal-day-events"></div>
+    </section>
+
+    <section id="archive-view">
+      <div class="list-header">
+        <h2 class="list-title">🗄 アーカイブ</h2>
+        <span class="list-count" id="archive-count"></span>
+      </div>
+      <div class="archive-groups" id="archive-groups"></div>
+    </section>
+
+    <section id="author-view">
+      <button class="back-btn" onclick="goBack()">← 一覧へ戻る</button>
+      <div id="author-content"></div>
     </section>
 
     <section id="static-view">
@@ -1118,6 +1251,9 @@
     document.getElementById('static-view').classList.toggle('visible',v==='static');
     document.getElementById('series-view').classList.toggle('visible',v==='series');
     document.getElementById('series-detail-view').classList.toggle('visible',v==='series-detail');
+    document.getElementById('calendar-view').classList.toggle('visible',v==='calendar');
+    document.getElementById('archive-view').classList.toggle('visible',v==='archive');
+    document.getElementById('author-view').classList.toggle('visible',v==='author');
     currentView=v; window.scrollTo(0,0);
   }
 
@@ -1144,9 +1280,10 @@
     var shareBar='<div class="article-share-bar">'
       +'<span class="share-label">この記事をシェア</span>'
       +'<div class="share-buttons">'
-      +'<button class="share-btn share-x" onclick="shareArticle(\'x\',\''+titleEsc+'\',\''+shareUrl+'\')">𝕏 X</button>'
-      +'<button class="share-btn share-line" onclick="shareArticle(\'line\',\''+titleEsc+'\',\''+shareUrl+'\')">LINE</button>'
-      +'<button class="share-btn share-fb" onclick="shareArticle(\'facebook\',\''+titleEsc+'\',\''+shareUrl+'\')">Facebook</button>'
+      +'<button class="share-icon-btn share-instagram" title="Instagramで共有" aria-label="Instagramで共有" onclick="shareArticle(\'instagram\',\''+titleEsc+'\',\''+shareUrl+'\')">'+SHARE_ICONS.instagram+'</button>'
+      +'<button class="share-icon-btn share-x" title="Xでシェア" aria-label="Xでシェア" onclick="shareArticle(\'x\',\''+titleEsc+'\',\''+shareUrl+'\')">'+SHARE_ICONS.x+'</button>'
+      +'<button class="share-icon-btn share-fb" title="Facebookでシェア" aria-label="Facebookでシェア" onclick="shareArticle(\'facebook\',\''+titleEsc+'\',\''+shareUrl+'\')">'+SHARE_ICONS.facebook+'</button>'
+      +'<button class="share-icon-btn share-line" title="LINEで送る" aria-label="LINEで送る" onclick="shareArticle(\'line\',\''+titleEsc+'\',\''+shareUrl+'\')">'+SHARE_ICONS.line+'</button>'
       +'<button class="share-btn share-copy" onclick="copyArticleLink(\''+shareUrl+'\')">🔗 リンクをコピー</button>'
       +(typeof navigator!=='undefined'&&navigator.share?'<button class="share-btn share-native" onclick="nativeShareArticle(\''+titleEsc+'\',\''+shareUrl+'\')">📤 共有</button>':'')
       +'</div></div>';
@@ -1155,7 +1292,7 @@
       +seriesBadge
       +'<div class="article-cat-badge">'+(a.category||'記事')+'</div>'
       +'<h1 class="article-title">'+a.title+'</h1>'
-      +'<div class="article-meta"><span>✍️ '+(a.author||'編集部')+'</span><span>📅 '+fmtDate(a.createdAt)+'</span></div>'
+      +'<div class="article-meta"><span>✍️ <span class="author-name-link" onclick="openAuthor(\''+(a.author||'編集部').replace(/'/g,"\\'")+'\')">'+(a.author||'編集部')+'</span></span><span>📅 '+fmtDate(a.createdAt)+'</span></div>'
       +shareBar
       +'</header>'+img
       +'<div class="article-body">'+(a.body||'<p>本文がありません。</p>')+'</div>'
@@ -1164,37 +1301,50 @@
   }
 
   /* ---- 記事共有機能 ---- */
+  var SHARE_ICONS = {
+    instagram: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>',
+    x: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>',
+    facebook: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 12a10 10 0 1 0-11.5 9.87v-6.98H7.9V12h2.6V9.8c0-2.57 1.53-4 3.87-4 1.12 0 2.3.2 2.3.2v2.53h-1.3c-1.28 0-1.68.8-1.68 1.62V12h2.86l-.46 2.89h-2.4v6.98A10 10 0 0 0 22 12z"/></svg>',
+    line: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 5.94 2 10.7c0 4.27 3.58 7.84 8.42 8.53.33.07.78.22.89.5.1.26.07.66.03.92l-.14.87c-.04.26-.2 1 .88.55 1.08-.46 5.8-3.42 7.92-5.85C21.3 14.4 22 12.6 22 10.7 22 5.94 17.52 2 12 2z"/></svg>'
+  };
+
   function buildShareUrl(a){
     return location.origin+location.pathname+'#article/'+encodeURIComponent(a.slug||a.id);
   }
 
   function shareArticle(platform, title, url){
+    if(platform==='instagram'){
+      copyArticleLink(url, 'Instagramは直接リンク共有に対応していないため、リンクをコピーしました。投稿やストーリーに貼り付けてご利用ください 📸');
+      return;
+    }
     var encodedUrl=encodeURIComponent(url);
     var encodedTitle=encodeURIComponent(title);
     var links={
-      x:'https://twitter.com/intent/tweet?text='+encodedTitle+'&url='+encodedUrl,
+      x:'https://x.com/intent/tweet?text='+encodedTitle+'&url='+encodedUrl,
       line:'https://social-plugins.line.me/lineit/share?url='+encodedUrl+'&text='+encodedTitle,
       facebook:'https://www.facebook.com/sharer/sharer.php?u='+encodedUrl
     };
     if(links[platform]) window.open(links[platform], '_blank', 'noopener,width=600,height=520');
   }
 
-  function copyArticleLink(url){
+  function copyArticleLink(url, customMsg){
+    var msg = customMsg || 'リンクをコピーしました 🔗';
     if(navigator.clipboard && navigator.clipboard.writeText){
-      navigator.clipboard.writeText(url).then(function(){ showShareToast('リンクをコピーしました 🔗'); }).catch(function(){ fallbackCopyLink(url); });
+      navigator.clipboard.writeText(url).then(function(){ showShareToast(msg); }).catch(function(){ fallbackCopyLink(url, msg); });
     } else {
-      fallbackCopyLink(url);
+      fallbackCopyLink(url, msg);
     }
   }
 
-  function fallbackCopyLink(url){
+  function fallbackCopyLink(url, customMsg){
+    var msg = customMsg || 'リンクをコピーしました 🔗';
     try{
       var ta=document.createElement('textarea');
       ta.value=url; ta.style.position='fixed'; ta.style.opacity='0';
       document.body.appendChild(ta); ta.focus(); ta.select();
       document.execCommand('copy');
       document.body.removeChild(ta);
-      showShareToast('リンクをコピーしました 🔗');
+      showShareToast(msg);
     }catch(e){ showShareToast('コピーに失敗しました'); }
   }
 
@@ -1214,6 +1364,54 @@
     setTimeout(function(){ el.remove(); }, 2400);
   }
 
+  /* ---- プッシュ通知（Firebase Cloud Messaging + Google Apps Script） ---- */
+  var PUSH_GAS_URL = 'https://script.google.com/macros/s/XXXXXXXXXXXXXXXX/exec'; /* ← 発行したGASウェブアプリのURLに書き換えてください */
+  var PUSH_VAPID_KEY = 'YOUR_VAPID_KEY_HERE'; /* ← FirebaseコンソールのWeb Push証明書の鍵に書き換えてください */
+  var PUSH_DISMISS_KEY = 'ankatsu_push_prompt_dismissed';
+
+  function initPushNotifications(){
+    if(!('Notification' in window) || !('serviceWorker' in navigator) || !window._messaging) return;
+    if(Notification.permission!=='default') return; /* すでに許可・拒否済みなら何もしない */
+    if(localStorage.getItem(PUSH_DISMISS_KEY)==='1') return;
+    setTimeout(function(){ document.getElementById('push-banner').style.display='flex'; }, 2500);
+  }
+
+  function dismissPushBanner(remember){
+    document.getElementById('push-banner').style.display='none';
+    if(remember) localStorage.setItem(PUSH_DISMISS_KEY,'1');
+  }
+
+  async function enablePushNotifications(){
+    try{
+      var permission=await Notification.requestPermission();
+      if(permission!=='granted'){
+        dismissPushBanner(true);
+        showShareToast('通知が許可されませんでした');
+        return;
+      }
+      var reg=await navigator.serviceWorker.register('firebase-messaging-sw.js');
+      var token=await window._getToken(window._messaging, {vapidKey:PUSH_VAPID_KEY, serviceWorkerRegistration:reg});
+      if(!token){ showShareToast('通知の登録に失敗しました'); return; }
+      await fetch(PUSH_GAS_URL, {
+        method:'POST',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({action:'subscribe', token:token})
+      });
+      dismissPushBanner(true);
+      showShareToast('プッシュ通知をオンにしました 🔔');
+    }catch(e){
+      console.error('push subscribe error:', e);
+      showShareToast('通知の設定に失敗しました');
+    }
+  }
+
+  window.addEventListener('push-foreground-message', function(e){
+    var payload=e.detail||{};
+    var title=(payload.notification&&payload.notification.title)||'アンカツ＋';
+    var body=(payload.notification&&payload.notification.body)||'';
+    showShareToast('🔔 '+title+(body?'：'+body:''));
+  });
+
   function goBack(){
     history.back();
     setTimeout(function(){if(currentView!=='top'){showView('top');document.title='アンカツ＋ | 城下町洲本のデジタルアーカイブ';}},150);
@@ -1227,6 +1425,19 @@
       renderSeriesList();showView('series');
       history.pushState({view:'series'},'','#series');
       document.title='連載・特集 | アンカツ＋';
+      return;
+    }
+    if(cat==='calendar'){
+      showView('calendar');
+      history.pushState({view:'calendar'},'','#calendar');
+      document.title='イベントカレンダー | アンカツ＋';
+      renderCalendar();
+      return;
+    }
+    if(cat==='archive'){
+      renderArchive();showView('archive');
+      history.pushState({view:'archive'},'','#archive');
+      document.title='アーカイブ | アンカツ＋';
       return;
     }
     showListView('カテゴリ：'+cat,allArticles.filter(function(a){return a.category===cat;}));
@@ -1280,6 +1491,170 @@
       +'<div class="series-detail-articles-head">記事一覧（'+arts.length+'件）</div>'
       +artsHtml;
     document.title=s.title+' | アンカツ＋';
+  }
+
+  /* ---- イベントカレンダー ---- */
+  var _calYear, _calMonth; /* 0-indexed month */
+  function articleEventDate(a){
+    try{
+      if(a.eventDate){ var d=new Date(a.eventDate); if(!isNaN(d)) return d; }
+      return (a.createdAt&&a.createdAt.toDate)?a.createdAt.toDate():new Date(a.createdAt||0);
+    }catch(e){ return null; }
+  }
+  function dkey(d){ return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
+
+  function renderCalendar(){
+    var now=new Date();
+    if(_calYear===undefined){ _calYear=now.getFullYear(); _calMonth=now.getMonth(); }
+    var events=allArticles.filter(function(a){return a.category==='イベント';});
+    var eventsByDay={};
+    events.forEach(function(a){
+      var d=articleEventDate(a);
+      if(!d||isNaN(d)) return;
+      var k=dkey(d);
+      if(!eventsByDay[k]) eventsByDay[k]=[];
+      eventsByDay[k].push(a);
+    });
+
+    document.getElementById('cal-month-label').textContent=_calYear+'年 '+(_calMonth+1)+'月';
+    document.getElementById('calendar-count').textContent=events.length+'件のイベント記事';
+
+    var firstDay=new Date(_calYear,_calMonth,1);
+    var startWeekday=firstDay.getDay();
+    var daysInMonth=new Date(_calYear,_calMonth+1,0).getDate();
+    var dows=['日','月','火','水','木','金','土'];
+    var html=dows.map(function(d){return '<div class="cal-dow">'+d+'</div>';}).join('');
+    for(var i=0;i<startWeekday;i++) html+='<div class="cal-cell empty"></div>';
+    for(var day=1;day<=daysInMonth;day++){
+      var cellDate=new Date(_calYear,_calMonth,day);
+      var k=dkey(cellDate);
+      var isToday=(cellDate.toDateString()===now.toDateString());
+      var hasEvents=!!eventsByDay[k];
+      html+='<div class="cal-cell'+(isToday?' today':'')+'" onclick="selectCalendarDay('+_calYear+','+_calMonth+','+day+')">'
+        +'<span class="cal-date-num">'+day+'</span>'
+        +(hasEvents?'<span class="cal-dot"></span>':'')
+        +'</div>';
+    }
+    document.getElementById('cal-grid').innerHTML=html;
+    window._calEventsByDay=eventsByDay;
+
+    var todayKey=dkey(now);
+    if(_calYear===now.getFullYear() && _calMonth===now.getMonth() && eventsByDay[todayKey]){
+      selectCalendarDay(_calYear,_calMonth,now.getDate());
+    } else {
+      document.getElementById('cal-day-events').innerHTML='<div class="cal-day-events-title">カレンダー上の●が付いた日をタップすると、その日のイベント記事が表示されます。</div>';
+    }
+  }
+
+  function calendarMove(delta){
+    _calMonth+=delta;
+    if(_calMonth<0){_calMonth=11;_calYear--;}
+    if(_calMonth>11){_calMonth=0;_calYear++;}
+    renderCalendar();
+  }
+
+  function selectCalendarDay(y,m,day){
+    document.querySelectorAll('.cal-cell').forEach(function(el){el.classList.remove('selected');});
+    var cells = document.querySelectorAll('.cal-cell:not(.empty)');
+    if(cells[day-1]) cells[day-1].classList.add('selected');
+    var k=y+'-'+(m+1)+'-'+day;
+    var evs=(window._calEventsByDay&&window._calEventsByDay[k])||[];
+    var wrap=document.getElementById('cal-day-events');
+    if(!evs.length){
+      wrap.innerHTML='<div class="cal-day-events-title">'+y+'年'+(m+1)+'月'+day+'日 のイベント記事はありません。</div>';
+      return;
+    }
+    wrap.innerHTML='<div class="cal-day-events-title">'+y+'年'+(m+1)+'月'+day+'日 のイベント記事（'+evs.length+'件）</div>'
+      +'<div class="articles-grid">'+evs.map(function(a){
+        return '<article class="grid-card" onclick="openArticle(\''+a.id+'\')">'
+          +(a.thumbnail?'<img src="'+a.thumbnail+'" class="grid-card-img" loading="lazy"/>':'<div class="grid-card-img-ph">'+(CAT_EMOJI[a.category]||'📰')+'</div>')
+          +'<div class="grid-card-body"><span class="news-cat-tag">'+(a.category||'')+'</span><div class="grid-card-title">'+a.title+'</div><div class="grid-card-date">'+fmtDate(a.createdAt)+'</div></div></article>';
+      }).join('')+'</div>';
+  }
+
+  /* ---- 月別・年別アーカイブ ---- */
+  function renderArchive(){
+    var groups={}; /* {year: {month: [articles]}} */
+    allArticles.forEach(function(a){
+      var d;
+      try{ d=(a.createdAt&&a.createdAt.toDate)?a.createdAt.toDate():new Date(a.createdAt||0); }catch(e){ d=null; }
+      if(!d||isNaN(d)) return;
+      var y=d.getFullYear(), m=d.getMonth();
+      if(!groups[y]) groups[y]={};
+      if(!groups[y][m]) groups[y][m]=[];
+      groups[y][m].push(a);
+    });
+    var years=Object.keys(groups).sort(function(a,b){return b-a;});
+    document.getElementById('archive-count').textContent=allArticles.length+'件の記事';
+    if(!years.length){
+      document.getElementById('archive-groups').innerHTML='<div class="empty-state"><div class="icon">🗄</div><p>記事がありません</p></div>';
+      return;
+    }
+    document.getElementById('archive-groups').innerHTML=years.map(function(y){
+      var months=Object.keys(groups[y]).sort(function(a,b){return b-a;});
+      return '<div class="archive-year-block">'
+        +'<div class="archive-year-title">'+y+'年</div>'
+        +'<div class="archive-month-list">'
+        +months.map(function(m){
+            var count=groups[y][m].length;
+            return '<div class="archive-month-row" onclick="openArchiveMonth('+y+','+m+')">'
+              +'<span class="archive-month-name">'+(parseInt(m,10)+1)+'月</span>'
+              +'<span class="archive-month-count">'+count+'件</span>'
+              +'</div>';
+        }).join('')
+        +'</div></div>';
+    }).join('');
+  }
+
+  function openArchiveMonth(y,m){
+    var list=allArticles.filter(function(a){
+      var d;
+      try{ d=(a.createdAt&&a.createdAt.toDate)?a.createdAt.toDate():new Date(a.createdAt||0); }catch(e){ return false; }
+      return !isNaN(d) && d.getFullYear()===y && d.getMonth()===m;
+    });
+    showListView(y+'年'+(m+1)+'月のアーカイブ', list);
+    history.pushState({view:'list',archive:y+'-'+m},'','#archive/'+y+'-'+m);
+  }
+
+  /* ---- 執筆者ページ ---- */
+  function openAuthor(name){
+    history.pushState({view:'author',name:name},'','#author/'+encodeURIComponent(name));
+    renderAuthorPage(name);
+    showView('author');
+  }
+
+  function renderAuthorPage(name){
+    var arts=allArticles.filter(function(a){return (a.author||'編集部')===name;});
+    var info=(allAuthors||[]).find(function(x){return x.name===name;})||{};
+    var artsHtml=!arts.length
+      ?'<div class="empty-state"><div class="icon">📭</div><p>この執筆者の記事はまだありません</p></div>'
+      :'<div class="articles-grid">'+arts.map(function(a){
+          return '<article class="grid-card" onclick="openArticle(\''+a.id+'\')">'
+            +(a.thumbnail?'<img src="'+a.thumbnail+'" class="grid-card-img" loading="lazy"/>':'<div class="grid-card-img-ph">'+(CAT_EMOJI[a.category]||'📰')+'</div>')
+            +'<div class="grid-card-body"><span class="news-cat-tag">'+(a.category||'')+'</span><div class="grid-card-title">'+a.title+'</div><div class="grid-card-date">'+fmtDate(a.createdAt)+'</div></div></article>';
+        }).join('')+'</div>';
+    document.getElementById('author-content').innerHTML=
+      '<div class="author-header">'
+      +(info.photo?'<img src="'+info.photo+'" class="author-avatar"/>':'<div class="author-avatar-ph">✍️</div>')
+      +'<div>'
+      +'<div class="author-name">'+name+'</div>'
+      +(info.bio?'<p class="author-bio">'+info.bio+'</p>':'')
+      +'<div class="author-count">記事 '+arts.length+'件</div>'
+      +'</div></div>'
+      +'<div class="series-detail-articles-head">記事一覧</div>'
+      +artsHtml;
+    document.title=name+' | アンカツ＋';
+  }
+
+  /* ---- 執筆者情報（settings/authors 相当を Firestore の authors コレクションから取得） ---- */
+  var allAuthors=[];
+  async function loadAuthors(){
+    var db=window._db; var ops=window._firestoreOp;
+    if(!db||!ops) return;
+    try{
+      var snap=await ops.getDocs(ops.collection(db,'authors'));
+      allAuthors=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+    }catch(e){ console.error('loadAuthors:', e); }
   }
 
   function filterByTag(tag){
@@ -1374,6 +1749,10 @@
     if(h.startsWith('#article/')){var id=decodeURIComponent(h.slice(9));var a=allArticles.find(function(x){return x.slug===id||x.id===id;});if(a){renderArticle(a);showView('article');}}
     else if(h==='#series')          filterByCategory('series');
     else if(h.startsWith('#series/')){var sid=decodeURIComponent(h.slice(8));var s=allSeries.find(function(x){return x.slug===sid||x.id===sid;});if(s){renderSeriesDetail(s);showView('series-detail');}}
+    else if(h==='#calendar')        filterByCategory('calendar');
+    else if(h==='#archive')         filterByCategory('archive');
+    else if(h.startsWith('#archive/')){var parts=decodeURIComponent(h.slice(9)).split('-');openArchiveMonth(parseInt(parts[0],10),parseInt(parts[1],10));}
+    else if(h.startsWith('#author/')){var an=decodeURIComponent(h.slice(8));renderAuthorPage(an);showView('author');}
     else if(h.startsWith('#cat/'))   filterByCategory(decodeURIComponent(h.slice(5)));
     else if(h.startsWith('#tag/'))   filterByTag(decodeURIComponent(h.slice(5)));
     else if(h.startsWith('#search/'))doSearch(decodeURIComponent(h.slice(8)));
@@ -1386,6 +1765,10 @@
     if(h.startsWith('#article/')){var id=decodeURIComponent(h.slice(9));var a=allArticles.find(function(x){return x.slug===id||x.id===id;});if(a){renderArticle(a);showView('article');}}
     else if(h==='#series')          filterByCategory('series');
     else if(h.startsWith('#series/')){var sid=decodeURIComponent(h.slice(8));var s=allSeries.find(function(x){return x.slug===sid||x.id===sid;});if(s){renderSeriesDetail(s);showView('series-detail');}}
+    else if(h==='#calendar')        filterByCategory('calendar');
+    else if(h==='#archive')         filterByCategory('archive');
+    else if(h.startsWith('#archive/')){var parts=decodeURIComponent(h.slice(9)).split('-');openArchiveMonth(parseInt(parts[0],10),parseInt(parts[1],10));}
+    else if(h.startsWith('#author/')){var an=decodeURIComponent(h.slice(8));renderAuthorPage(an);showView('author');}
     else if(h.startsWith('#page/')) showStaticPage(decodeURIComponent(h.slice(6)));
   }
 
@@ -1420,7 +1803,8 @@
       loadBreaking();
       checkMaintenance();
       setInterval(checkMaintenance, MAINTENANCE_CHECK_INTERVAL);
-      Promise.all([loadArticles(), loadSeries()]).then(handleInitialHash);
+      initPushNotifications();
+      Promise.all([loadArticles(), loadSeries(), loadAuthors()]).then(handleInitialHash);
     }
   }
   document.addEventListener('firebase-ready',function(){_fbReady=true;tryStart();});
