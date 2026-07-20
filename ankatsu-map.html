@@ -81,6 +81,12 @@
   --c-sight: #8e5cd9;
   --c-sight-dark: #6f3fb8;
   --c-sight-tint: rgba(142,92,217,0.10);
+
+  /* 中心市街地（町丁目）境界レイヤー専用カラー：他カテゴリと衝突しない藍色系 */
+  --c-castle: #3E5C9A;
+  --c-castle-dark: #2C4478;
+  --c-castle-light: #7C93C9;
+  --c-castle-tint: rgba(62,92,154,0.12);
 }
 
 *{ box-sizing: border-box; }
@@ -204,21 +210,29 @@ html, body{ margin:0; padding:0; width:100%; height:100%; font-family:'Noto Sans
 
 /* 徒歩500m円トグル */
 #zone-toggle-btn.on{ background: var(--c-akiya); color:#fff; }
-#area-toggle-btn.on{ background: var(--c-akiya-dark); color:#fff; }
+#area-toggle-btn.on{ background: var(--c-castle); color:#fff; }
 
 /* =========================================================================
    地域データ（空き家マップ機能）：tokku.geojson の町丁目ポリゴンをタップすると
    人口・世帯数・面積の実データを表示する
    ========================================================================= */
-.area-popup .area-popup-eyebrow{ font-size:9.5px; font-weight:700; letter-spacing:0.06em; color:var(--c-akiya-dark); margin:0 0 3px 0; }
-.area-popup .area-popup-title{ font-size:14.5px; font-weight:800; color:var(--color-ink); margin:0 0 10px 0; display:flex; align-items:center; gap:5px; }
-.area-popup .area-popup-body{ padding:14px 16px 16px; width:220px; }
+.area-popup .area-popup-eyebrow{ font-size:9.5px; font-weight:800; letter-spacing:0.08em; color:var(--c-castle-dark); margin:0 0 4px 0; text-transform:uppercase; }
+.area-popup .area-popup-title{ font-size:15.5px; font-weight:900; color:var(--color-ink); margin:0 0 11px 0; display:flex; align-items:center; gap:6px; padding-bottom:9px; border-bottom:1px solid var(--color-line); }
+.area-popup .area-popup-body{ padding:14px 16px 16px; width:230px; }
 .area-popup .area-stat-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:7px; }
-.area-popup .area-stat{ background:rgba(0,0,0,0.03); border-radius:10px; padding:7px 5px; text-align:center; }
-.area-popup .area-stat-label{ font-size:9px; color:var(--color-ink-sub); font-weight:700; margin-bottom:2px; }
-.area-popup .area-stat-value{ font-size:14px; font-weight:800; color:var(--color-ink); }
+.area-popup .area-stat{ background:var(--c-castle-tint); border-radius:10px; padding:8px 5px; text-align:center; }
+.area-popup .area-stat-label{ font-size:9px; color:var(--color-ink-sub); font-weight:700; margin-bottom:3px; }
+.area-popup .area-stat-value{ font-size:15px; font-weight:900; color:var(--c-castle-dark); }
 .area-popup .area-stat-value .unit{ font-size:9px; font-weight:700; color:var(--color-ink-sub); margin-left:1px; }
-.area-popup .area-popup-desc{ font-size:11px; color:var(--color-ink-sub); line-height:1.6; margin:10px 0 0 0; }
+.area-popup .area-popup-note{ font-size:10.5px; font-weight:700; color:var(--c-castle-dark); background:var(--c-castle-tint); border-radius:8px; padding:5px 8px; margin:9px 0 0 0; }
+.area-popup .area-popup-desc{ font-size:11px; color:var(--color-ink-sub); line-height:1.65; margin:9px 0 0 0; }
+
+/* 町丁目名のホバー用ツールチップ（クリックしなくても名前が見えるように） */
+.area-name-tooltip{ background: rgba(44,68,120,0.92) !important; color:#fff !important; border:none !important; box-shadow: var(--shadow-soft); font-size:11.5px; font-weight:700; padding:4px 10px; border-radius:8px; }
+.area-name-tooltip::before{ display:none; }
+
+/* 検索候補に住所（町丁目）の項目を出すときの見た目 */
+#search-suggest .suggest-item[data-area] span:first-child{ color:var(--c-castle-dark); }
 
 /* =========================================================================
    カスタムマーカー
@@ -555,6 +569,7 @@ const DEMO_SPOTS = [
    ========================================================================= */
 let tokkuLayer = null;
 let tokkuFeaturesCache = [];
+let tokkuLayersByKey = {}; // 住所（町丁目）ごとにポリゴンレイヤーを引けるようにする索引
 
 /* 実データ格納用（Firestore読み込み後にここへセットする。未読込時はDEMO_SPOTS） */
 let spots = [];
@@ -696,21 +711,32 @@ function buildMarkers(){
 /* =========================================================================
    ⑥-2 地域データ（空き家マップ機能）：tokku.geojson の町丁目ポリゴン表示
    ========================================================================= */
-const tokkuStyleDefault = { color:'#E9821C', weight:1.5, opacity:0.7, fillColor:'#FF9800', fillOpacity:0.14 };
-const tokkuStyleHover   = { color:'#E9821C', weight:2.5, opacity:1,   fillColor:'#FF9800', fillOpacity:0.32 };
+const TOKKU_GEOJSON_URL = 'center_castle_no_shioya23_fixed.geojson'; // 中心市街地（本町・山手・栄町・海岸通・塩屋・洲本城 等）の町丁目境界データ
+const tokkuStyleDefault = { color:'#3E5C9A', weight:1.6, opacity:0.8, fillColor:'#3E5C9A', fillOpacity:0.13 };
+const tokkuStyleHover   = { color:'#2C4478', weight:2.8, opacity:1,   fillColor:'#3E5C9A', fillOpacity:0.34 };
+
+/* 住所（町丁目名）を取り出す。標準の国勢調査データは S_NAME、洲本城エリアのような
+   簡易ポリゴンは name プロパティのみを持つため、両対応にする。 */
+function areaName(props){ return props.S_NAME || props.name || '対象地区'; }
 
 function buildAreaPopupHTML(props){
   const areaHa = (props.AREA ? (props.AREA / 10000) : 0).toFixed(1);
-  return `
-    <div class="area-popup">
-      <div class="area-popup-body">
-        <p class="area-popup-eyebrow">空家等活用促進区域・地域データ</p>
-        <p class="area-popup-title">🏘️ ${props.S_NAME || '対象地区'}</p>
+  const hasStats = (props.JINKO != null && props.SETAI != null);
+  const isUninhabited = hasStats && props.JINKO === 0 && props.SETAI === 0;
+  const statBlock = hasStats ? `
         <div class="area-stat-grid">
           <div class="area-stat"><div class="area-stat-label">人口</div><div class="area-stat-value">${props.JINKO ?? '-'}<span class="unit">人</span></div></div>
           <div class="area-stat"><div class="area-stat-label">世帯数</div><div class="area-stat-value">${props.SETAI ?? '-'}<span class="unit">世帯</span></div></div>
           <div class="area-stat"><div class="area-stat-label">面積</div><div class="area-stat-value">${areaHa}<span class="unit">ha</span></div></div>
-        </div>
+        </div>` : '';
+  const note = isUninhabited ? `<p class="area-popup-note">🏯 住宅地ではないエリア（居住人口0）です</p>` : '';
+  return `
+    <div class="area-popup">
+      <div class="area-popup-body">
+        <p class="area-popup-eyebrow">中心市街地・町丁目データ</p>
+        <p class="area-popup-title">🏘️ ${areaName(props)}</p>
+        ${statBlock}
+        ${note}
         <p class="area-popup-desc">国勢調査ベースの町丁目データです。空き家等活用促進区域として、建て替え・用途変更の規制が緩和されているエリアです。</p>
       </div>
     </div>
@@ -719,24 +745,47 @@ function buildAreaPopupHTML(props){
 
 async function loadTokkuLayer(){
   try{
-    const res = await fetch('tokku.geojson');
-    if(!res.ok) throw new Error('tokku.geojson が見つかりません');
+    const res = await fetch(TOKKU_GEOJSON_URL);
+    if(!res.ok) throw new Error('HTTPステータス ' + res.status);
     const data = await res.json();
     tokkuFeaturesCache = data.features.map(f => f.properties);
+    tokkuLayersByKey = {};
 
     tokkuLayer = L.geoJSON(data, {
       style: () => tokkuStyleDefault,
       onEachFeature: (feature, layer) => {
+        const props = feature.properties;
+        const key = props.KEY_CODE || areaName(props);
+        tokkuLayersByKey[key] = layer;
+
         layer.on('mouseover', () => layer.setStyle(tokkuStyleHover));
         layer.on('mouseout',  () => layer.setStyle(tokkuStyleDefault));
-        layer.bindPopup(buildAreaPopupHTML(feature.properties), { className:'area-popup', maxWidth:240 });
+        layer.bindPopup(buildAreaPopupHTML(props), { className:'area-popup', maxWidth:250 });
+        // ホバー時に名前が見える簡易ツールチップ（見やすさ向上：クリックしなくても地区名を確認できる）
+        layer.bindTooltip(areaName(props), { className:'area-name-tooltip', sticky:true, direction:'top' });
       }
     });
     if(areaVisible) tokkuLayer.addTo(map);
   }catch(e){
-    console.warn('地域データ（tokku.geojson）読み込みエラー:', e);
-    document.getElementById('area-toggle-btn').style.display = 'none'; // データが無い場合はボタンごと隠す
+    console.warn('地域データ（' + TOKKU_GEOJSON_URL + '）読み込みエラー:', e);
+    showToast('⚠️ ' + TOKKU_GEOJSON_URL + ' を読み込めませんでした（' + e.message + '）');
+    const btn = document.getElementById('area-toggle-btn');
+    if(btn) btn.style.display = 'none'; // データが無い場合はボタンごと隠す
   }
+}
+
+/* 住所（町丁目名）でこの地域データレイヤーへジャンプする。
+   X_CODE/Y_CODEがあればそこへ、無ければポリゴンの重心へフライする。 */
+function flyToArea(key){
+  const layer = tokkuLayersByKey[key];
+  if(!layer) return;
+  const props = layer.feature.properties;
+  const center = (props.X_CODE != null && props.Y_CODE != null)
+    ? L.latLng(props.Y_CODE, props.X_CODE)
+    : layer.getBounds().getCenter();
+  if(!areaVisible){ areaVisible = true; document.getElementById('area-toggle-btn').classList.add('on'); tokkuLayer.addTo(map); }
+  map.flyTo(center, 17, { duration:0.9 });
+  layer.openPopup();
 }
 
 /* =========================================================================
@@ -1067,6 +1116,12 @@ function localSpotMatches(query){
   );
 }
 
+/* 中心市街地レイヤー（町丁目・住所）の中から一致するものを探す */
+function localAreaMatches(query){
+  const kw = query.toLowerCase();
+  return tokkuFeaturesCache.filter(props => areaName(props).toLowerCase().includes(kw));
+}
+
 async function runSearch(){
   const query = searchInput.value.trim();
   if(!query) return;
@@ -1074,10 +1129,15 @@ async function runSearch(){
   searchSuggest.style.display = 'block';
 
   const localResults = localSpotMatches(query);
+  const areaResults = localAreaMatches(query);
   let html = '';
   localResults.forEach(s => {
     const c = CATS[s.type];
     html += `<div class="suggest-item" data-spot="${s.id}"><span>${c.emoji}</span><span>${s.title}</span></div>`;
+  });
+  areaResults.forEach(props => {
+    const key = props.KEY_CODE || areaName(props);
+    html += `<div class="suggest-item" data-area="${key}"><span>🏘️</span><span>${areaName(props)}（住所エリア）</span></div>`;
   });
 
   try{
@@ -1101,6 +1161,12 @@ async function runSearch(){
     el.addEventListener('click', () => {
       const [lat,lng] = el.dataset.geo.split(',').map(Number);
       map.flyTo([lat,lng], 16, { duration:0.9 });
+      searchSuggest.style.display = 'none';
+    });
+  });
+  searchSuggest.querySelectorAll('.suggest-item[data-area]').forEach(el => {
+    el.addEventListener('click', () => {
+      flyToArea(el.dataset.area);
       searchSuggest.style.display = 'none';
     });
   });
