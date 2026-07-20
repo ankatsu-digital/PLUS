@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@700;900&family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 
 <!-- ==================== Firebase（アンカツ＋と同一プロジェクトを共有） ==================== -->
 <script type="module">
@@ -59,22 +59,33 @@
   --t-fast: 0.18s var(--ease);
   --t-mid: 0.34s var(--ease);
 
+  /* ブランドカラー（アンカツ＋ index.html と共通のグランドデザイン） */
+  --brand-accent: #2d6a4f;
+  --brand-accent-dark: #1f4d39;
+  --brand-accent-light: #52b788;
+  --brand-tint: #d8f3dc;
+
   /* カテゴリカラー */
   --c-event: #1a73e8;
   --c-event-dark: #1558b0;
+  --c-event-tint: rgba(26,115,232,0.10);
   --c-akiya: #FF9800;
   --c-akiya-dark: #E9821C;
+  --c-akiya-tint: rgba(255,152,0,0.10);
   --c-food: #e64a4a;
   --c-food-dark: #c92f2f;
+  --c-food-tint: rgba(230,74,74,0.10);
   --c-facility: #2d9d63;
   --c-facility-dark: #217a4c;
+  --c-facility-tint: rgba(45,157,99,0.10);
   --c-sight: #8e5cd9;
   --c-sight-dark: #6f3fb8;
+  --c-sight-tint: rgba(142,92,217,0.10);
 }
 
 *{ box-sizing: border-box; }
 html, body{ margin:0; padding:0; width:100%; height:100%; font-family:'Noto Sans JP', sans-serif; color:var(--color-ink); overflow:hidden; -webkit-tap-highlight-color: transparent; }
-.font-display{ font-family:'Zen Kaku Gothic New', 'Noto Sans JP', sans-serif; letter-spacing:0.01em; }
+.font-display{ font-family:'Noto Serif JP', 'Zen Kaku Gothic New', 'Noto Sans JP', sans-serif; letter-spacing:0.01em; }
 
 #map{ position:absolute; inset:0; width:100%; height:100%; background:#eef1f3; }
 
@@ -106,38 +117,49 @@ html, body{ margin:0; padding:0; width:100%; height:100%; font-family:'Noto Sans
 #search-box{ display:flex; align-items:center; padding:4px 6px 4px 14px; }
 #search-box input{ flex:1; border:none; outline:none; background:transparent; font-size:13.5px; font-family:inherit; color:var(--color-ink); padding:8px 4px; min-width:0; }
 #search-box input::placeholder{ color:#a39a8f; }
-#search-box button{ border:none; background: var(--c-event); color:#fff; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; cursor:pointer; flex-shrink:0; transition: background var(--t-fast), transform var(--t-fast); }
-#search-box button:hover{ background:var(--c-event-dark); transform:scale(1.06); }
+#search-box button{ border:none; background: var(--brand-accent); color:#fff; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; cursor:pointer; flex-shrink:0; transition: background var(--t-fast), transform var(--t-fast); }
+#search-box button:hover{ background:var(--brand-accent-dark); transform:scale(1.06); }
 #search-suggest{ margin-top:6px; max-height:220px; overflow-y:auto; display:none; }
 #search-suggest .suggest-item{ padding:9px 14px; font-size:12.5px; cursor:pointer; border-bottom:1px solid var(--color-line); display:flex; align-items:center; gap:8px; }
 #search-suggest .suggest-item:last-child{ border-bottom:none; }
 #search-suggest .suggest-item:hover{ background:rgba(255,152,0,0.10); }
 
 /* =========================================================================
-   カテゴリタブ
+   カテゴリ絞り込みパネル（画面下部のバー形式。普段は閉じておき、タップで展開）
    ========================================================================= */
-#cat-tabs{ position:absolute; top:74px; left:14px; z-index:640; display:flex; flex-direction:column; gap:8px; animation: dropIn 0.55s var(--ease) 0.05s backwards; }
-.cat-tab{ display:flex; align-items:center; gap:8px; padding:9px 14px 9px 11px; border-radius:24px; cursor:pointer; font-size:12.5px; font-weight:700; color:var(--color-ink); transition: transform var(--t-fast), box-shadow var(--t-fast), background var(--t-fast); border:2px solid transparent; white-space:nowrap; }
-.cat-tab .dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }
-.cat-tab .cnt{ font-size:10px; font-weight:700; color:var(--color-ink-sub); margin-left:2px; }
-.cat-tab:hover{ transform: translateX(2px); }
-.cat-tab.active{ background:#fff; box-shadow: var(--shadow-hover); }
-.cat-tab[data-cat="all"] .dot{ background: linear-gradient(135deg,#1a73e8,#FF9800,#e64a4a); }
-.cat-tab[data-cat="event"].active{ border-color: var(--c-event); }
-.cat-tab[data-cat="event"] .dot{ background: var(--c-event); }
-.cat-tab[data-cat="akiya"].active{ border-color: var(--c-akiya); }
-.cat-tab[data-cat="akiya"] .dot{ background: var(--c-akiya); }
-.cat-tab[data-cat="food"].active{ border-color: var(--c-food); }
-.cat-tab[data-cat="food"] .dot{ background: var(--c-food); }
-.cat-tab[data-cat="facility"].active{ border-color: var(--c-facility); }
-.cat-tab[data-cat="facility"] .dot{ background: var(--c-facility); }
-.cat-tab[data-cat="sightseeing"].active{ border-color: var(--c-sight); }
-.cat-tab[data-cat="sightseeing"] .dot{ background: var(--c-sight); }
+#filter-panel{ position:absolute; left:14px; right:14px; bottom:16px; z-index:640; padding:11px 15px; animation: riseIn 0.55s var(--ease) 0.05s backwards; }
+#filter-panel-head{ display:flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:var(--color-ink-sub); letter-spacing:0.03em; cursor:pointer; user-select:none; }
+#filter-panel-head .filter-panel-icon{ font-size:13px; }
+#filter-chevron{ font-size:10px; color:var(--color-ink-sub); transition: transform var(--t-fast); margin-left:2px; }
+#filter-panel.expanded #filter-chevron{ transform: rotate(180deg); }
+#filter-panel.expanded #filter-panel-head{ margin-bottom:10px; padding-bottom:9px; border-bottom:1px solid var(--color-line); }
+#filter-status{ margin-left:auto; font-size:10px; font-weight:700; color:var(--brand-accent-dark); background:var(--brand-tint); padding:2px 8px; border-radius:10px; white-space:nowrap; }
+#cat-tabs{ display:none; flex-direction:row; flex-wrap:wrap; gap:7px; }
+#filter-panel.expanded #cat-tabs{ display:flex; }
+.cat-tab{ display:flex; align-items:center; gap:7px; padding:8px 12px; border-radius:12px; cursor:pointer; font-size:12.5px; font-weight:700; color:var(--color-ink-sub); transition: transform var(--t-fast), box-shadow var(--t-fast), background var(--t-fast), color var(--t-fast); border:1.5px solid transparent; white-space:nowrap; background:rgba(0,0,0,0.03); flex:0 0 auto; }
+.cat-tab .cat-emoji{ font-size:13px; flex-shrink:0; line-height:1; }
+.cat-tab .cat-label{ overflow:hidden; text-overflow:ellipsis; }
+.cat-tab .cnt{ font-size:10px; font-weight:800; color:inherit; opacity:0.65; background:rgba(0,0,0,0.06); padding:1px 6px; border-radius:8px; flex-shrink:0; }
+.cat-tab:hover{ transform: translateY(-2px); }
+.cat-tab.active{ color:#fff; box-shadow: var(--shadow-soft); }
+.cat-tab.active .cnt{ background:rgba(255,255,255,0.28); opacity:1; }
+.cat-tab[data-cat="all"]{ background:var(--brand-tint); color:var(--color-ink); }
+.cat-tab[data-cat="all"].active{ background:var(--brand-accent); }
+.cat-tab[data-cat="event"]{ background:var(--c-event-tint); color:var(--c-event-dark); }
+.cat-tab[data-cat="event"].active{ background:var(--c-event); }
+.cat-tab[data-cat="akiya"]{ background:var(--c-akiya-tint); color:var(--c-akiya-dark); }
+.cat-tab[data-cat="akiya"].active{ background:var(--c-akiya); }
+.cat-tab[data-cat="food"]{ background:var(--c-food-tint); color:var(--c-food-dark); }
+.cat-tab[data-cat="food"].active{ background:var(--c-food); }
+.cat-tab[data-cat="facility"]{ background:var(--c-facility-tint); color:var(--c-facility-dark); }
+.cat-tab[data-cat="facility"].active{ background:var(--c-facility); }
+.cat-tab[data-cat="sightseeing"]{ background:var(--c-sight-tint); color:var(--c-sight-dark); }
+.cat-tab[data-cat="sightseeing"].active{ background:var(--c-sight); }
 
 /* =========================================================================
    左下：サイドリストパネル
    ========================================================================= */
-#list-panel{ position:absolute; top:74px; left:206px; bottom:16px; width:264px; z-index:560; display:flex; flex-direction:column; overflow:hidden; animation: dropIn 0.6s var(--ease) 0.08s backwards; }
+#list-panel{ position:absolute; top:74px; left:14px; bottom:88px; width:264px; z-index:560; display:flex; flex-direction:column; overflow:hidden; animation: dropIn 0.6s var(--ease) 0.08s backwards; }
 #list-panel .list-header{ padding:13px 15px 9px 15px; font-size:13px; font-weight:700; display:flex; align-items:center; gap:6px; border-bottom:1px solid var(--color-line); flex-shrink:0; }
 #list-panel .list-header .count-chip{ margin-left:auto; background: var(--color-ink); color:#fff; font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px; }
 #spot-list{ overflow-y:auto; padding:10px 10px 14px 10px; flex:1; scrollbar-width: thin; scrollbar-color: rgba(0,0,0,0.22) transparent; }
@@ -149,6 +171,7 @@ html, body{ margin:0; padding:0; width:100%; height:100%; font-family:'Noto Sans
 .spot-card:hover{ transform: translateY(-2px); box-shadow: var(--shadow-hover); }
 .spot-card .thumb{ width:78px; height:78px; flex-shrink:0; background-size:cover; background-position:center; position:relative; }
 .spot-card .thumb .ph{ width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:22px; }
+.spot-card .card-event-badge{ position:absolute; top:4px; left:4px; font-size:7.5px; font-weight:800; letter-spacing:0.06em; color:#fff; background:rgba(21,88,176,0.88); padding:1.5px 5px; border-radius:4px; }
 .spot-card .body{ padding:8px 10px; min-width:0; flex:1; display:flex; flex-direction:column; justify-content:center; gap:2px; }
 .spot-card .cat-label{ font-size:9px; font-weight:700; padding:1px 7px; border-radius:10px; color:#fff; display:inline-block; width:fit-content; }
 .spot-card .title{ font-size:12.5px; font-weight:700; color:var(--color-ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -160,7 +183,7 @@ html, body{ margin:0; padding:0; width:100%; height:100%; font-family:'Noto Sans
 /* =========================================================================
    右下：フローティング操作ボタン群
    ========================================================================= */
-#control-stack{ position:absolute; right:14px; bottom:34px; z-index:600; display:flex; flex-direction:column; align-items:flex-end; gap:12px; }
+#control-stack{ position:absolute; right:14px; bottom:88px; z-index:600; display:flex; flex-direction:column; align-items:flex-end; gap:12px; }
 .fab-group{ display:flex; flex-direction:column; border-radius: var(--radius-md); overflow:hidden; box-shadow: var(--shadow-soft); }
 .fab-btn{ width:42px; height:42px; display:flex; align-items:center; justify-content:center; background: var(--color-bg-glass-strong); border:none; cursor:pointer; font-size:18px; color:var(--color-ink); transition: background var(--t-fast), transform var(--t-fast); position:relative; }
 .fab-btn + .fab-btn{ border-top:1px solid var(--color-line); }
@@ -173,14 +196,29 @@ html, body{ margin:0; padding:0; width:100%; height:100%; font-family:'Noto Sans
 #layer-panel{ position:absolute; right:50px; bottom:0; width:150px; padding:8px; display:none; z-index:601; }
 #layer-panel.open{ display:flex; gap:8px; }
 .layer-option{ flex:1; cursor:pointer; text-align:center; border-radius: var(--radius-sm); overflow:hidden; border:2px solid transparent; transition: border-color var(--t-fast); }
-.layer-option.active{ border-color: var(--c-event); }
+.layer-option.active{ border-color: var(--brand-accent); }
 .layer-option .thumb{ height:44px; width:100%; background-size:cover; background-position:center; }
 .layer-option span{ display:block; font-size:10px; padding:3px 0; font-weight:600; background:#fff; }
-.thumb.standard{ background: linear-gradient(135deg,#eef1f3,#cfd8dc); }
-.thumb.satellite{ background: linear-gradient(135deg,#33422f,#5a6e3f); }
+.thumb.standard{ background:#dde3e6; }
+.thumb.satellite{ background:#3d4d38; }
 
 /* 徒歩500m円トグル */
 #zone-toggle-btn.on{ background: var(--c-akiya); color:#fff; }
+#area-toggle-btn.on{ background: var(--c-akiya-dark); color:#fff; }
+
+/* =========================================================================
+   地域データ（空き家マップ機能）：tokku.geojson の町丁目ポリゴンをタップすると
+   人口・世帯数・面積の実データを表示する
+   ========================================================================= */
+.area-popup .area-popup-eyebrow{ font-size:9.5px; font-weight:700; letter-spacing:0.06em; color:var(--c-akiya-dark); margin:0 0 3px 0; }
+.area-popup .area-popup-title{ font-size:14.5px; font-weight:800; color:var(--color-ink); margin:0 0 10px 0; display:flex; align-items:center; gap:5px; }
+.area-popup .area-popup-body{ padding:14px 16px 16px; width:220px; }
+.area-popup .area-stat-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:7px; }
+.area-popup .area-stat{ background:rgba(0,0,0,0.03); border-radius:10px; padding:7px 5px; text-align:center; }
+.area-popup .area-stat-label{ font-size:9px; color:var(--color-ink-sub); font-weight:700; margin-bottom:2px; }
+.area-popup .area-stat-value{ font-size:14px; font-weight:800; color:var(--color-ink); }
+.area-popup .area-stat-value .unit{ font-size:9px; font-weight:700; color:var(--color-ink-sub); margin-left:1px; }
+.area-popup .area-popup-desc{ font-size:11px; color:var(--color-ink-sub); line-height:1.6; margin:10px 0 0 0; }
 
 /* =========================================================================
    カスタムマーカー
@@ -189,17 +227,18 @@ html, body{ margin:0; padding:0; width:100%; height:100%; font-family:'Noto Sans
 .marker-pin{ width:34px; height:34px; border:3px solid #fff; border-radius:50% 50% 50% 0; transform: rotate(-45deg); box-shadow: 0 3px 10px rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; transition: transform var(--t-fast), box-shadow var(--t-fast); }
 .marker-icon{ transform: rotate(45deg); font-size:15px; line-height:1; }
 .custom-spot-marker:hover .marker-pin{ transform: rotate(-45deg) scale(1.18); box-shadow: 0 5px 14px rgba(0,0,0,0.42); z-index: 1000 !important;}
-.pin-event{ background: linear-gradient(135deg, var(--c-event), var(--c-event-dark)); }
-.pin-akiya{ background: linear-gradient(135deg, var(--c-akiya), var(--c-akiya-dark)); }
-.pin-food{ background: linear-gradient(135deg, var(--c-food), var(--c-food-dark)); }
-.pin-facility{ background: linear-gradient(135deg, var(--c-facility), var(--c-facility-dark)); }
-.pin-sightseeing{ background: linear-gradient(135deg, var(--c-sight), var(--c-sight-dark)); }
+.pin-event{ background: var(--c-event); }
+.pin-akiya{ background: var(--c-akiya); }
+.pin-food{ background: var(--c-food); }
+.pin-facility{ background: var(--c-facility); }
+.pin-sightseeing{ background: var(--c-sight); }
 
-.my-location-dot{ width:18px; height:18px; background:var(--c-event); border:3px solid #fff; border-radius:50%; box-shadow:0 0 0 4px rgba(26,115,232,0.28), 0 2px 6px rgba(0,0,0,0.3); }
+.my-location-dot{ width:18px; height:18px; background:var(--brand-accent); border:3px solid #fff; border-radius:50%; box-shadow:0 0 0 4px rgba(45,106,79,0.28), 0 2px 6px rgba(0,0,0,0.3); }
 
 /* =========================================================================
    ポップアップ
    ========================================================================= */
+.popup-spot .popup-photo-wrap{ position:relative; }
 .popup-spot .popup-photo{ width:100%; height:120px; object-fit:cover; display:block; background:#f1f1f1; }
 .popup-spot .popup-photo-ph{ width:100%; height:120px; display:flex; align-items:center; justify-content:center; font-size:34px; }
 .popup-spot .popup-body{ padding:12px 15px 14px 15px; }
@@ -210,15 +249,19 @@ html, body{ margin:0; padding:0; width:100%; height:100%; font-family:'Noto Sans
 .popup-spot .popup-cta{ display:inline-flex; align-items:center; gap:5px; color:#fff !important; text-decoration:none; font-size:12px; font-weight:700; padding:8px 14px; border-radius: 24px; border:none; cursor:pointer; transition: filter var(--t-fast); }
 .popup-spot .popup-cta:hover{ filter: brightness(0.9); }
 
+/* イベント：写真の上に乗せる「EVENT INFORMATION」バッジ（単色・グラデーションなし） */
+.event-photo-badge{ position:absolute; top:10px; left:10px; z-index:2; font-size:9.5px; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; color:#fff; background: var(--c-event); padding:4px 10px; border-radius:20px; }
+
 /* =========================================================================
-   詳細モーダル
+   詳細パネル（スライドイン方式：中央ポップアップではなくドロワー／ボトムシート）
    ========================================================================= */
-.modal-overlay{ position:fixed; inset:0; z-index:1000; background: rgba(24,18,12,0.46); backdrop-filter: blur(3px); display:flex; align-items:center; justify-content:center; opacity:0; visibility:hidden; pointer-events:none; transition: opacity var(--t-mid), visibility var(--t-mid); padding:20px; }
+.modal-overlay{ position:fixed; inset:0; z-index:1000; background: rgba(24,18,12,0.38); display:flex; align-items:stretch; justify-content:flex-end; opacity:0; visibility:hidden; pointer-events:none; transition: opacity var(--t-mid), visibility var(--t-mid); padding:0; }
 .modal-overlay.open{ opacity:1; visibility:visible; pointer-events:auto; }
-.modal-panel{ width:min(420px, 100%); max-height:88vh; overflow-y:auto; border-radius: var(--radius-xl); box-shadow: var(--shadow-modal); transform: translateY(18px) scale(0.98); transition: transform var(--t-mid); scrollbar-width: thin; position:relative; padding:0; }
-.modal-overlay.open .modal-panel{ transform: translateY(0) scale(1); }
+.modal-panel{ width:min(420px, 100%); max-width:420px; height:100%; max-height:100%; overflow-y:auto; border-radius: var(--radius-xl) 0 0 var(--radius-xl); box-shadow: var(--shadow-modal); transform: translateX(100%); transition: transform var(--t-mid); scrollbar-width: thin; position:relative; padding:0; }
+.modal-overlay.open .modal-panel{ transform: translateX(0); }
 .modal-close{ position:absolute; top:12px; right:12px; z-index:3; flex-shrink:0; width:32px; height:32px; border-radius:50%; border:none; cursor:pointer; background: rgba(20,16,12,0.5); color:#fff; font-size:15px; display:flex; align-items:center; justify-content:center; transition: background var(--t-fast); }
 .modal-close:hover{ background: rgba(20,16,12,0.72); }
+#modal-photo-wrap{ position:relative; }
 .modal-photo{ width:100%; height:220px; object-fit:cover; display:block; background:#f1f1f1; }
 .modal-photo-ph{ width:100%; height:220px; display:flex; align-items:center; justify-content:center; font-size:52px; }
 .modal-body{ background: var(--color-paper); padding:20px 22px 24px 22px; }
@@ -233,6 +276,17 @@ html, body{ margin:0; padding:0; width:100%; height:100%; font-family:'Noto Sans
 .modal-cta{ flex:1; text-align:center; display:inline-flex; align-items:center; justify-content:center; gap:6px; color:#fff !important; text-decoration:none; font-size:13px; font-weight:700; padding:11px 14px; border-radius: 24px; border:none; cursor:pointer; transition: filter var(--t-fast); }
 .modal-cta:hover{ filter:brightness(0.92); }
 .modal-cta.secondary{ background: var(--color-ink) !important; }
+
+.modal-related-section{ margin-top:20px; padding-top:16px; border-top:1px solid var(--color-line); }
+.modal-related-title{ font-size:11.5px; font-weight:700; color:var(--color-ink-sub); letter-spacing:0.02em; margin-bottom:10px; display:flex; align-items:center; gap:5px; }
+.modal-related-list{ display:flex; flex-direction:column; gap:8px; }
+.modal-related-card{ display:flex; gap:10px; align-items:center; background:rgba(0,0,0,0.025); border:1px solid var(--color-line); border-radius:12px; padding:8px; cursor:pointer; text-decoration:none; color:inherit; transition: background var(--t-fast), transform var(--t-fast); }
+.modal-related-card:hover{ background:rgba(0,0,0,0.05); transform:translateY(-1px); }
+.modal-related-card .rel-thumb{ width:52px; height:52px; border-radius:8px; object-fit:cover; flex-shrink:0; background:#eee; }
+.modal-related-card .rel-thumb-ph{ width:52px; height:52px; border-radius:8px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:18px; background:rgba(0,0,0,0.05); }
+.modal-related-card .rel-body{ min-width:0; flex:1; }
+.modal-related-card .rel-title{ font-size:12.5px; font-weight:700; color:var(--color-ink); line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.modal-related-card .rel-date{ font-size:10.5px; color:var(--color-ink-sub); margin-top:3px; }
 
 /* トースト */
 #toast{ position:absolute; left:50%; bottom:30px; transform:translateX(-50%) translateY(20px); z-index:999; padding:10px 20px; font-size:13px; font-weight:600; background: rgba(32,26,20,0.92); color:#fff; border-radius: 24px; opacity:0; pointer-events:none; transition: opacity var(--t-mid), transform var(--t-mid); }
@@ -253,9 +307,9 @@ html, body{ margin:0; padding:0; width:100%; height:100%; font-family:'Noto Sans
   #brand-chip .brand-sub{ display:none; }
   #search-wrap{ max-width:none; width:100%; order:3; }
 
-  #cat-tabs{ top:auto; bottom:16px; left:10px; right:10px; flex-direction:row; overflow-x:auto; padding-bottom:2px; scrollbar-width:none; }
+  #filter-panel{ left:10px; right:10px; padding:9px 12px; }
+  #cat-tabs{ flex-wrap:nowrap; overflow-x:auto; padding-bottom:2px; scrollbar-width:none; }
   #cat-tabs::-webkit-scrollbar{ display:none; }
-  .cat-tab{ flex-shrink:0; }
   .cat-tab .cnt{ display:none; }
 
   #list-panel{ top:auto; left:0; right:0; bottom:0; width:100%; height:58vh; border-radius: 22px 22px 0 0; transform: translateY(calc(100% - 54px)); transition: transform var(--t-mid); }
@@ -265,6 +319,10 @@ html, body{ margin:0; padding:0; width:100%; height:100%; font-family:'Noto Sans
   #list-toggle-btn{ display:flex; position:absolute; z-index:601; left:10px; bottom:74px; width:46px; height:46px; border-radius:50%; border:none; font-size:19px; cursor:pointer; align-items:center; justify-content:center; }
 
   #control-stack{ bottom:100px; }
+
+  .modal-overlay{ align-items:flex-end; justify-content:center; }
+  .modal-panel{ width:100%; max-width:100%; height:auto; max-height:88vh; border-radius: 22px 22px 0 0; transform: translateY(100%); }
+  .modal-overlay.open .modal-panel{ transform: translateY(0); }
 }
 </style>
 </head>
@@ -292,14 +350,22 @@ html, body{ margin:0; padding:0; width:100%; height:100%; font-family:'Noto Sans
   </div>
 </div>
 
-<!-- カテゴリタブ -->
-<div id="cat-tabs">
-  <div class="cat-tab glass-panel active" data-cat="all"><span class="dot"></span>すべて<span class="cnt" id="cnt-all">0</span></div>
-  <div class="cat-tab glass-panel" data-cat="event"><span class="dot"></span>🎉 イベント<span class="cnt" id="cnt-event">0</span></div>
-  <div class="cat-tab glass-panel" data-cat="akiya"><span class="dot"></span>🏠 空き家<span class="cnt" id="cnt-akiya">0</span></div>
-  <div class="cat-tab glass-panel" data-cat="food"><span class="dot"></span>🍴 飲食<span class="cnt" id="cnt-food">0</span></div>
-  <div class="cat-tab glass-panel" data-cat="facility"><span class="dot"></span>🏛️ 施設<span class="cnt" id="cnt-facility">0</span></div>
-  <div class="cat-tab glass-panel" data-cat="sightseeing"><span class="dot"></span>⛩️ 観光<span class="cnt" id="cnt-sightseeing">0</span></div>
+<!-- カテゴリ絞り込みパネル（普段は閉じておき、タップで展開） -->
+<div id="filter-panel" class="glass-panel">
+  <div id="filter-panel-head" class="font-display">
+    <span class="filter-panel-icon">🔍</span>
+    <span>絞り込み</span>
+    <span id="filter-status">すべて表示中</span>
+    <span id="filter-chevron">▾</span>
+  </div>
+  <div id="cat-tabs">
+    <div class="cat-tab active" data-cat="all"><span class="cat-emoji">🗂️</span><span class="cat-label">すべて</span><span class="cnt" id="cnt-all">0</span></div>
+    <div class="cat-tab" data-cat="event"><span class="cat-emoji">🎉</span><span class="cat-label">イベント</span><span class="cnt" id="cnt-event">0</span></div>
+    <div class="cat-tab" data-cat="akiya"><span class="cat-emoji">🏠</span><span class="cat-label">空き家</span><span class="cnt" id="cnt-akiya">0</span></div>
+    <div class="cat-tab" data-cat="food"><span class="cat-emoji">🍴</span><span class="cat-label">飲食</span><span class="cnt" id="cnt-food">0</span></div>
+    <div class="cat-tab" data-cat="facility"><span class="cat-emoji">🏛️</span><span class="cat-label">施設</span><span class="cnt" id="cnt-facility">0</span></div>
+    <div class="cat-tab" data-cat="sightseeing"><span class="cat-emoji">⛩️</span><span class="cat-label">観光</span><span class="cnt" id="cnt-sightseeing">0</span></div>
+  </div>
 </div>
 
 <!-- サイドリスト -->
@@ -324,6 +390,7 @@ html, body{ margin:0; padding:0; width:100%; height:100%; font-family:'Noto Sans
     <button class="fab-btn fab-single" id="layer-toggle-btn" title="地図の種類を切り替え"><span class="fab-icon">🗺️</span></button>
   </div>
   <button class="fab-btn fab-single" id="zone-toggle-btn" title="徒歩500m円の表示切替">⭕</button>
+  <button class="fab-btn fab-single" id="area-toggle-btn" title="地域データ（人口・世帯数）の表示切替">🏘️</button>
   <button class="fab-btn fab-single" id="locate-btn" title="現在地を表示"><span class="fab-icon">📍</span></button>
   <div class="fab-group">
     <button class="fab-btn" id="zoom-in-btn" title="拡大">＋</button>
@@ -344,6 +411,10 @@ html, body{ margin:0; padding:0; width:100%; height:100%; font-family:'Noto Sans
       <p class="modal-address" id="modal-address"></p>
       <p class="modal-desc" id="modal-desc"></p>
       <div class="modal-link-row" id="modal-link-row"></div>
+      <div class="modal-related-section" id="modal-related-section" style="display:none">
+        <div class="modal-related-title" id="modal-related-title">📰 この場所のイベント・記事</div>
+        <div class="modal-related-list" id="modal-related-list"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -475,8 +546,31 @@ const DEMO_SPOTS = [
   }
 ];
 
+/* =========================================================================
+   空き家マップ機能：地域（町丁目）ごとの世帯数・空き家数データ
+   ---------------------------------------------------------------------
+   実データは `tokku.geojson`（町丁目境界＋国勢調査ベースの人口・世帯数・面積）
+   を読み込んで、区域ポリゴンとして地図に重ね、タップすると実数値を表示する。
+   ファイルが見つからない場合は、この機能自体を静かに無効化する。
+   ========================================================================= */
+let tokkuLayer = null;
+let tokkuFeaturesCache = [];
+
 /* 実データ格納用（Firestore読み込み後にここへセットする。未読込時はDEMO_SPOTS） */
 let spots = [];
+
+/* アンカツ＋の記事データ（articles コレクション）。
+   スポット詳細で「この場所のイベント・記事」として、
+   admin側で mapSpotId を紐付けた記事を一覧表示するために読み込む。 */
+let mapArticles = [];
+
+function fmtArticleDate(ts){
+  try{
+    const d = (ts && typeof ts.toDate === 'function') ? ts.toDate() : new Date(ts);
+    if(isNaN(d)) return '';
+    return d.toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric'});
+  }catch(e){ return ''; }
+}
 
 /* アンカツ＋側のURL。記事詳細への「戻りリンク」に使用（index39.html側の ANKATSU_MAP_URL と対になる設定） */
 const ANKATSU_PLUS_URL = 'index.html'; /* ← 実際に公開する「アンカツ＋」のURLに書き換えてください（別ドメインでもOK） */
@@ -507,6 +601,9 @@ let zoneCircle = L.circle([WALKING_ZONE.lat, WALKING_ZONE.lng], {
   radius: WALKING_ZONE.radiusM, color:'#FF9800', weight:2, opacity:0.85, fillColor:'#FF9800', fillOpacity:0.08, dashArray:'6 6'
 }).addTo(map);
 let zoneVisible = true;
+
+/* 地域データ（空き家マップ機能）のレイヤーグループ。通常機能として初期表示ON。 */
+let areaVisible = true; // 地域データ（tokku.geojson）の表示状態
 
 /* =========================================================================
    ⑤ 距離計算・表示ユーティリティ
@@ -540,9 +637,16 @@ function buildPopupHTML(spot){
     ? `<img class="popup-photo" src="${spot.image}" alt="${spot.title}" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'popup-photo-ph',style:'background:${c.color}22',innerHTML:'${c.emoji}'}))">`
     : `<div class="popup-photo-ph" style="background:${c.color}22">${c.emoji}</div>`;
   const dateLine = spot.type==='event' ? `<p class="popup-sub">📅 ${spot.eventDate||''} ${spot.eventTime||''}</p>` : (spot.category2?`<p class="popup-sub">${spot.category2}</p>`:'');
+  const isEvent = spot.type==='event';
+  const photoBlock = isEvent
+    ? `<div class="popup-photo-wrap">
+         ${photo}
+         <span class="event-photo-badge">EVENT</span>
+       </div>`
+    : `<div class="popup-photo-wrap">${photo}</div>`;
   return `
     <div class="popup-spot">
-      ${photo}
+      ${photoBlock}
       <div class="popup-body">
         <span class="popup-cat-tag" style="background:${c.color}">${c.emoji} ${c.label}</span>
         <p class="popup-title">${spot.title}</p>
@@ -561,9 +665,10 @@ function buildCardHTML(spot){
     ? `style="background-image:url('${spot.image}')"`
     : '';
   const ph = spot.image ? '' : `<span class="ph" style="background:${c.color}22">${c.emoji}</span>`;
+  const eventBadge = spot.type==='event' ? `<span class="card-event-badge">EVENT</span>` : '';
   return `
     <div class="spot-card" data-id="${spot.id}">
-      <div class="thumb" ${thumbInner} style="background:${spot.image?'':c.color+'15'}">${ph}</div>
+      <div class="thumb" ${thumbInner} style="background:${spot.image?'':c.color+'15'}">${ph}${eventBadge}</div>
       <div class="body">
         <span class="cat-label" style="background:${c.color}">${c.emoji} ${c.label}</span>
         <span class="title">${spot.title}</span>
@@ -589,6 +694,52 @@ function buildMarkers(){
 }
 
 /* =========================================================================
+   ⑥-2 地域データ（空き家マップ機能）：tokku.geojson の町丁目ポリゴン表示
+   ========================================================================= */
+const tokkuStyleDefault = { color:'#E9821C', weight:1.5, opacity:0.7, fillColor:'#FF9800', fillOpacity:0.14 };
+const tokkuStyleHover   = { color:'#E9821C', weight:2.5, opacity:1,   fillColor:'#FF9800', fillOpacity:0.32 };
+
+function buildAreaPopupHTML(props){
+  const areaHa = (props.AREA ? (props.AREA / 10000) : 0).toFixed(1);
+  return `
+    <div class="area-popup">
+      <div class="area-popup-body">
+        <p class="area-popup-eyebrow">空家等活用促進区域・地域データ</p>
+        <p class="area-popup-title">🏘️ ${props.S_NAME || '対象地区'}</p>
+        <div class="area-stat-grid">
+          <div class="area-stat"><div class="area-stat-label">人口</div><div class="area-stat-value">${props.JINKO ?? '-'}<span class="unit">人</span></div></div>
+          <div class="area-stat"><div class="area-stat-label">世帯数</div><div class="area-stat-value">${props.SETAI ?? '-'}<span class="unit">世帯</span></div></div>
+          <div class="area-stat"><div class="area-stat-label">面積</div><div class="area-stat-value">${areaHa}<span class="unit">ha</span></div></div>
+        </div>
+        <p class="area-popup-desc">国勢調査ベースの町丁目データです。空き家等活用促進区域として、建て替え・用途変更の規制が緩和されているエリアです。</p>
+      </div>
+    </div>
+  `;
+}
+
+async function loadTokkuLayer(){
+  try{
+    const res = await fetch('tokku.geojson');
+    if(!res.ok) throw new Error('tokku.geojson が見つかりません');
+    const data = await res.json();
+    tokkuFeaturesCache = data.features.map(f => f.properties);
+
+    tokkuLayer = L.geoJSON(data, {
+      style: () => tokkuStyleDefault,
+      onEachFeature: (feature, layer) => {
+        layer.on('mouseover', () => layer.setStyle(tokkuStyleHover));
+        layer.on('mouseout',  () => layer.setStyle(tokkuStyleDefault));
+        layer.bindPopup(buildAreaPopupHTML(feature.properties), { className:'area-popup', maxWidth:240 });
+      }
+    });
+    if(areaVisible) tokkuLayer.addTo(map);
+  }catch(e){
+    console.warn('地域データ（tokku.geojson）読み込みエラー:', e);
+    document.getElementById('area-toggle-btn').style.display = 'none'; // データが無い場合はボタンごと隠す
+  }
+}
+
+/* =========================================================================
    ⑦ カテゴリタブ・件数・リスト同期
    ========================================================================= */
 let activeCat = 'all';
@@ -603,6 +754,14 @@ function updateCounts(){
 function applyFilter(cat){
   activeCat = cat;
   document.querySelectorAll('.cat-tab').forEach(el => el.classList.toggle('active', el.dataset.cat===cat));
+
+  const statusEl = document.getElementById('filter-status');
+  if(cat==='all'){
+    statusEl.textContent = 'すべて表示中';
+  } else {
+    const c = CATS[cat];
+    statusEl.textContent = `${c.emoji} ${c.label}のみ`;
+  }
 
   Object.values(markers).forEach(m => {
     const show = (cat==='all' || m.spotType===cat);
@@ -639,7 +798,19 @@ function renderList(){
 }
 
 document.querySelectorAll('.cat-tab').forEach(tab => {
-  tab.addEventListener('click', () => applyFilter(tab.dataset.cat));
+  tab.addEventListener('click', () => {
+    applyFilter(tab.dataset.cat);
+    document.getElementById('filter-panel').classList.remove('expanded'); // 選択したら自動で閉じる
+  });
+});
+
+/* 絞り込みパネルの開閉（普段は閉じておき、タップで展開） */
+document.getElementById('filter-panel-head').addEventListener('click', () => {
+  document.getElementById('filter-panel').classList.toggle('expanded');
+});
+document.addEventListener('click', (e) => {
+  const panel = document.getElementById('filter-panel');
+  if(panel.classList.contains('expanded') && !panel.contains(e.target)) panel.classList.remove('expanded');
 });
 
 /* =========================================================================
@@ -661,6 +832,30 @@ async function loadSpots(){
   }catch(e){
     console.error('spots読み込みエラー:', e);
     spots = DEMO_SPOTS;
+  }
+}
+
+/* アンカツ＋の記事（articles コレクション）を読み込む。
+   admin.html の記事フォームで「🗺️ 地図スポット」に紐付けた記事（mapSpotId）を
+   スポット詳細パネルの「この場所のイベント・記事」として表示するために使用する。 */
+async function loadMapArticles(){
+  const db = window._db, ops = window._firestoreOp;
+  if(!db || !ops){ mapArticles = []; return; }
+  try{
+    const snap = await ops.getDocs(ops.collection(db, 'articles'));
+    const now = new Date();
+    mapArticles = snap.docs
+      .map(d => Object.assign({ id:d.id }, d.data()))
+      .filter(a => {
+        if(!a.mapSpotId) return false; // スポットに紐付いていない記事は対象外
+        try{
+          const createdAtDate = (a.createdAt && a.createdAt.toDate) ? a.createdAt.toDate() : (a.createdAt ? new Date(a.createdAt) : null);
+          return !createdAtDate || isNaN(createdAtDate) || createdAtDate <= now; // 予約投稿（未来日時）は非表示
+        }catch(e){ return true; }
+      });
+  }catch(e){
+    console.error('articles読み込みエラー:', e);
+    mapArticles = [];
   }
 }
 
@@ -686,7 +881,7 @@ function handleSpotHash(){
 window.addEventListener('hashchange', handleSpotHash);
 
 async function initSpots(){
-  await loadSpots();
+  await Promise.all([loadSpots(), loadMapArticles(), loadTokkuLayer()]);
   renderSpotsUI();
   document.getElementById('loading-overlay').classList.add('hidden');
 }
@@ -710,9 +905,13 @@ function openSpotModal(id){
   const c = CATS[spot.type];
   const d = distanceLabel(spot);
 
-  document.getElementById('modal-photo-wrap').innerHTML = spot.image
+  const isEvent = spot.type==='event';
+  const photoInner = spot.image
     ? `<img class="modal-photo" src="${spot.image}" alt="${spot.title}" onerror="this.outerHTML='<div class=\\'modal-photo-ph\\' style=\\'background:${c.color}22\\'>${c.emoji}</div>'">`
     : `<div class="modal-photo-ph" style="background:${c.color}22">${c.emoji}</div>`;
+  document.getElementById('modal-photo-wrap').innerHTML = isEvent
+    ? `${photoInner}<span class="event-photo-badge">EVENT INFORMATION</span>`
+    : photoInner;
 
   document.getElementById('modal-cat-tag').textContent = c.emoji+' '+c.label;
   document.getElementById('modal-cat-tag').style.background = c.color;
@@ -743,6 +942,36 @@ function openSpotModal(id){
   }
   document.getElementById('modal-link-row').innerHTML = links;
 
+  // この場所に紐付いた記事（admin側の記事フォームで mapSpotId を設定したもの）
+  const related = mapArticles
+    .filter(a => a.mapSpotId === spot.id)
+    .sort((a,b) => {
+      const ta = (a.createdAt && a.createdAt.toDate) ? a.createdAt.toDate() : new Date(a.createdAt||0);
+      const tb = (b.createdAt && b.createdAt.toDate) ? b.createdAt.toDate() : new Date(b.createdAt||0);
+      return tb - ta;
+    });
+  const relatedSection = document.getElementById('modal-related-section');
+  if(related.length){
+    document.getElementById('modal-related-title').textContent = isEvent ? '🎉 この場所で開催されるイベント' : '📰 この場所のイベント・記事';
+    document.getElementById('modal-related-list').innerHTML = related.map(a => {
+      const thumb = a.thumbnail
+        ? `<img class="rel-thumb" src="${a.thumbnail}" alt="${a.title}">`
+        : `<div class="rel-thumb-ph">📰</div>`;
+      return `
+        <a class="modal-related-card" href="${articleUrl(a.id)}" target="_blank" rel="noopener">
+          ${thumb}
+          <div class="rel-body">
+            <div class="rel-title">${a.title}</div>
+            <div class="rel-date">${a.category ? a.category+' ・ ' : ''}${fmtArticleDate(a.createdAt)}</div>
+          </div>
+        </a>
+      `;
+    }).join('');
+    relatedSection.style.display = 'block';
+  } else {
+    relatedSection.style.display = 'none';
+  }
+
   spotModal.classList.add('open');
 }
 
@@ -760,6 +989,19 @@ zoneBtn.addEventListener('click', () => {
   zoneVisible = !zoneVisible;
   zoneBtn.classList.toggle('on', zoneVisible);
   if(zoneVisible) zoneCircle.addTo(map); else map.removeLayer(zoneCircle);
+});
+
+/* =========================================================================
+   ⑨-2 地域データ（空き家マップ機能）トグル
+   ========================================================================= */
+const areaBtn = document.getElementById('area-toggle-btn');
+areaBtn.classList.add('on');
+areaBtn.addEventListener('click', () => {
+  areaVisible = !areaVisible;
+  areaBtn.classList.toggle('on', areaVisible);
+  if(!tokkuLayer) return; // 読み込み前／読み込み失敗時は何もしない
+  if(areaVisible) tokkuLayer.addTo(map); else map.removeLayer(tokkuLayer);
+  showToast(areaVisible ? '地域データ（人口・世帯数）を表示しました' : '地域データを非表示にしました');
 });
 
 /* =========================================================================
