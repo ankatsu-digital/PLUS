@@ -61,6 +61,7 @@
   .btn-secondary { background: #edf2f7; color: #2b6cb0; border: 1px solid #cbd5e0; }
   .btn-danger { background: #fff5f5; color: #c53030; border: 1px solid #feb2b2; flex: none; padding: 8px 14px; font-size: 0.85rem; }
   .btn-success { background: #38a169; color: #fff; }
+  .btn-outline { background: #fff; color: #2b6cb0; border: 1px dashed #90cdf4; }
   .btn-success:disabled, button:disabled { opacity: 0.5; cursor: not-allowed; }
 
   #video-wrap {
@@ -121,6 +122,18 @@
   .msg.error { background: #fff5f5; color: #c53030; border: 1px solid #feb2b2; }
   .msg.warn { background: #fffaf0; color: #c05621; border: 1px solid #fbd38d; }
   .msg.success { background: #f0fff4; color: #2f855a; border: 1px solid #9ae6b4; }
+  .msg.info { background: #ebf8ff; color: #2b6cb0; border: 1px solid #90cdf4; }
+
+  .manual-toggle {
+    margin-top: 10px;
+    font-size: 0.8rem;
+    color: #718096;
+    text-align: center;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+  .manual-box { display: none; margin-top: 10px; }
+  .manual-box.show { display: block; }
 
   label.field-label {
     display: block;
@@ -221,6 +234,15 @@
     </div>
 
     <div class="msg" id="msgBox"></div>
+
+    <div class="manual-toggle" id="manualToggle">読み取れない場合はコードを手入力する</div>
+    <div class="manual-box" id="manualBox">
+      <label class="field-label">バーコード/コード番号</label>
+      <input type="text" id="manualCode" placeholder="コードを直接入力">
+      <div class="btn-row" style="margin-top:10px;">
+        <button class="btn-outline" id="btnManualUse">この番号を使用する</button>
+      </div>
+    </div>
   </div>
 
   <!-- 登録フォーム -->
@@ -277,8 +299,12 @@
   const itemList = document.getElementById('itemList');
   const countBadge = document.getElementById('countBadge');
   const searchInput = document.getElementById('searchInput');
+  const manualToggle = document.getElementById('manualToggle');
+  const manualBox = document.getElementById('manualBox');
+  const manualCode = document.getElementById('manualCode');
+  const btnManualUse = document.getElementById('btnManualUse');
 
-  // ---------- Hints (共通設定) ----------
+  // ---------- Hints ----------
   function buildHints(tryHarder) {
     const hints = new Map();
     const formats = [
@@ -324,6 +350,7 @@
     resultCode.textContent = code;
     resultFormat.textContent = 'フォーマット: ' + format;
     resultBox.classList.add('show');
+    manualBox.classList.remove('show');
 
     if (isDuplicate(code)) {
       showMsg('⚠️ このバーコードは既に登録されています（重複登録はできません）', 'warn');
@@ -336,6 +363,25 @@
       itemName.focus();
     }
   }
+
+  // ---------- 手入力フォールバック ----------
+  manualToggle.addEventListener('click', () => {
+    manualBox.classList.toggle('show');
+    if (manualBox.classList.contains('show')) {
+      manualCode.value = '';
+      manualCode.focus();
+    }
+  });
+
+  btnManualUse.addEventListener('click', () => {
+    const val = manualCode.value.trim();
+    if (!val) {
+      showMsg('❌ コードを入力してください。', 'error');
+      return;
+    }
+    showMsg('✍️ 手入力のコードを使用します。', 'success');
+    showResult(val, '手入力');
+  });
 
   // ---------- カメラ読み取り ----------
   btnCamera.addEventListener('click', async () => {
@@ -356,13 +402,14 @@
 
       reader.decodeFromVideoDevice(null, video, (result, err) => {
         if (result) {
+          const formatName = result.getBarcodeFormat ? BarcodeFormat[result.getBarcodeFormat()] : result.format;
           showMsg('📷 カメラで読み取りました', 'success');
-          showResult(result.getText(), result.getBarcodeFormat ? BarcodeFormat[result.getBarcodeFormat()] : result.format);
+          showResult(result.getText(), formatName);
           stopCamera();
         }
-        // NotFoundExceptionは読み取り中の通常状態なので無視
+        // 読み取り中の一時的な未検出は無視（連続スキャン中の正常動作）
         if (err && !(err instanceof NotFoundException)) {
-          // 継続的なスキャンエラーは無視（連続スキャン中のため）
+          console.warn('camera decode error:', err);
         }
       });
     } catch (e) {
@@ -406,81 +453,90 @@
     }
 
     clearMsg();
-    showMsg('🔎 画像を解析しています…', 'success');
+    showMsg('🔎 画像を解析しています…少々お待ちください', 'info');
 
+    let imageUrl = null;
     try {
-      const imageUrl = URL.createObjectURL(file);
-      const imgEl = new Image();
-      imgEl.src = imageUrl;
-
-      await new Promise((resolve, reject) => {
-        imgEl.onload = resolve;
-        imgEl.onerror = () => reject(new Error('画像の読み込みに失敗しました'));
-      });
+      imageUrl = URL.createObjectURL(file);
+      const imgEl = await loadImage(imageUrl);
 
       const result = await decodeImageWithFallback(imgEl);
-      URL.revokeObjectURL(imageUrl);
 
       if (result) {
         const formatName = result.getBarcodeFormat ? BarcodeFormat[result.getBarcodeFormat()] : (result.format || '不明');
         showMsg('🖼️ 画像からの読み取りに成功しました', 'success');
         showResult(result.getText(), formatName);
       } else {
-        showMsg('❌ バーコードを検出できませんでした。画像の向き・明るさ・ピント等を確認して再度お試しください。', 'error');
+        showMsg('❌ バーコードを検出できませんでした。明るい場所で、バーコード全体がまっすぐ・大きく写った画像で再度お試しください。それでも失敗する場合は下の「手入力」もご利用いただけます。', 'error');
       }
     } catch (err) {
+      console.error('image decode error:', err);
       showMsg('❌ 読み取り中にエラーが発生しました：' + err.message, 'error');
+    } finally {
+      if (imageUrl) URL.revokeObjectURL(imageUrl);
     }
   });
 
-  // TRY_HARDERヒントを設定し、複数の前処理パターンで成功率を高める
+  // 画像要素を確実にロードしてから返す
+  function loadImage(src) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error('画像の読み込みに失敗しました'));
+      img.src = src;
+    });
+  }
+
+  // TRY_HARDERヒントを使い、複数の前処理パターンで成功率を高める
   async function decodeImageWithFallback(imgEl) {
     const tryHarderReader = new BrowserMultiFormatReader(buildHints(true));
 
-    // 1. そのままdecodeFromImageElementで試行（TRY_HARDER有効）
+    // 1. オリジナル画像でそのまま試行
     try {
       const result = await tryHarderReader.decodeFromImageElement(imgEl);
       if (result) return result;
     } catch (e) {
-      // 失敗したら次の手段へ
+      console.warn('decode attempt (original) failed:', e && e.message);
     }
 
-    // 2. キャンバスでリサイズ・コントラスト強調してから再試行
-    const variants = buildImageVariants(imgEl);
-    for (const variantImg of variants) {
+    // 2. 前処理バリエーション（拡大・グレースケール+コントラスト強調）を順番に試す
+    const canvases = buildImageVariantCanvases(imgEl);
+    for (const canvas of canvases) {
       try {
+        const dataUrl = canvas.toDataURL('image/png');
+        const variantImg = await loadImage(dataUrl); // ★ここで確実にロード完了を待つ
         const result = await tryHarderReader.decodeFromImageElement(variantImg);
         if (result) return result;
       } catch (e) {
-        // 次のバリアントへ
+        console.warn('decode attempt (variant) failed:', e && e.message);
       }
     }
 
     return null;
   }
 
-  // 画像の前処理バリエーション（拡大・グレースケール+コントラスト強調）を生成
-  function buildImageVariants(imgEl) {
-    const variants = [];
+  // 画像の前処理バリエーション用キャンバスを生成
+  function buildImageVariantCanvases(imgEl) {
+    const canvases = [];
     const naturalW = imgEl.naturalWidth || imgEl.width;
     const naturalH = imgEl.naturalHeight || imgEl.height;
-    if (!naturalW || !naturalH) return variants;
+    if (!naturalW || !naturalH) return canvases;
 
-    const scales = [1, 1.6, 2.2];
+    const scales = [1.2, 1.8, 2.5];
 
     scales.forEach(scale => {
       try {
         const canvas = document.createElement('canvas');
-        canvas.width = Math.round(naturalW * scale);
-        canvas.height = Math.round(naturalH * scale);
+        canvas.width = Math.max(1, Math.round(naturalW * scale));
+        canvas.height = Math.max(1, Math.round(naturalH * scale));
         const ctx = canvas.getContext('2d');
         ctx.imageSmoothingEnabled = true;
         ctx.drawImage(imgEl, 0, 0, canvas.width, canvas.height);
 
-        // グレースケール化 + コントラスト強調
+        // グレースケール化 + コントラスト強調で検出率を上げる
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const data = imageData.data;
-        const contrast = 1.35;
+        const contrast = 1.4;
         const intercept = 128 * (1 - contrast);
         for (let i = 0; i < data.length; i += 4) {
           const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
@@ -490,24 +546,13 @@
         }
         ctx.putImageData(imageData, 0, 0);
 
-        const variantImg = new Image();
-        variantImg.src = canvas.toDataURL('image/png');
-        variants.push(variantImg);
+        canvases.push(canvas);
       } catch (e) {
-        // このバリアント生成に失敗しても続行
+        console.warn('variant canvas generation failed:', e);
       }
     });
 
-    return variants;
-  }
-
-  // 画像要素の読み込み完了を待ってから配列を返すためのラップ
-  async function waitForImagesLoaded(imgs) {
-    await Promise.all(imgs.map(img => {
-      if (img.complete) return Promise.resolve();
-      return new Promise(res => { img.onload = res; img.onerror = res; });
-    }));
-    return imgs;
+    return canvases;
   }
 
   // ---------- 重複チェック ----------
@@ -571,6 +616,7 @@
   function resetAfterSave() {
     formPanel.style.display = 'none';
     resultBox.classList.remove('show');
+    manualBox.classList.remove('show');
     pendingCode = null;
     pendingFormat = null;
     itemName.value = '';
