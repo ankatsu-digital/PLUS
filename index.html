@@ -1,322 +1,309 @@
 <!DOCTYPE html>
-<div id="jma-emergency-alert-embed">
-  <div id="jma-emergency-banner" onclick="openJmaEmergencyModal()">
-    【災害情報】現在、洲本市に気象警報が発表されています。タップして詳細を確認してください。
-  </div>
+<!--
+  淡路島 警報発表中バナー（アンカツ＋用）
+  タップで「淡路島 気象警報・注意報 詳細」ポップアップを表示。
+  市ごとに、警報=赤／注意報=黄 の行と、発表状況バッジ（発表/継続 等）を並べる。
+  ------------------------------------------------------
+  各ページの <body> 直後（一番上）に、このブロックをそのまま貼り付けてください。
+  読み取り専用（書き込みはGAS経由のみ）。
 
-  <div id="jma-emergency-modal" onclick="closeJmaEmergencyModal(event)">
-    <div class="jma-modal-card" onclick="event.stopPropagation()">
-      <div class="jma-modal-header">
-        <span>淡路島 気象警報・注意報 詳細</span>
-        <button class="jma-modal-close-btn" onclick="closeJmaEmergencyModal(null)">&times;</button>
-      </div>
-      <div class="jma-modal-body">
-        <div class="jma-meta-info">
-          <span id="jma-report-time">発表時刻: --:--:--</span>｜
-          <span id="jma-update-time">最終更新: --:--:--</span>
-        </div>
-        
-        <div class="jma-city-box">
-          <div class="jma-city-name">淡路市</div>
-          <div id="jma-alerts-awaji" class="jma-alert-list"></div>
-        </div>
-        <div class="jma-city-box">
-          <div class="jma-city-name">洲本市</div>
-          <div id="jma-alerts-sumoto" class="jma-alert-list"></div>
-        </div>
-        <div class="jma-city-box">
-          <div class="jma-city-name">南あわじ市</div>
-          <div id="jma-alerts-minamiawaji" class="jma-alert-list"></div>
-        </div>
-      </div>
+  ▼ 必要なFirestoreドキュメント（GAS側 updateWeatherBanner が書き込む）
+    settings/weatherBanner
+      active   : boolean
+      message  : string
+      issuedAt : string (ISO8601) | null … 発表時刻（今出ているものの中で一番古い開始時刻）
+      updatedAt: string (ISO8601)         … 最終更新（直近の実行時刻）
+      details  : array<{
+                    name: string,               // 市名
+                    items: array<{
+                      name: string,             // 警報・注意報名
+                      level: number,            // 2=注意報 / 3〜5=警報系（色分けに使用）
+                      status: string            // 気象庁の文言そのまま（発表/継続 等）
+                    }>
+                 }>
+-->
+
+<div id="awaji-weather-banner">
+  <button id="awaji-weather-banner-toggle" type="button">
+    <span id="awaji-weather-banner-text">淡路島 警報発表中</span>
+    <span class="awaji-weather-banner-hint">タップで詳細</span>
+  </button>
+</div>
+
+<div id="awaji-weather-popup-overlay">
+  <div id="awaji-weather-popup" role="dialog" aria-modal="true" aria-labelledby="awaji-weather-popup-title">
+    <div id="awaji-weather-popup-header">
+      <span id="awaji-weather-popup-title">淡路島 気象警報・注意報 詳細</span>
+      <button id="awaji-weather-popup-close" type="button" aria-label="閉じる">×</button>
+    </div>
+    <div id="awaji-weather-popup-body">
+      <div id="awaji-weather-popup-timestamps"></div>
+      <div id="awaji-weather-popup-cities"></div>
     </div>
   </div>
-
-  <style>
-    /* 既存のサイトのデザインと衝突（バグ）を起こさないよう、ID・クラス名はすべて「jma-」を付与 */
-    #jma-emergency-alert-embed {
-      --jma-purple: #9c27b0;
-      --jma-red: #d32f2f;
-      --jma-yellow: #fbc02d;
-      --jma-gray: #e0e0e0;
-      --jma-text-main: #202124;
-      --jma-text-sub: #5f6368;
-      --jma-border-color: #dadce0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
-
-    /* 1. 防災警告バナー（親の観光サイト最上部、または既存のヘッダーの下など任意の場所に表示） */
-    #jma-emergency-banner {
-      display: none;
-      background-color: var(--jma-red);
-      color: white;
-      text-align: center;
-      padding: 12px 20px;
-      font-weight: bold;
-      font-size: 1rem;
-      line-height: 1.4;
-      cursor: pointer;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-      position: relative;
-      z-index: 9999;
-      animation: jmaPulse 2s infinite;
-    }
-    @keyframes jmaPulse {
-      0% { background-color: #d32f2f; }
-      50% { background-color: #b71c1c; }
-      100% { background-color: #d32f2f; }
-    }
-
-    /* 2. ポップアップ（モーダルウィンドウ） */
-    #jma-emergency-modal {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0, 0, 0, 0.6);
-      z-index: 10000;
-      justify-content: center;
-      align-items: center;
-      padding: 20px;
-      box-sizing: border-box;
-    }
-    .jma-modal-card {
-      background-color: #ffffff;
-      border-radius: 16px;
-      width: 100%;
-      max-width: 600px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-      overflow: hidden;
-      animation: jmaSlideIn 0.3s ease-out;
-    }
-    @keyframes jmaSlideIn {
-      from { transform: translateY(-30px); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
-    }
-
-    .jma-modal-header {
-      background-color: #333333;
-      color: white;
-      padding: 16px 20px;
-      font-size: 1.1rem;
-      font-weight: bold;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .jma-modal-close-btn {
-      background: none;
-      border: none;
-      color: white;
-      font-size: 1.6rem;
-      cursor: pointer;
-      padding: 0 5px;
-      line-height: 1;
-    }
-    .jma-modal-body {
-      padding: 20px;
-      max-height: 70vh;
-      overflow-y: auto;
-      text-align: left;
-    }
-
-    /* 淡路島全体の詳細表示用スタイル */
-    .jma-meta-info {
-      font-size: 0.8rem;
-      color: var(--jma-text-sub);
-      margin-bottom: 15px;
-      text-align: right;
-    }
-    .jma-city-box {
-      margin-bottom: 20px;
-    }
-    .jma-city-box:last-child {
-      margin-bottom: 0;
-    }
-    .jma-city-name {
-      font-size: 1rem;
-      font-weight: bold;
-      margin-bottom: 10px;
-      padding-left: 8px;
-      border-left: 4px solid #1976d2;
-      color: var(--jma-text-main);
-    }
-    .jma-alert-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .jma-alert-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 14px;
-      border-radius: 6px;
-      font-weight: bold;
-      font-size: 0.9rem;
-      box-sizing: border-box;
-    }
-    .jma-alert-status {
-      font-size: 0.75rem;
-      padding: 2px 6px;
-      background: rgba(255,255,255,0.75);
-      border-radius: 4px;
-      color: #000000;
-    }
-
-    /* レベル別カラー */
-    .jma-bg-purple { background-color: var(--jma-purple) !important; color: #ffffff !important; }
-    .jma-bg-red { background-color: var(--jma-red) !important; color: #ffffff !important; }
-    .jma-bg-yellow { background-color: var(--jma-yellow) !important; color: #202124 !important; }
-  </style>
-
-  <script>
-    const JMA_FEED_URL = 'https://www.data.jma.go.jp/developer/xml/feed/extra.xml';
-    const JMA_TARGET_CITIES = ['淡路市', '洲本市', '南あわじ市'];
-
-    function openJmaEmergencyModal() {
-      document.getElementById('jma-emergency-modal').style.display = 'flex';
-    }
-    
-    function closeJmaEmergencyModal(event) {
-      if (!event || event.target === document.getElementById('jma-emergency-modal') || event.target.classList.contains('jma-modal-close-btn')) {
-        document.getElementById('jma-emergency-modal').style.display = 'none';
-      }
-    }
-
-    async function checkJmaWeatherAlerts() {
-      const banner = document.getElementById('jma-emergency-banner');
-      const updateTimeDisplay = document.getElementById('jma-update-time');
-      const reportTimeDisplay = document.getElementById('jma-report-time');
-
-      try {
-        const feedRes = await fetch(JMA_FEED_URL);
-        if (!feedRes.ok) throw new Error('Feed fetch failed');
-        const feedText = await feedRes.text();
-        const parser = new DOMParser();
-        const feedXml = parser.parseFromString(feedText, 'application/xml');
-
-        const entries = feedXml.getElementsByTagName('entry');
-        let targetXmlUrl = null;
-
-        for (let i = 0; i < entries.length; i++) {
-          const title = entries[i].getElementsByTagName('title')[0]?.textContent || '';
-          const content = entries[i].getElementsByTagName('content')[0]?.textContent || '';
-          const author = entries[i].getElementsByTagName('name')[0]?.textContent || '';
-
-          if (title.includes('警報') && title.includes('注意報') && (content.includes('兵庫県') || author.includes('神戸'))) {
-            targetXmlUrl = entries[i].getElementsByTagName('link')[0]?.getAttribute('href');
-            break;
-          }
-        }
-
-        const now = new Date();
-        updateTimeDisplay.textContent = `最終更新: ${now.toLocaleTimeString('ja-JP')}`;
-
-        if (!targetXmlUrl) {
-          banner.style.display = 'none';
-          return;
-        }
-
-        const xmlRes = await fetch(targetXmlUrl);
-        if (!xmlRes.ok) throw new Error('XML fetch failed');
-        const xmlText = await xmlRes.text();
-        const xmlDoc = parser.parseFromString(xmlText, 'application/xml');
-
-        const reportDateTime = xmlDoc.getElementsByTagName('ReportDateTime')[0]?.textContent;
-        if (reportDateTime) {
-          reportTimeDisplay.textContent = `発表時刻: ${new Date(reportDateTime).toLocaleString('ja-JP')}`;
-        }
-
-        const cityAlerts = { '淡路市': [], '洲本市': [], '南あわじ市': [] };
-        let hasSumotoWarningOrHigher = false;
-
-        const items = xmlDoc.getElementsByTagName('Item');
-        for (let i = 0; i < items.length; i++) {
-          const areas = items[i].getElementsByTagName('Area');
-          let areaName = null;
-          
-          for (let j = 0; j < areas.length; j++) {
-            const nameNode = areas[j].getElementsByTagName('Name')[0];
-            if (nameNode && JMA_TARGET_CITIES.includes(nameNode.textContent)) {
-              areaName = nameNode.textContent;
-              break;
-            }
-          }
-
-          if (areaName) {
-            const kinds = items[i].getElementsByTagName('Kind');
-            for (let k = 0; k < kinds.length; k++) {
-              const alertName = kinds[k].getElementsByTagName('Name')[0]?.textContent;
-              const status = kinds[k].getElementsByTagName('Status')[0]?.textContent;
-
-              if (alertName && status && status !== '解除' && status !== '発表なし') {
-                cityAlerts[areaName].push({ name: alertName, status: status });
-
-                if (areaName === '洲本市' && (alertName.includes('警報') || alertName.includes('特別警報'))) {
-                  hasSumotoWarningOrHigher = true;
-                }
-              }
-            }
-          }
-        }
-
-        if (hasSumotoWarningOrHigher) {
-          const sumotoAlertNames = cityAlerts['洲本市'].map(a => a.name).join('');
-          if (sumotoAlertNames.includes('特別警報')) {
-            banner.textContent = '【緊急災害情報】洲本市に「特別警報」が発表されています。安全を確保し、詳細を確認してください。';
-            banner.style.backgroundColor = 'var(--jma-purple)';
-          } else {
-            banner.textContent = '【災害情報】現在、洲本市に「気象警報」が発表されています。タップして詳細を確認してください。';
-            banner.style.backgroundColor = 'var(--jma-red)';
-          }
-          banner.style.display = 'block';
-        } else {
-          banner.style.display = 'none';
-        }
-
-        renderJmaCityAlerts('jma-alerts-awaji', cityAlerts['淡路市']);
-        renderJmaCityAlerts('jma-alerts-sumoto', cityAlerts['洲本市']);
-        renderJmaCityAlerts('jma-alerts-minamiawaji', cityAlerts['南あわじ市']);
-
-      } catch (error) {
-        console.error('防災情報取得エラー:', error);
-      }
-    }
-
-    function renderJmaCityAlerts(containerId, alerts) {
-      const container = document.getElementById(containerId);
-      container.innerHTML = '';
-
-      if (!alerts || alerts.length === 0) {
-        container.innerHTML = '<div class="jma-alert-item" style="background-color:var(--jma-gray); color:var(--jma-text-sub)">発表なし</div>';
-        return;
-      }
-
-      alerts.sort((a, b) => {
-        const score = (name) => name.includes('特別警報') ? 3 : name.includes('警報') ? 2 : 1;
-        return score(b.name) - score(a.name);
-      });
-
-      alerts.forEach(alert => {
-        const div = document.createElement('div');
-        div.className = 'jma-alert-item';
-        
-        if (alert.name.includes('特別警報')) div.classList.add('jma-bg-purple');
-        else if (alert.name.includes('警報')) div.classList.add('jma-bg-red');
-        else if (alert.name.includes('注意報')) div.classList.add('jma-bg-yellow');
-
-        div.innerHTML = `<span>${alert.name}</span><span class="jma-alert-status">${alert.status}</span>`;
-        container.appendChild(div);
-      });
-    }
-
-    checkJmaWeatherAlerts();
-    setInterval(checkJmaWeatherAlerts, 5 * 60 * 1000);
-  </script>
 </div>
+
+<style>
+  #awaji-weather-banner {
+    display: none;
+    position: sticky;
+    top: 0;
+    z-index: 9999;
+    width: 100%;
+    background: var(--danger, #e63946);
+    color: #fff;
+    font-family: var(--sans, 'Noto Sans JP', sans-serif);
+  }
+
+  #awaji-weather-banner-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    width: 100%;
+    box-sizing: border-box;
+    padding: .7rem 1rem;
+    background: none;
+    border: none;
+    color: inherit;
+    font: inherit;
+    font-weight: 700;
+    font-size: .88rem;
+    letter-spacing: .02em;
+    cursor: pointer;
+  }
+
+  .awaji-weather-banner-hint {
+    font-size: .74rem;
+    font-weight: 400;
+    opacity: .85;
+    border: 1px solid rgba(255, 255, 255, .6);
+    border-radius: 999px;
+    padding: .1rem .55rem;
+    white-space: nowrap;
+  }
+
+  /* ===== ポップアップ（モーダル） ===== */
+  #awaji-weather-popup-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    background: rgba(0, 0, 0, .5);
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+
+  #awaji-weather-popup-overlay.is-open {
+    display: flex;
+  }
+
+  #awaji-weather-popup {
+    width: 100%;
+    max-width: 420px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-card, #fff);
+    color: var(--text-main, #1a1a18);
+    border-radius: var(--radius, 10px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .3);
+    font-family: var(--sans, 'Noto Sans JP', sans-serif);
+    overflow: hidden;
+  }
+
+  #awaji-weather-popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    padding: 1.1rem 1.25rem;
+    background: #262626;
+    color: #fff;
+    font-weight: 700;
+    font-size: 1.05rem;
+    flex: 0 0 auto;
+  }
+
+  #awaji-weather-popup-close {
+    background: none;
+    border: none;
+    color: inherit;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 .2rem;
+  }
+
+  #awaji-weather-popup-body {
+    padding: 1rem 1.25rem 1.4rem;
+    overflow-y: auto;
+  }
+
+  #awaji-weather-popup-timestamps {
+    text-align: right;
+    font-size: .78rem;
+    color: var(--text-light, #999990);
+    margin-bottom: 1rem;
+  }
+
+  .awaji-weather-city-block {
+    margin-bottom: 1.4rem;
+  }
+
+  .awaji-weather-city-heading {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-main, #1a1a18);
+    margin-bottom: .6rem;
+    padding-left: .6rem;
+    border-left: 4px solid #3b82f6;
+  }
+
+  .awaji-weather-item-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    padding: .75rem 1rem;
+    border-radius: 6px;
+    margin-bottom: .55rem;
+    color: #fff;
+    font-weight: 700;
+    font-size: .92rem;
+  }
+
+  .awaji-weather-item-row:last-child {
+    margin-bottom: 0;
+  }
+
+  .awaji-weather-item-row.level-warning {
+    background: #cc3333; /* 警報・危険警報・特別警報 */
+  }
+
+  .awaji-weather-item-row.level-advisory {
+    background: #f0ad2e; /* 注意報 */
+    color: #3a2a00;
+  }
+
+  .awaji-weather-item-row .status-badge {
+    flex: 0 0 auto;
+    background: rgba(255, 255, 255, .85);
+    color: #262626;
+    font-size: .78rem;
+    font-weight: 700;
+    padding: .2rem .6rem;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  .awaji-weather-city-empty {
+    font-size: .85rem;
+    color: var(--text-muted, #6b6b5e);
+    padding: .4rem 0;
+  }
+</style>
+
+<script type="module">
+  import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey:            "AIzaSyC4HUWd4c5_fdgA-k34i1uthozfqYcRn9A",
+    authDomain:        "ankatsu-d4816.firebaseapp.com",
+    projectId:         "ankatsu-d4816",
+    storageBucket:     "ankatsu-d4816.firebasestorage.app",
+    messagingSenderId: "1005813876395",
+    appId:             "1:1005813876395:web:29153748d2a99c6584d9ee",
+    measurementId:     "G-TJWJXQZSBL"
+  };
+
+  // 確認ページなど、同じページ内で既にinitializeApp済みの場合はそれを再利用する
+  const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+  const db  = getFirestore(app);
+
+  const bannerEl     = document.getElementById('awaji-weather-banner');
+  const toggleEl      = document.getElementById('awaji-weather-banner-toggle');
+  const textEl        = document.getElementById('awaji-weather-banner-text');
+  const overlayEl      = document.getElementById('awaji-weather-popup-overlay');
+  const closeEl        = document.getElementById('awaji-weather-popup-close');
+  const timestampsEl  = document.getElementById('awaji-weather-popup-timestamps');
+  const citiesEl       = document.getElementById('awaji-weather-popup-cities');
+
+  function openPopup() { overlayEl.classList.add('is-open'); }
+  function closePopup() { overlayEl.classList.remove('is-open'); }
+
+  toggleEl.addEventListener('click', openPopup);
+  closeEl.addEventListener('click', closePopup);
+  overlayEl.addEventListener('click', (e) => {
+    if (e.target === overlayEl) closePopup(); // 背景タップでも閉じる
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closePopup();
+  });
+
+  function formatDateTime(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d)) return '';
+    return d.toLocaleString('ja-JP', {
+      year: 'numeric', month: 'numeric', day: 'numeric',
+      hour: 'numeric', minute: '2-digit', second: '2-digit'
+    });
+  }
+
+  function formatTime(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d)) return '';
+    return d.toLocaleTimeString('ja-JP', { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+  }
+
+  onSnapshot(doc(db, 'settings', 'weatherBanner'), (snap) => {
+    const data = snap.exists() ? snap.data() : {};
+    const isActive = !!data.active;
+
+    bannerEl.style.display = isActive ? 'block' : 'none';
+    if (!isActive) {
+      closePopup(); // 解除されたらポップアップも自動で閉じる
+      return;
+    }
+
+    if (data.message) textEl.textContent = data.message;
+
+    // 発表時刻・最終更新
+    const issuedText = data.issuedAt ? `発表時刻: ${formatDateTime(data.issuedAt)}` : '';
+    const updatedText = data.updatedAt ? `最終更新: ${formatTime(data.updatedAt)}` : '';
+    timestampsEl.textContent = [issuedText, updatedText].filter(Boolean).join('　｜　');
+
+    // 市ごとのブロック
+    const details = Array.isArray(data.details) ? data.details : [];
+    citiesEl.innerHTML = details.map((city) => {
+      const items = Array.isArray(city.items) ? city.items : [];
+      const rows = items.length > 0
+        ? items.map((item) => `
+            <div class="awaji-weather-item-row ${item.level >= 3 ? 'level-warning' : 'level-advisory'}">
+              <span>${item.name}</span>
+              <span class="status-badge">${item.status}</span>
+            </div>
+          `).join('')
+        : `<div class="awaji-weather-city-empty">警報・注意報なし</div>`;
+
+      return `
+        <div class="awaji-weather-city-block">
+          <div class="awaji-weather-city-heading">${city.name}</div>
+          ${rows}
+        </div>
+      `;
+    }).join('');
+  }, (err) => {
+    console.error('weatherBanner の監視に失敗しました:', err);
+  });
+</script>
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
