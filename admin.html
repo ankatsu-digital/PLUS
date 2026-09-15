@@ -365,6 +365,7 @@
       <button class="sb-btn"     data-v="authors">✍️ 執筆者紹介</button>
       <button class="sb-btn"     data-v="spots">🗺️ 地図スポット</button>
       <button class="sb-btn"     data-v="breaking">📡 速報バー設定</button>
+      <button class="sb-btn"     data-v="newsletter">📧 メールマガジン</button>
       <button class="sb-btn"     data-v="sitefeatures">📣 サイト機能設定</button>
       <button class="sb-btn"     data-v="specialpages">🎌 特設ページ</button>
       <button class="sb-btn"     data-v="analytics">📊 記事アナリティクス</button>
@@ -570,6 +571,14 @@
                   </div>
                   <div class="fhint">このパスワードを知っている人だけが記事を読めます。保存後、記事一覧から公開リンクをコピーできます。⚠️ 強固な暗号化ではないので、本当に重要な機密情報の公開には使わないでください。</div>
                 </div>
+              </div>
+
+              <div class="frow full">
+                <div class="crow">
+                  <input id="f-newsletter" type="checkbox" checked />
+                  <label for="f-newsletter">📧 公開時にメールマガジンを配信する</label>
+                </div>
+                <div class="fhint">この記事のカテゴリを希望している登録者にお知らせメールが届きます。限定公開にした記事では自動的にOFFになり、配信されません。</div>
               </div>
 
               <div class="frow full">
@@ -994,6 +1003,58 @@
           <div style="margin-top:1.25rem;display:flex;gap:.65rem">
             <button class="btn btn-g" onclick="saveBreaking()">💾 保存して反映</button>
             <button class="btn btn-o" onclick="loadBreaking()">↺ リセット</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- メールマガジン -->
+      <div id="v-newsletter" class="view">
+        <div class="stats" style="margin-bottom:1.5rem">
+          <div class="scard"><div class="slabel">配信中の登録者</div><div class="sval" id="nl-stat-active">—</div><div class="ssub">配信停止を除く</div></div>
+          <div class="scard"><div class="slabel">「すべて」希望</div><div class="sval" id="nl-stat-all">—</div></div>
+          <div class="scard"><div class="slabel">配信停止済み</div><div class="sval red" id="nl-stat-unsub">—</div></div>
+        </div>
+
+        <div class="bpanel">
+          <h3>⚙️ 配信設定</h3>
+          <div class="trow">
+            <div class="tswitch on" id="nl-autosend-toggle" onclick="toggleSF('nl-autosend-toggle')"></div>
+            <span id="nl-autosend-label">記事公開時に自動配信する（ON）</span>
+          </div>
+          <div class="fhint" style="margin-top:.5rem">OFFにすると、記事を公開してもメールマガジンは配信されません（この場合、記事フォームの「配信する」にチェックが入っていても送られません）。限定公開の記事は、この設定に関わらず配信されません。</div>
+          <div style="margin-top:1rem"><button class="btn btn-g btn-sm" onclick="saveNewsletterAutoSend()">💾 保存</button></div>
+        </div>
+
+        <div class="bpanel">
+          <h3>📨 お知らせを配信する（記事とは別に手動送信）</h3>
+          <div class="fgrid">
+            <div class="frow full">
+              <label class="flabel">配信対象</label>
+              <div class="cat-check-grid" id="nl-send-cat-checks"></div>
+            </div>
+            <div class="frow full">
+              <label class="flabel">件名 <span class="req">*</span></label>
+              <input id="nl-send-subject" type="text" class="finput" placeholder="〇〇についてのお知らせ" />
+            </div>
+            <div class="frow full">
+              <label class="flabel">本文（HTML可） <span class="req">*</span></label>
+              <textarea id="nl-send-body" class="finput" style="min-height:160px;resize:vertical;font-family:inherit" placeholder="<p>本文をここに書いてください</p>"></textarea>
+            </div>
+          </div>
+          <div style="margin-top:1rem;display:flex;align-items:center;gap:.75rem">
+            <button class="btn btn-g" id="nl-send-btn" onclick="sendManualNewsletter()">📤 配信する</button>
+            <span id="nl-send-status" style="font-size:.8rem;color:var(--muted)"></span>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="phead"><span class="ptitle">登録者一覧</span><span id="nl-list-count" style="font-size:.8rem;color:var(--muted)"></span></div>
+          <div style="overflow-x:auto">
+            <table class="tbl">
+              <thead><tr><th>メール</th><th>配信カテゴリ</th><th>状態</th><th>登録日</th><th style="width:100px">操作</th></tr></thead>
+              <tbody id="nl-tbody"></tbody>
+            </table>
+            <div id="nl-empty" class="etbl" style="display:none">登録者はまだいません。</div>
           </div>
         </div>
       </div>
@@ -1487,6 +1548,8 @@ var PIN        = '2506';          // ← 削除PINコード
 var DRAFT_KEY  = 'ankatsu_drafts'; // localStorage キー
 var SUBMIT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyK9Q9uV7HZieT8CdjBc08Y6x7kx_d_e1DGPSrLk3ISAiZB0Mqm7g1OVGC1fZgEEi6kXQ/exec'; // submit.htmlと同じGASのURLに書き換え
 var ADMIN_API_SECRET = 'aK9x!mQ2vR7pL4wZ8nB1sT6yU3dF0hJ5'; // ← GASのスクリプトプロパティ ADMIN_API_SECRET と必ず同じ値にする
+var NEWSLETTER_GAS_URL = 'https://script.google.com/macros/s/AKfycbw_mc7Ct9w_k61lRwtSatbNIpi126tvh-ujovDv0n35Wj15EznbSmWDej6sXKN4wGGM/exec'; // ← 新しく作成したメールマガジン専用GASのURLに書き換える（index.htmlのNEWSLETTER_GAS_URLと同じもの）
+var NEWSLETTER_API_SECRET = 'ankatsu.sumoto.mail0122'; // ← メールマガジン用GASの NEWSLETTER_API_SECRET と必ず同じ値にする
 
 function sendResultMail(type, payload) {
   if (!SUBMIT_GAS_URL || SUBMIT_GAS_URL.indexOf('XXXX') >= 0) return;
@@ -1549,7 +1612,7 @@ var VTITLES = {
   series:'📚 連載・特集',
   authors:'✍️ 執筆者紹介',
   spots:'🗺️ 地図スポット',
-  breaking:'📡 速報バー設定', json:'📦 JSON入出力',
+  breaking:'📡 速報バー設定', newsletter:'📧 メールマガジン', json:'📦 JSON入出力',
   sitefeatures:'📣 サイト機能設定', feedbacklist:'💬 記事フィードバック', analytics:'📊 記事アナリティクス',
   specialpages:'🎌 特設ページ', aichat:'🤖 AIアシスタント'
 };
@@ -1635,6 +1698,7 @@ async function goView(key) {
   }
   if (key==='spots')     { closeSpotForm(); await loadSpots(); renderSpotsAdminList(); }
   if (key==='breaking')  loadBreaking();
+  if (key==='newsletter') { await loadNewsletterData(); renderNewsletterAdmin(); }
   if (key==='sitefeatures') loadSiteFeatureSettings();
   if (key==='analytics') { document.getElementById('analytics-detail-panel').style.display='none'; document.getElementById('an-site-stats').style.display=''; document.getElementById('analytics-list-panel').style.display='block'; renderAnalyticsList(); }
   if (key==='specialpages') { closeSpecialPageEditor(); await loadArticles(); renderSpecialPagesList(); }
@@ -2210,6 +2274,7 @@ function renderArticles(filter) {
     var canDelete = _role === 'admin' || _role === 'editor' || _myPermissions.indexOf('articles.delete') >= 0 || isOwn;
     var acts = (canEdit   ? '<button class="btn btn-o btn-sm" onclick="startEdit(\''+a.id+'\')">✏️</button>' : '')
              + (a.unlisted ? '<button class="btn btn-o btn-sm" onclick="copyUnlistedLink(\''+a.id+'\')" title="限定公開リンクをコピー">🔗</button>' : '')
+             + (!a.unlisted && (_role==='admin'||_role==='editor') ? '<button class="btn btn-o btn-sm" onclick="sendNewsletterManualForArticle(\''+a.id+'\')" title="メールマガジンを配信">📧</button>' : '')
              + (canDelete ? '<button class="btn btn-r btn-sm" onclick="askDel(\''+a.id+'\',\''+a.title.replace(/'/g,"\\'")+'\')">🗑️</button>' : '');
     return '<tr>'
       +'<td>'+(a.thumbnail?'<img src="'+a.thumbnail+'" class="rthumb" loading="lazy"/>':'<div class="rthumb-ph">📰</div>')+'</td>'
@@ -2464,6 +2529,8 @@ async function approveSubmission(id, mode) {
       editSummary: editSummary
     });
     toast('承認して公開しました ✅');
+
+    sendNewsletterForArticle(Object.assign({ id: ref.id }, d));
 
     sendResultMail(mode === 'asis' ? 'published_asis' : 'published_edited', {
       to: curSub.authorEmail,
@@ -3111,6 +3178,7 @@ function getFormData() {
     eventTime: document.getElementById('f-eventtime').value.trim(),
     unlisted:  document.getElementById('f-unlisted').checked,
     accessPassword: document.getElementById('f-unlisted').checked ? document.getElementById('f-access-pw').value.trim() : '',
+    sendNewsletter: document.getElementById('f-newsletter') ? (document.getElementById('f-newsletter').checked && !document.getElementById('f-unlisted').checked) : false,
     body:      getBodyHtml()
   };
 }
@@ -3145,11 +3213,14 @@ function setFormData(d) {
   document.getElementById('f-unlisted').checked = !!d.unlisted;
   document.getElementById('f-access-pw').value = d.accessPassword || '';
   toggleUnlistedField();
+  if (document.getElementById('f-newsletter')) document.getElementById('f-newsletter').checked = (d.sendNewsletter !== false) && !d.unlisted;
 }
 
 function toggleUnlistedField(){
   var on = document.getElementById('f-unlisted').checked;
   document.getElementById('unlisted-pw-wrap').style.display = on ? 'block' : 'none';
+  var nl = document.getElementById('f-newsletter');
+  if (nl) { nl.disabled = on; if (on) nl.checked = false; }
 }
 function genArticlePassword(){
   var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
@@ -3204,9 +3275,14 @@ async function pubArticle() {
       if (_role === 'contributor' && window._auth && window._auth.currentUser) {
         d.authorUid = window._auth.currentUser.uid; // 自分の記事だけ編集・削除できるようにするための所有者マーク
       }
-      await window._addDoc('articles', d);
+      var newArtRef = await window._addDoc('articles', d);
       toast(scheduleOn ? '予約投稿を設定しました ⏰' : '記事を公開しました ✅');
       if (editingDraftId) { delDraft(editingDraftId); editingDraftId = null; } // 下書きから公開した場合は元の下書きを消す
+      if (scheduleOn) {
+        if (!d.unlisted && d.sendNewsletter) toast('予約投稿のため、公開時刻になったら記事一覧の📧ボタンからメールマガジンを配信してください', 'warn');
+      } else {
+        sendNewsletterForArticle(Object.assign({ id: newArtRef.id }, d));
+      }
     }
     await loadArticles();
     goView('articles');
@@ -3495,6 +3571,169 @@ function askDelSeries(id, title) {
       .then(function(){ toast('削除しました'); loadSeries().then(renderSeriesAdminList); })
       .catch(function(e){ toast('削除失敗: '+e.message,'error'); });
   });
+}
+
+// ============================================================
+// メールマガジン
+// ============================================================
+var newsletterSubscribers = [];
+var newsletterSettings = { autoSendOnPublish: true };
+
+async function loadNewsletterData() {
+  try {
+    var snap = await window._getAll('newsletterSubscribers');
+    newsletterSubscribers = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+  } catch(e) { console.error('loadNewsletterData:', e); newsletterSubscribers = []; }
+  try {
+    var setSnap = await window._getDoc('settings','newsletter');
+    newsletterSettings = setSnap.exists() ? Object.assign({autoSendOnPublish:true}, setSnap.data()) : { autoSendOnPublish:true };
+  } catch(e) { newsletterSettings = { autoSendOnPublish:true }; }
+}
+
+function renderNewsletterAdmin() {
+  document.getElementById('nl-autosend-toggle').classList.toggle('on', newsletterSettings.autoSendOnPublish !== false);
+  document.getElementById('nl-autosend-label').textContent = '記事公開時に自動配信する（' + (newsletterSettings.autoSendOnPublish !== false ? 'ON' : 'OFF') + '）';
+
+  var active = newsletterSubscribers.filter(function(s){ return s.status !== 'unsubscribed'; });
+  var allWant = active.filter(function(s){ return Array.isArray(s.categories) && s.categories.indexOf('ALL') >= 0; });
+  var unsub = newsletterSubscribers.filter(function(s){ return s.status === 'unsubscribed'; });
+  document.getElementById('nl-stat-active').textContent = active.length;
+  document.getElementById('nl-stat-all').textContent = allWant.length;
+  document.getElementById('nl-stat-unsub').textContent = unsub.length;
+
+  var catWrap = document.getElementById('nl-send-cat-checks');
+  catWrap.innerHTML = '<label><input type="checkbox" id="nl-send-cat-all" checked onchange="onNlSendAllChange()"> すべての登録者</label>'
+    + ['まちの話題','イベント','空き家活用','商店街','文化','インタビュー','学校・子育て','移住・定住','防災','お知らせ'].map(function(c){
+        return '<label><input type="checkbox" class="nl-send-cat-check" value="'+c+'" onchange="onNlSendCatChange()"> '+c+'</label>';
+      }).join('');
+
+  var tbody = document.getElementById('nl-tbody');
+  var empty = document.getElementById('nl-empty');
+  document.getElementById('nl-list-count').textContent = '全' + newsletterSubscribers.length + '件';
+  if (!newsletterSubscribers.length) { tbody.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display = 'none';
+  tbody.innerHTML = newsletterSubscribers.map(function(s){
+    var catsLabel = (Array.isArray(s.categories) && s.categories.indexOf('ALL')>=0) ? 'すべて' : (s.categories||[]).join('、') || '—';
+    var statusTag = s.status==='unsubscribed' ? '<span class="tag" style="background:#f3f3f3;color:var(--muted)">配信停止</span>' : '<span class="tag tag-g">配信中</span>';
+    return '<tr>'
+      + '<td style="font-size:.8rem">'+(s.email||'—')+'</td>'
+      + '<td style="font-size:.78rem;color:var(--muted)">'+catsLabel+'</td>'
+      + '<td>'+statusTag+'</td>'
+      + '<td style="font-size:.76rem;white-space:nowrap">'+fmtDate(s.createdAt)+'</td>'
+      + '<td>'+(s.status!=='unsubscribed' ? '<button class="btn btn-r btn-sm" onclick="adminUnsubscribeNewsletter(\''+s.id+'\')">配信停止</button>' : '')+'</td>'
+      + '</tr>';
+  }).join('');
+}
+
+function adminUnsubscribeNewsletter(id) {
+  openPin('登録者を配信停止にする', 'この登録者をメールマガジンの配信停止にします。', function(){
+    window._updateDoc('newsletterSubscribers', id, { status:'unsubscribed', updatedAt: window._ts() })
+      .then(function(){ toast('配信停止にしました'); return loadNewsletterData(); })
+      .then(renderNewsletterAdmin)
+      .catch(function(e){ toast('失敗: '+e.message,'error'); });
+  });
+}
+
+async function saveNewsletterAutoSend() {
+  var on = isSFOn('nl-autosend-toggle');
+  try {
+    await window._setDoc('settings','newsletter', { autoSendOnPublish: on });
+    newsletterSettings.autoSendOnPublish = on;
+    toast('配信設定を保存しました ✅');
+  } catch(e) { toast('保存失敗: '+e.message,'error'); }
+}
+
+function onNlSendAllChange() {
+  if (document.getElementById('nl-send-cat-all').checked) document.querySelectorAll('.nl-send-cat-check').forEach(function(el){ el.checked=false; });
+}
+function onNlSendCatChange() {
+  var any = Array.from(document.querySelectorAll('.nl-send-cat-check')).some(function(el){ return el.checked; });
+  if (any) document.getElementById('nl-send-cat-all').checked = false;
+}
+
+// カテゴリの配列を受け取り、該当する配信中の登録者を返す（空配列を渡すと「すべて宛」＝手動お知らせの全配信用）
+function matchNewsletterSubscribers(targetCats) {
+  var wantAll = !targetCats || !targetCats.length;
+  return newsletterSubscribers.filter(function(s){
+    if (s.status === 'unsubscribed') return false;
+    if (!s.email) return false;
+    var subCats = Array.isArray(s.categories) ? s.categories : [];
+    if (subCats.indexOf('ALL') >= 0) return true;
+    if (wantAll) return true;
+    return subCats.some(function(c){ return targetCats.indexOf(c) >= 0; });
+  });
+}
+
+function sendNewsletterGas(payload) {
+  if (!NEWSLETTER_GAS_URL || NEWSLETTER_GAS_URL.indexOf('XXXX') >= 0) { console.warn('NEWSLETTER_GAS_URLが未設定です（admin.html冒頭の定数を書き換えてください）'); return Promise.resolve({ok:false}); }
+  return fetch(NEWSLETTER_GAS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(Object.assign({ secret: NEWSLETTER_API_SECRET }, payload))
+  }).then(function(r){ return r.json(); }).catch(function(e){ console.error('newsletter send error:', e); return { ok:false, error:String(e) }; });
+}
+
+// 記事公開時のメールマガジン配信。新規公開・投稿申請の承認・AIアシスタント経由の投稿から呼ばれる。
+async function sendNewsletterForArticle(articleData) {
+  if (!articleData) return;
+  if (articleData.unlisted) return;
+  if (articleData.sendNewsletter === false) return;
+  await loadNewsletterData(); // 常に最新の設定・登録者リストを使う
+  if (newsletterSettings.autoSendOnPublish === false) return;
+  var cats = articleCategories(articleData);
+  var targets = matchNewsletterSubscribers(cats);
+  if (!targets.length) return;
+  var recipients = targets.map(function(s){ return { email: s.email, token: s.token || '' }; });
+  var articleUrl = location.origin + location.pathname.replace('admin.html', 'index.html') + '#article/' + encodeURIComponent(articleData.slug || articleData.id);
+  var excerpt = (articleData.body || '').replace(/<[^>]*>/g, '').slice(0, 140);
+  var res = await sendNewsletterGas({
+    type: 'newsletter_article_notify',
+    title: articleData.title,
+    excerpt: excerpt,
+    articleUrl: articleUrl,
+    recipients: recipients
+  });
+  if (res && res.ok) toast('メールマガジンを' + (res.sent || recipients.length) + '件配信しました 📧');
+}
+
+// 記事一覧から手動でメールマガジンを配信する（予約投稿が実際に公開された後の配信や、再送に使う）
+function sendNewsletterManualForArticle(id) {
+  var a = articles.find(function(x){ return x.id===id; });
+  if (!a) return;
+  if (a.unlisted) { toast('限定公開の記事は配信できません', 'warn'); return; }
+  if (!confirm('「'+a.title+'」についてメールマガジンを配信します。よろしいですか？')) return;
+  sendNewsletterForArticle(Object.assign({}, a, { sendNewsletter: true }));
+}
+
+async function sendManualNewsletter() {
+  var subject = document.getElementById('nl-send-subject').value.trim();
+  var bodyHtml = document.getElementById('nl-send-body').value.trim();
+  if (!subject) { toast('件名を入力してください','warn'); return; }
+  if (!bodyHtml) { toast('本文を入力してください','warn'); return; }
+  var allChecked = document.getElementById('nl-send-cat-all').checked;
+  var cats = allChecked ? [] : Array.from(document.querySelectorAll('.nl-send-cat-check:checked')).map(function(el){ return el.value; });
+  if (!allChecked && !cats.length) { toast('配信対象を選択してください','warn'); return; }
+
+  await loadNewsletterData();
+  var targets = allChecked ? newsletterSubscribers.filter(function(s){ return s.status!=='unsubscribed'; }) : matchNewsletterSubscribers(cats);
+  if (!targets.length) { toast('配信対象の登録者がいません','warn'); return; }
+  if (!confirm(targets.length + '件の登録者に配信します。よろしいですか？')) return;
+
+  var recipients = targets.map(function(s){ return { email: s.email, token: s.token || '' }; });
+  var btn = document.getElementById('nl-send-btn');
+  var statusEl = document.getElementById('nl-send-status');
+  btn.disabled = true; statusEl.textContent = '送信中…';
+  try {
+    var res = await sendNewsletterGas({ type: 'newsletter_manual_send', subject: subject, bodyHtml: bodyHtml, recipients: recipients });
+    if (res && res.ok) {
+      toast((res.sent || recipients.length) + '件に配信しました ✅');
+      document.getElementById('nl-send-subject').value = '';
+      document.getElementById('nl-send-body').value = '';
+    } else {
+      toast('配信に失敗しました：' + (res && res.error), 'error');
+    }
+  } catch(e) { toast('配信に失敗しました：' + e.message, 'error'); }
+  finally { btn.disabled = false; statusEl.textContent = ''; }
 }
 
 // ============================================================
@@ -5074,6 +5313,7 @@ function confirmAiChatArticle(draft, doPost, wrapEl) {
       resultEl.style.color = 'var(--green)';
       resultEl.innerHTML = '✅ 記事を投稿しました' + (newData.thumbnail ? '（アイキャッチ画像つき）' : '') + '　<a href="' + articleUrl + '" target="_blank" rel="noopener" style="color:var(--green);text-decoration:underline">記事を見る →</a>';
       pushAiChatFunctionResponse('propose_article', { ok: true, posted: true, id: ref.id, title: newData.title, url: articleUrl });
+      sendNewsletterForArticle(Object.assign({ id: ref.id }, newData, { sendNewsletter: true }));
       return loadArticles();
     }).then(function () {
       runAiChatTurn();
