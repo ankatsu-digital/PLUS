@@ -1548,8 +1548,8 @@ var PIN        = '2506';          // ← 削除PINコード
 var DRAFT_KEY  = 'ankatsu_drafts'; // localStorage キー
 var SUBMIT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyK9Q9uV7HZieT8CdjBc08Y6x7kx_d_e1DGPSrLk3ISAiZB0Mqm7g1OVGC1fZgEEi6kXQ/exec'; // submit.htmlと同じGASのURLに書き換え
 var ADMIN_API_SECRET = 'aK9x!mQ2vR7pL4wZ8nB1sT6yU3dF0hJ5'; // ← GASのスクリプトプロパティ ADMIN_API_SECRET と必ず同じ値にする
-var NEWSLETTER_GAS_URL = 'https://script.google.com/macros/s/AKfycbw_mc7Ct9w_k61lRwtSatbNIpi126tvh-ujovDv0n35Wj15EznbSmWDej6sXKN4wGGM/exec'; // ← 新しく作成したメールマガジン専用GASのURLに書き換える（index.htmlのNEWSLETTER_GAS_URLと同じもの）
-var NEWSLETTER_API_SECRET = 'ankatsu.sumoto.mail0122'; // ← メールマガジン用GASの NEWSLETTER_API_SECRET と必ず同じ値にする
+var NEWSLETTER_GAS_URL = 'https://script.google.com/macros/s/AKfycbwFQ0o49WGzQzg01saJcoG_KB0PiveNZvjDoaUv7oyd_-_JQ117bFnWzKs5tUwLqX_nuw/exec'; // ← 新しく作成したメールマガジン専用GASのURLに書き換える（index.htmlのNEWSLETTER_GAS_URLと同じもの）
+var NEWSLETTER_API_SECRET = 'uchioru0122ankatsu'; // ← メールマガジン用GASの NEWSLETTER_API_SECRET と必ず同じ値にする
 
 function sendResultMail(type, payload) {
   if (!SUBMIT_GAS_URL || SUBMIT_GAS_URL.indexOf('XXXX') >= 0) return;
@@ -2508,6 +2508,7 @@ async function approveSubmission(id, mode) {
   var d = getFormData();
   d.body = getBodyHtml();
   if (!d.title||!d.slug||!d.categories.length) { toast('タイトル・スラッグ・カテゴリを入力してください','warn'); return; }
+  d.updatedAt = window._ts();
 
   var editSummary = '';
   if (mode === 'edited') {
@@ -3263,6 +3264,7 @@ async function pubArticle() {
     if (isNaN(publishDate)) { toast('公開日時が正しくありません','warn'); return; }
     d.createdAt = publishDate.toISOString();
   }
+  d.updatedAt = window._ts(); // 週次まとめメール（今週「投稿または更新」された記事の判定）に使う
 
   var btn = document.getElementById('pub-btn');
   btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 保存中…';
@@ -5094,6 +5096,7 @@ function handleAiChatFunctionCall(fc) {
       runAiChatTurn();
       return;
     }
+    fields.updatedAt = window._ts();
     window._updateDoc('articles', id, fields).then(function () {
       renderAiChatSystem('✅ 記事を更新しました');
       pushAiChatFunctionResponse(name, { ok: true, id: id });
@@ -5296,7 +5299,8 @@ function confirmAiChatArticle(draft, doPost, wrapEl) {
     tags: draft.tags,
     thumbnail: '',
     featured: false,
-    createdAt: window._ts()
+    createdAt: window._ts(),
+    updatedAt: window._ts()
   };
 
   generateAndUploadEyecatch(draft.title, draft.category)
