@@ -2625,12 +2625,14 @@
   /* =========================================================================
      メールマガジン（登録・カテゴリ選択・配信設定変更・配信停止）
      ========================================================================= */
-  var NEWSLETTER_GAS_URL = 'https://script.google.com/macros/s/AKfycbw_mc7Ct9w_k61lRwtSatbNIpi126tvh-ujovDv0n35Wj15EznbSmWDej6sXKN4wGGM/exec'; /* ← 新しく作成したメールマガジン専用GASのURLに書き換えてください */
+  var NEWSLETTER_GAS_URL = 'https://script.google.com/macros/s/AKfycbwFQ0o49WGzQzg01saJcoG_KB0PiveNZvjDoaUv7oyd_-_JQ117bFnWzKs5tUwLqX_nuw/exec'; /* ← 新しく作成したメールマガジン専用GASのURLに書き換えてください */
   var NEWSLETTER_DISMISS_KEY = 'ankatsu_newsletter_banner_dismissed';
+  var NEWSLETTER_REGISTERED_KEY = 'ankatsu_newsletter_registered';
   var NEWSLETTER_CATEGORIES = ALL_CATEGORIES; /* 記事カテゴリと同じ一覧を使う */
 
   function initNewsletterBanner(){
     if(localStorage.getItem(NEWSLETTER_DISMISS_KEY)==='1') return;
+    if(localStorage.getItem(NEWSLETTER_REGISTERED_KEY)==='1') return; /* この端末で登録済みなら二度と出さない */
     setTimeout(function(){
       var el=document.getElementById('newsletter-banner');
       if(el) el.classList.add('show');
@@ -2704,6 +2706,8 @@
         await ops.addDoc(ops.collection(db,'newsletterSubscribers'), { email:email, categories:cats, status:'active', token:token, createdAt:ops.serverTimestamp(), updatedAt:ops.serverTimestamp() });
       }
       sendNewsletterGas({ type:'newsletter_subscribe_confirm', email:email, categories: allChecked?['すべて']:cats, token:token });
+      localStorage.setItem(NEWSLETTER_REGISTERED_KEY,'1');
+      dismissNewsletterBanner(false);
       document.getElementById('nl-step-cats').style.display='none';
       document.getElementById('nl-step-done').style.display='block';
     }catch(e){
@@ -2773,6 +2777,7 @@
     try{
       await ops.updateDoc(ops.doc(db,'newsletterSubscribers',docId), { status:'unsubscribed', updatedAt:ops.serverTimestamp() });
       sendNewsletterGas({ type:'newsletter_unsubscribed', email:email });
+      localStorage.removeItem(NEWSLETTER_REGISTERED_KEY);
       renderNewsletterManage(token);
     }catch(e){ alert('処理に失敗しました：'+e.message); }
   }
@@ -2780,6 +2785,7 @@
     var db=window._db; var ops=window._firestoreOp;
     try{
       await ops.updateDoc(ops.doc(db,'newsletterSubscribers',docId), { status:'active', updatedAt:ops.serverTimestamp() });
+      localStorage.setItem(NEWSLETTER_REGISTERED_KEY,'1');
       renderNewsletterManage(token);
     }catch(e){ alert('処理に失敗しました：'+e.message); }
   }
