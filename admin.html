@@ -1022,7 +1022,13 @@
             <span id="nl-autosend-label">記事公開時に自動配信する（ON）</span>
           </div>
           <div class="fhint" style="margin-top:.5rem">OFFにすると、記事を公開してもメールマガジンは配信されません（この場合、記事フォームの「配信する」にチェックが入っていても送られません）。限定公開の記事は、この設定に関わらず配信されません。</div>
-          <div style="margin-top:1rem"><button class="btn btn-g btn-sm" onclick="saveNewsletterAutoSend()">💾 保存</button></div>
+          <div class="frow" style="margin-top:1.1rem;max-width:420px">
+            <label class="flabel">📧 メール内のロゴ画像URL（任意）</label>
+            <input id="nl-logo-url" type="url" class="finput" placeholder="https://i.imgur.com/xxxxx.png" />
+            <img id="nl-logo-prev" class="tprev" alt="プレビュー" style="max-height:60px;object-fit:contain" />
+            <span class="fhint">空欄の場合は「アンカツ＋」の文字ロゴが表示されます。<a href="https://imgur.com/upload" target="_blank">Imgur</a>等にアップして「Direct Link」を貼ってください。</span>
+          </div>
+          <div style="margin-top:1rem"><button class="btn btn-g btn-sm" onclick="saveNewsletterSettings()">💾 保存</button></div>
         </div>
 
         <div class="bpanel">
@@ -1037,10 +1043,45 @@
               <input id="nl-send-subject" type="text" class="finput" placeholder="〇〇についてのお知らせ" />
             </div>
             <div class="frow full">
-              <label class="flabel">本文（HTML可） <span class="req">*</span></label>
+              <div class="crow">
+                <input id="nl-send-rawmode" type="checkbox" onchange="toggleNlSendRawMode()" />
+                <label for="nl-send-rawmode">🖥 HTMLを直接入力する（通常はOFFのままでOK。見出し・画像・本文・ボタンから自動でテンプレートのメールを組み立てます）</label>
+              </div>
+            </div>
+          </div>
+
+          <div id="nl-send-template-fields" class="fgrid" style="margin-top:.25rem">
+            <div class="frow full">
+              <label class="flabel">見出し（メール内の大見出し。空欄なら件名がそのまま使われます）</label>
+              <input id="nl-send-heading" type="text" class="finput" placeholder="〇〇についてのお知らせ" />
+            </div>
+            <div class="frow full">
+              <label class="flabel">画像URL（任意）</label>
+              <input id="nl-send-image" type="url" class="finput" placeholder="https://i.imgur.com/xxxxx.jpg" />
+              <img id="nl-send-image-prev" class="tprev" alt="プレビュー" />
+            </div>
+            <div class="frow full">
+              <label class="flabel">本文 <span class="req">*</span></label>
+              <textarea id="nl-send-bodytext" class="finput" style="min-height:160px;resize:vertical;font-family:inherit" placeholder="本文を入力してください（空行を入れると段落が分かれます）"></textarea>
+            </div>
+            <div class="frow">
+              <label class="flabel">ボタンの文言（任意）</label>
+              <input id="nl-send-btnlabel" type="text" class="finput" placeholder="詳しくはこちら" />
+            </div>
+            <div class="frow">
+              <label class="flabel">ボタンのリンクURL（任意）</label>
+              <input id="nl-send-btnurl" type="url" class="finput" placeholder="https://..." />
+              <span class="fhint">ボタン文言を入れた場合はリンクURLも入力してください</span>
+            </div>
+          </div>
+
+          <div id="nl-send-raw-field" class="fgrid" style="display:none;margin-top:.25rem">
+            <div class="frow full">
+              <label class="flabel">本文（HTML） <span class="req">*</span></label>
               <textarea id="nl-send-body" class="finput" style="min-height:160px;resize:vertical;font-family:inherit" placeholder="<p>本文をここに書いてください</p>"></textarea>
             </div>
           </div>
+
           <div style="margin-top:1rem;display:flex;align-items:center;gap:.75rem">
             <button class="btn btn-g" id="nl-send-btn" onclick="sendManualNewsletter()">📤 配信する</button>
             <span id="nl-send-status" style="font-size:.8rem;color:var(--muted)"></span>
@@ -1548,8 +1589,8 @@ var PIN        = '2506';          // ← 削除PINコード
 var DRAFT_KEY  = 'ankatsu_drafts'; // localStorage キー
 var SUBMIT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyK9Q9uV7HZieT8CdjBc08Y6x7kx_d_e1DGPSrLk3ISAiZB0Mqm7g1OVGC1fZgEEi6kXQ/exec'; // submit.htmlと同じGASのURLに書き換え
 var ADMIN_API_SECRET = 'aK9x!mQ2vR7pL4wZ8nB1sT6yU3dF0hJ5'; // ← GASのスクリプトプロパティ ADMIN_API_SECRET と必ず同じ値にする
-var NEWSLETTER_GAS_URL = 'https://script.google.com/macros/s/AKfycbwFQ0o49WGzQzg01saJcoG_KB0PiveNZvjDoaUv7oyd_-_JQ117bFnWzKs5tUwLqX_nuw/exec'; // ← 新しく作成したメールマガジン専用GASのURLに書き換える（index.htmlのNEWSLETTER_GAS_URLと同じもの）
-var NEWSLETTER_API_SECRET = 'uchioru0122ankatsu'; // ← メールマガジン用GASの NEWSLETTER_API_SECRET と必ず同じ値にする
+var NEWSLETTER_GAS_URL = 'https://script.google.com/macros/s/XXXXXXXXXXXXXXXX/exec'; // ← 新しく作成したメールマガジン専用GASのURLに書き換える（index.htmlのNEWSLETTER_GAS_URLと同じもの）
+var NEWSLETTER_API_SECRET = 'CHANGE_THIS_TO_A_RANDOM_SECRET'; // ← メールマガジン用GASの NEWSLETTER_API_SECRET と必ず同じ値にする
 
 function sendResultMail(type, payload) {
   if (!SUBMIT_GAS_URL || SUBMIT_GAS_URL.indexOf('XXXX') >= 0) return;
@@ -3579,7 +3620,7 @@ function askDelSeries(id, title) {
 // メールマガジン
 // ============================================================
 var newsletterSubscribers = [];
-var newsletterSettings = { autoSendOnPublish: true };
+var newsletterSettings = { autoSendOnPublish: true, logoUrl: '' };
 
 async function loadNewsletterData() {
   try {
@@ -3588,13 +3629,16 @@ async function loadNewsletterData() {
   } catch(e) { console.error('loadNewsletterData:', e); newsletterSubscribers = []; }
   try {
     var setSnap = await window._getDoc('settings','newsletter');
-    newsletterSettings = setSnap.exists() ? Object.assign({autoSendOnPublish:true}, setSnap.data()) : { autoSendOnPublish:true };
-  } catch(e) { newsletterSettings = { autoSendOnPublish:true }; }
+    newsletterSettings = setSnap.exists() ? Object.assign({autoSendOnPublish:true, logoUrl:''}, setSnap.data()) : { autoSendOnPublish:true, logoUrl:'' };
+  } catch(e) { newsletterSettings = { autoSendOnPublish:true, logoUrl:'' }; }
 }
 
 function renderNewsletterAdmin() {
   document.getElementById('nl-autosend-toggle').classList.toggle('on', newsletterSettings.autoSendOnPublish !== false);
   document.getElementById('nl-autosend-label').textContent = '記事公開時に自動配信する（' + (newsletterSettings.autoSendOnPublish !== false ? 'ON' : 'OFF') + '）';
+  document.getElementById('nl-logo-url').value = newsletterSettings.logoUrl || '';
+  var logoPrev = document.getElementById('nl-logo-prev');
+  if (newsletterSettings.logoUrl) { logoPrev.src = newsletterSettings.logoUrl; logoPrev.style.display = 'block'; } else { logoPrev.style.display = 'none'; }
 
   var active = newsletterSubscribers.filter(function(s){ return s.status !== 'unsubscribed'; });
   var allWant = active.filter(function(s){ return Array.isArray(s.categories) && s.categories.indexOf('ALL') >= 0; });
@@ -3636,11 +3680,13 @@ function adminUnsubscribeNewsletter(id) {
   });
 }
 
-async function saveNewsletterAutoSend() {
+async function saveNewsletterSettings() {
   var on = isSFOn('nl-autosend-toggle');
+  var logoUrl = document.getElementById('nl-logo-url').value.trim();
   try {
-    await window._setDoc('settings','newsletter', { autoSendOnPublish: on });
+    await window._setDoc('settings','newsletter', { autoSendOnPublish: on, logoUrl: logoUrl });
     newsletterSettings.autoSendOnPublish = on;
+    newsletterSettings.logoUrl = logoUrl;
     toast('配信設定を保存しました ✅');
   } catch(e) { toast('保存失敗: '+e.message,'error'); }
 }
@@ -3651,6 +3697,11 @@ function onNlSendAllChange() {
 function onNlSendCatChange() {
   var any = Array.from(document.querySelectorAll('.nl-send-cat-check')).some(function(el){ return el.checked; });
   if (any) document.getElementById('nl-send-cat-all').checked = false;
+}
+function toggleNlSendRawMode() {
+  var raw = document.getElementById('nl-send-rawmode').checked;
+  document.getElementById('nl-send-template-fields').style.display = raw ? 'none' : '';
+  document.getElementById('nl-send-raw-field').style.display = raw ? '' : 'none';
 }
 
 // カテゴリの配列を受け取り、該当する配信中の登録者を返す（空配列を渡すと「すべて宛」＝手動お知らせの全配信用）
@@ -3693,6 +3744,8 @@ async function sendNewsletterForArticle(articleData) {
     title: articleData.title,
     excerpt: excerpt,
     articleUrl: articleUrl,
+    thumbnail: articleData.thumbnail || '',
+    category: cats[0] || '',
     recipients: recipients
   });
   if (res && res.ok) toast('メールマガジンを' + (res.sent || recipients.length) + '件配信しました 📧');
@@ -3709,9 +3762,27 @@ function sendNewsletterManualForArticle(id) {
 
 async function sendManualNewsletter() {
   var subject = document.getElementById('nl-send-subject').value.trim();
-  var bodyHtml = document.getElementById('nl-send-body').value.trim();
   if (!subject) { toast('件名を入力してください','warn'); return; }
-  if (!bodyHtml) { toast('本文を入力してください','warn'); return; }
+
+  var rawMode = document.getElementById('nl-send-rawmode').checked;
+  var payloadExtra = {};
+  if (rawMode) {
+    var bodyHtml = document.getElementById('nl-send-body').value.trim();
+    if (!bodyHtml) { toast('本文を入力してください','warn'); return; }
+    payloadExtra.bodyHtml = bodyHtml;
+  } else {
+    var bodyText = document.getElementById('nl-send-bodytext').value.trim();
+    if (!bodyText) { toast('本文を入力してください','warn'); return; }
+    var btnLabel = document.getElementById('nl-send-btnlabel').value.trim();
+    var btnUrl = document.getElementById('nl-send-btnurl').value.trim();
+    if (btnLabel && !btnUrl) { toast('ボタンのリンクURLも入力してください','warn'); return; }
+    payloadExtra.heading = document.getElementById('nl-send-heading').value.trim();
+    payloadExtra.image = document.getElementById('nl-send-image').value.trim();
+    payloadExtra.bodyText = bodyText;
+    payloadExtra.buttonLabel = btnLabel;
+    payloadExtra.buttonUrl = btnUrl;
+  }
+
   var allChecked = document.getElementById('nl-send-cat-all').checked;
   var cats = allChecked ? [] : Array.from(document.querySelectorAll('.nl-send-cat-check:checked')).map(function(el){ return el.value; });
   if (!allChecked && !cats.length) { toast('配信対象を選択してください','warn'); return; }
@@ -3726,10 +3797,16 @@ async function sendManualNewsletter() {
   var statusEl = document.getElementById('nl-send-status');
   btn.disabled = true; statusEl.textContent = '送信中…';
   try {
-    var res = await sendNewsletterGas({ type: 'newsletter_manual_send', subject: subject, bodyHtml: bodyHtml, recipients: recipients });
+    var res = await sendNewsletterGas(Object.assign({ type: 'newsletter_manual_send', subject: subject, recipients: recipients }, payloadExtra));
     if (res && res.ok) {
       toast((res.sent || recipients.length) + '件に配信しました ✅');
       document.getElementById('nl-send-subject').value = '';
+      document.getElementById('nl-send-heading').value = '';
+      document.getElementById('nl-send-image').value = '';
+      document.getElementById('nl-send-image-prev').style.display = 'none';
+      document.getElementById('nl-send-bodytext').value = '';
+      document.getElementById('nl-send-btnlabel').value = '';
+      document.getElementById('nl-send-btnurl').value = '';
       document.getElementById('nl-send-body').value = '';
     } else {
       toast('配信に失敗しました：' + (res && res.error), 'error');
@@ -4687,6 +4764,22 @@ document.addEventListener('DOMContentLoaded', function() {
   // 地図スポットフォーム: 画像プレビュー
   document.getElementById('sp-image').addEventListener('input', function(e){
     var prev = document.getElementById('sp-image-prev');
+    var url  = e.target.value.trim();
+    if (url){ prev.src=url; prev.style.display='block'; }
+    else    { prev.style.display='none'; }
+  });
+
+  // メールマガジン: ロゴ画像プレビュー
+  document.getElementById('nl-logo-url').addEventListener('input', function(e){
+    var prev = document.getElementById('nl-logo-prev');
+    var url  = e.target.value.trim();
+    if (url){ prev.src=url; prev.style.display='block'; }
+    else    { prev.style.display='none'; }
+  });
+
+  // メールマガジン: 手動配信の画像プレビュー
+  document.getElementById('nl-send-image').addEventListener('input', function(e){
+    var prev = document.getElementById('nl-send-image-prev');
     var url  = e.target.value.trim();
     if (url){ prev.src=url; prev.style.display='block'; }
     else    { prev.style.display='none'; }
