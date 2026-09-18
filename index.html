@@ -931,22 +931,23 @@
         <div id="nl-step-email">
           <p style="font-size:.88rem;color:var(--text-muted);margin-bottom:1rem">洲本のまちの情報をメールでお届けします。メールアドレスを入力してください。</p>
           <input type="email" id="nl-email" class="contact-input" placeholder="example@email.com" style="width:100%;margin-bottom:1rem" />
-          <button class="contact-submit" onclick="newsletterGoStep2()">次へ →</button>
+          <button class="contact-submit" id="nl-check-btn" onclick="newsletterCheckEmail()">登録する</button>
         </div>
 
-        <div id="nl-step-cats" style="display:none">
-          <p style="font-size:.88rem;color:var(--text-muted);margin-bottom:1rem">配信してほしい情報を選んでください（複数選択できます）。</p>
-          <div id="nl-cat-checks" style="display:flex;flex-direction:column;gap:.5rem;max-height:260px;overflow-y:auto;margin-bottom:1.25rem"></div>
+        <div id="nl-step-code" style="display:none">
+          <p style="font-size:.88rem;color:var(--text-muted);margin-bottom:.4rem">このメールアドレスは既に登録済みです。設定変更のため、届いた認証コードを入力してください。</p>
+          <p style="font-size:.78rem;color:var(--text-light);margin-bottom:1rem" id="nl-code-email-label"></p>
+          <input type="text" inputmode="numeric" id="nl-code" class="contact-input" placeholder="123456" style="width:100%;margin-bottom:1rem;letter-spacing:.3em;text-align:center;font-size:1.2rem" />
           <div style="display:flex;gap:.65rem">
             <button class="share-btn" onclick="newsletterBackToEmail()">← 戻る</button>
-            <button class="contact-submit" id="nl-submit-btn" onclick="submitNewsletterSubscribe()">登録する</button>
+            <button class="contact-submit" id="nl-verify-btn" onclick="newsletterVerifyCode()">確認する</button>
           </div>
         </div>
 
         <div id="nl-step-done" style="display:none;text-align:center;padding:1rem 0">
           <div style="font-size:2.2rem;margin-bottom:.75rem">✅</div>
-          <p style="font-size:.92rem;font-weight:700;margin-bottom:.5rem">登録が完了しました！</p>
-          <p style="font-size:.82rem;color:var(--text-muted)">確認メールをお送りしました。配信設定の変更・停止はメール内のリンクからいつでも行えます。</p>
+          <p style="font-size:.92rem;font-weight:700;margin-bottom:.5rem" id="nl-done-title">登録が完了しました！</p>
+          <p style="font-size:.82rem;color:var(--text-muted)" id="nl-done-sub">確認メールをお送りしました。配信設定の変更・停止はフッターの「メールマガジンの登録・設定変更」からいつでも行えます。</p>
           <button class="share-btn" style="margin-top:1rem" onclick="closeNewsletterModal()">閉じる</button>
         </div>
 
@@ -1184,6 +1185,7 @@
           <a data-page="tokku">「生涯活躍のまち」特区</a>
           <a data-page="privacy">プライバシーポリシー</a>
           <a data-page="contact">お問い合わせ</a>
+          <a onclick="openNewsletterManagePage()">📬 メールマガジンの登録・設定変更</a>
           <a href="admin.html">管理ページ</a>
         </div>
       </div>
@@ -2411,6 +2413,7 @@
     else if(h==='#articles')        openAllArticlesList(true);
     else if(h.startsWith('#special/')) openSpecialPage(decodeURIComponent(h.slice(9)));
     else if(h.startsWith('#newsletter/manage/')){var nltok=decodeURIComponent(h.slice(19));renderNewsletterManage(nltok);showView('newsletter-manage');}
+    else if(h==='#newsletter/manage'){renderNewsletterManage();showView('newsletter-manage');}
     else if(h.startsWith('#page/')) showStaticPage(decodeURIComponent(h.slice(6)));
   });
 
@@ -2428,6 +2431,7 @@
     else if(h==='#articles')        openAllArticlesList(true);
     else if(h.startsWith('#special/')) openSpecialPage(decodeURIComponent(h.slice(9)));
     else if(h.startsWith('#newsletter/manage/')){var nltok2=decodeURIComponent(h.slice(19));renderNewsletterManage(nltok2);showView('newsletter-manage');}
+    else if(h==='#newsletter/manage'){renderNewsletterManage();showView('newsletter-manage');}
     else if(h.startsWith('#page/')) showStaticPage(decodeURIComponent(h.slice(6)));
   }
 
@@ -2623,136 +2627,215 @@
   }
 
   /* =========================================================================
-     メールマガジン（登録・カテゴリ選択・配信設定変更・配信停止）
+     メールマガジン（登録ページの処理フロー）
+     - 未登録メール → その場で登録完了（ワンタイムパスコード不要）
+     - 登録済みメール → ワンタイムパスコードで本人確認 → 設定変更ページを表示
+     - ローカルストレージにトークンがあれば、次回以降ポップアップは出さない
      ========================================================================= */
   var NEWSLETTER_GAS_URL = 'https://script.google.com/macros/s/AKfycbwFQ0o49WGzQzg01saJcoG_KB0PiveNZvjDoaUv7oyd_-_JQ117bFnWzKs5tUwLqX_nuw/exec'; /* ← 新しく作成したメールマガジン専用GASのURLに書き換えてください */
-  var NEWSLETTER_DISMISS_KEY = 'ankatsu_newsletter_banner_dismissed';
-  var NEWSLETTER_REGISTERED_KEY = 'ankatsu_newsletter_registered';
+  var NEWSLETTER_TOKEN_KEY = 'ankatsu_newsletter_token';
   var NEWSLETTER_CATEGORIES = ALL_CATEGORIES; /* 記事カテゴリと同じ一覧を使う */
 
+  async function nlCallGas(payload){
+    if(!NEWSLETTER_GAS_URL || NEWSLETTER_GAS_URL.indexOf('XXXX')>=0) return { ok:false, error:'NEWSLETTER_GAS_URLが未設定です' };
+    try{
+      var res = await fetch(NEWSLETTER_GAS_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(payload) });
+      return await res.json();
+    }catch(e){ return { ok:false, error:String(e) }; }
+  }
+
+  /* ---- 下部バナー：トークンが無い端末にだけ、毎回（リロード時も）表示する ---- */
   function initNewsletterBanner(){
-    if(localStorage.getItem(NEWSLETTER_DISMISS_KEY)==='1') return;
-    if(localStorage.getItem(NEWSLETTER_REGISTERED_KEY)==='1') return; /* この端末で登録済みなら二度と出さない */
+    if(localStorage.getItem(NEWSLETTER_TOKEN_KEY)) return; /* 登録済みならもう出さない */
     setTimeout(function(){
       var el=document.getElementById('newsletter-banner');
       if(el) el.classList.add('show');
-    }, 4000);
+    }, 1200);
   }
-  function dismissNewsletterBanner(remember){
+  function dismissNewsletterBanner(){
     var el=document.getElementById('newsletter-banner');
     if(el) el.classList.remove('show');
-    if(remember) localStorage.setItem(NEWSLETTER_DISMISS_KEY,'1');
+    /* 閉じた状態はどこにも保存しない → 次回・リロード時にまた表示される */
   }
 
-  function sendNewsletterGas(payload){
-    if(!NEWSLETTER_GAS_URL || NEWSLETTER_GAS_URL.indexOf('XXXX')>=0) return;
-    fetch(NEWSLETTER_GAS_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(payload) })
-      .catch(function(e){ console.error('newsletter mail error:', e); });
-  }
-  function genNlToken(){ return 'nl_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,10); }
-
+  /* ---- 登録モーダル（下部バナーの「登録する」から開く） ---- */
+  var _nlPendingEmail = '';
   function openNewsletterModal(){
-    dismissNewsletterBanner(false);
+    dismissNewsletterBanner();
     document.getElementById('nl-email').value='';
+    document.getElementById('nl-code').value='';
     document.getElementById('nl-step-email').style.display='block';
-    document.getElementById('nl-step-cats').style.display='none';
+    document.getElementById('nl-step-code').style.display='none';
     document.getElementById('nl-step-done').style.display='none';
     document.getElementById('newsletter-modal').classList.add('is-open');
   }
-  function closeNewsletterModal(){ document.getElementById('newsletter-modal').classList.remove('is-open'); }
-
-  function newsletterGoStep2(){
-    var email=document.getElementById('nl-email').value.trim();
-    if(!email || email.indexOf('@')<0){ alert('メールアドレスを正しく入力してください'); return; }
-    var wrap=document.getElementById('nl-cat-checks');
-    wrap.innerHTML = '<label style="display:flex;align-items:center;gap:.5rem;font-size:.9rem;font-weight:700;cursor:pointer"><input type="checkbox" id="nl-cat-all" checked onchange="onNlCatAllChange()" style="width:16px;height:16px;accent-color:var(--accent)"> すべての情報を受け取る</label>'
-      + '<div style="height:1px;background:var(--border);margin:.3rem 0"></div>'
-      + NEWSLETTER_CATEGORIES.map(function(c){
-          return '<label style="display:flex;align-items:center;gap:.5rem;font-size:.86rem;cursor:pointer"><input type="checkbox" class="nl-cat-check" value="'+c+'" onchange="onNlCatOptionChange()" style="width:16px;height:16px;accent-color:var(--accent)"> '+(CAT_EMOJI[c]||'')+' '+c+'</label>';
-        }).join('');
-    document.getElementById('nl-step-email').style.display='none';
-    document.getElementById('nl-step-cats').style.display='block';
+  function closeNewsletterModal(){
+    document.getElementById('newsletter-modal').classList.remove('is-open');
   }
   function newsletterBackToEmail(){
-    document.getElementById('nl-step-cats').style.display='none';
+    document.getElementById('nl-step-code').style.display='none';
     document.getElementById('nl-step-email').style.display='block';
   }
-  function onNlCatAllChange(){
-    if(document.getElementById('nl-cat-all').checked) document.querySelectorAll('.nl-cat-check').forEach(function(el){el.checked=false;});
-  }
-  function onNlCatOptionChange(){
-    var any=Array.from(document.querySelectorAll('.nl-cat-check')).some(function(el){return el.checked;});
-    if(any) document.getElementById('nl-cat-all').checked=false;
-  }
 
-  async function submitNewsletterSubscribe(){
-    var email=document.getElementById('nl-email').value.trim();
-    var allChecked=document.getElementById('nl-cat-all').checked;
-    var cats = allChecked ? ['ALL'] : Array.from(document.querySelectorAll('.nl-cat-check:checked')).map(function(el){return el.value;});
-    if(!allChecked && !cats.length){ alert('配信してほしい情報を1つ以上選んでください'); return; }
-    var db=window._db; var ops=window._firestoreOp;
-    if(!db||!ops){ alert('通信環境が整っていません。時間をおいて再度お試しください'); return; }
-    var btn=document.getElementById('nl-submit-btn');
-    btn.disabled=true; btn.innerHTML='<span class="spinner"></span> 登録中…';
-    var token=genNlToken();
-    try{
-      var q=ops.query(ops.collection(db,'newsletterSubscribers'), ops.where('email','==',email), ops.limit(1));
-      var snap=await ops.getDocs(q);
-      if(!snap.empty){
-        var existing=snap.docs[0];
-        token = existing.data().token || token;
-        await ops.updateDoc(ops.doc(db,'newsletterSubscribers',existing.id), { categories:cats, status:'active', updatedAt:ops.serverTimestamp() });
-      } else {
-        await ops.addDoc(ops.collection(db,'newsletterSubscribers'), { email:email, categories:cats, status:'active', token:token, createdAt:ops.serverTimestamp(), updatedAt:ops.serverTimestamp() });
-      }
-      sendNewsletterGas({ type:'newsletter_subscribe_confirm', email:email, categories: allChecked?['すべて']:cats, token:token });
-      localStorage.setItem(NEWSLETTER_REGISTERED_KEY,'1');
-      dismissNewsletterBanner(false);
-      document.getElementById('nl-step-cats').style.display='none';
+  async function newsletterCheckEmail(){
+    var email = document.getElementById('nl-email').value.trim();
+    if(!email || email.indexOf('@')<0){ alert('メールアドレスを正しく入力してください'); return; }
+    var btn = document.getElementById('nl-check-btn');
+    btn.disabled=true; btn.innerHTML='<span class="spinner"></span> 確認中…';
+    var res = await nlCallGas({ type:'newsletter_register_or_check', email: email, categories:['ALL'] });
+    btn.disabled=false; btn.textContent='登録する';
+
+    if(!res.ok){ alert('登録に失敗しました：'+(res.error||'')); return; }
+
+    if(res.isNew){
+      localStorage.setItem(NEWSLETTER_TOKEN_KEY, res.token);
+      document.getElementById('nl-done-title').textContent = '登録が完了しました！';
+      document.getElementById('nl-done-sub').textContent = '確認メールをお送りしました。配信設定の変更・停止はフッターの「メールマガジンの登録・設定変更」からいつでも行えます。';
+      document.getElementById('nl-step-email').style.display='none';
       document.getElementById('nl-step-done').style.display='block';
-    }catch(e){
-      alert('登録に失敗しました：'+e.message);
-    }finally{
-      btn.disabled=false; btn.textContent='登録する';
+      return;
+    }
+
+    if(res.needsOtp){
+      _nlPendingEmail = email;
+      document.getElementById('nl-code-email-label').textContent = email + ' 宛に送信しました';
+      document.getElementById('nl-code').value='';
+      document.getElementById('nl-step-email').style.display='none';
+      document.getElementById('nl-step-code').style.display='block';
+      return;
     }
   }
 
-  /* ---- 配信設定の変更／配信停止ページ（メール内リンクから開く） ---- */
-  async function renderNewsletterManage(token){
+  async function newsletterVerifyCode(){
+    var code = document.getElementById('nl-code').value.trim();
+    if(!code){ alert('認証コードを入力してください'); return; }
+    var btn = document.getElementById('nl-verify-btn');
+    btn.disabled=true; btn.innerHTML='<span class="spinner"></span> 確認中…';
+    var res = await nlCallGas({ type:'newsletter_verify_login_otp', email:_nlPendingEmail, code: code });
+    btn.disabled=false; btn.textContent='確認する';
+    if(!res.ok){ alert('認証コードが正しくないか、有効期限が切れています'); return; }
+    localStorage.setItem(NEWSLETTER_TOKEN_KEY, res.token);
+    closeNewsletterModal();
+    openNewsletterManagePage(); /* 既存登録者は、そのまま設定変更ページへ */
+  }
+
+  /* ---- フッターの「メールマガジンの登録・設定変更」から開く設定変更ページ ---- */
+  function openNewsletterManagePage(){
+    history.pushState({view:'newsletter-manage'},'','#newsletter/manage');
+    renderNewsletterManage();
+    showView('newsletter-manage');
+  }
+
+  async function renderNewsletterManage(urlToken){
     var wrap=document.getElementById('newsletter-manage-content');
-    wrap.innerHTML='<div class="static-page"><p style="text-align:center;color:var(--text-light);padding:3rem 0">読み込み中…</p></div>';
-    var db=window._db; var ops=window._firestoreOp;
-    if(!db||!ops) return;
-    try{
-      var q=ops.query(ops.collection(db,'newsletterSubscribers'), ops.where('token','==',token), ops.limit(1));
-      var snap=await ops.getDocs(q);
-      if(snap.empty){
-        wrap.innerHTML='<div class="static-page"><h1 class="static-page-title">📬 メールマガジン設定</h1><p style="color:var(--text-light);padding:2rem 0">このリンクは無効です。既に配信停止済みか、リンクが正しくない可能性があります。</p></div>';
+    var token = urlToken || localStorage.getItem(NEWSLETTER_TOKEN_KEY) || '';
+
+    if(token){
+      wrap.innerHTML = '<div class="static-page"><p style="text-align:center;color:var(--text-light);padding:3rem 0">読み込み中…</p></div>';
+      var res = await nlCallGas({ type:'newsletter_get_subscriber_by_token', token: token });
+      if(res.ok){
+        if(urlToken) localStorage.setItem(NEWSLETTER_TOKEN_KEY, token); /* メール内リンク経由でもこの端末に保存しておく */
+        renderNlmSettings(token, res);
         return;
       }
-      var docSnap=snap.docs[0];
-      var sub=docSnap.data();
-      var isAll = Array.isArray(sub.categories) && sub.categories.indexOf('ALL')>=0;
-      var checksHtml = '<label style="display:flex;align-items:center;gap:.5rem;font-size:.9rem;font-weight:700;cursor:pointer"><input type="checkbox" id="nlm-cat-all" '+(isAll?'checked':'')+' onchange="onNlmCatAllChange()" style="width:16px;height:16px;accent-color:var(--accent)"> すべての情報を受け取る</label>'
-        + '<div style="height:1px;background:var(--border);margin:.5rem 0"></div>'
-        + NEWSLETTER_CATEGORIES.map(function(c){
-            var checked = !isAll && Array.isArray(sub.categories) && sub.categories.indexOf(c)>=0;
-            return '<label style="display:flex;align-items:center;gap:.5rem;font-size:.86rem;cursor:pointer"><input type="checkbox" class="nlm-cat-check" value="'+c+'" '+(checked?'checked':'')+' onchange="onNlmCatOptionChange()" style="width:16px;height:16px;accent-color:var(--accent)"> '+(CAT_EMOJI[c]||'')+' '+c+'</label>';
-          }).join('');
+      /* トークンが無効だった場合は、下の登録・ログイン画面にフォールバック */
+    }
+    renderNlmEntry();
+  }
+
+  function renderNlmEntry(){
+    var wrap=document.getElementById('newsletter-manage-content');
+    wrap.innerHTML = '<div class="static-page">'
+      + '<h1 class="static-page-title">📬 メールマガジン</h1>'
+      + '<div class="static-page-lead">登録・設定変更</div>'
+      + '<div id="nlm-step-email">'
+      + '<p style="font-size:.9rem;color:var(--text-muted);line-height:1.9;margin-bottom:1rem">まだ登録がお済みでない場合はメールアドレスを入力して登録できます。既に登録済みの場合は、同じメールアドレスを入力すると認証コードをお送りします。</p>'
+      + '<input type="email" id="nlm-email" class="contact-input" placeholder="example@email.com" style="width:100%;max-width:360px;margin-bottom:1rem" />'
+      + '<div><button class="contact-submit" id="nlm-check-btn" onclick="nlmCheckEmail()">進む</button></div>'
+      + '</div>'
+      + '<div id="nlm-step-code" style="display:none">'
+      + '<p style="font-size:.9rem;color:var(--text-muted);margin-bottom:.4rem">このメールアドレスは既に登録済みです。届いた認証コードを入力してください。</p>'
+      + '<p style="font-size:.78rem;color:var(--text-light);margin-bottom:1rem" id="nlm-code-email-label"></p>'
+      + '<input type="text" inputmode="numeric" id="nlm-code" class="contact-input" placeholder="123456" style="width:100%;max-width:220px;margin-bottom:1rem;letter-spacing:.3em;text-align:center;font-size:1.2rem" />'
+      + '<div style="display:flex;gap:.65rem">'
+      + '<button class="share-btn" onclick="nlmBackToEmail()">← 戻る</button>'
+      + '<button class="contact-submit" id="nlm-verify-btn" onclick="nlmVerifyCode()">確認する</button>'
+      + '</div></div>'
+      + '</div>';
+  }
+  function nlmBackToEmail(){
+    document.getElementById('nlm-step-code').style.display='none';
+    document.getElementById('nlm-step-email').style.display='block';
+  }
+
+  async function nlmCheckEmail(){
+    var email = document.getElementById('nlm-email').value.trim();
+    if(!email || email.indexOf('@')<0){ alert('メールアドレスを正しく入力してください'); return; }
+    var btn = document.getElementById('nlm-check-btn');
+    btn.disabled=true; btn.innerHTML='<span class="spinner"></span> 確認中…';
+    var res = await nlCallGas({ type:'newsletter_register_or_check', email: email, categories:['ALL'] });
+    btn.disabled=false; btn.textContent='進む';
+
+    if(!res.ok){ alert('処理に失敗しました：'+(res.error||'')); return; }
+
+    if(res.isNew){
+      localStorage.setItem(NEWSLETTER_TOKEN_KEY, res.token);
+      renderNlmSettings(res.token, { email: email, categories: res.categories, status:'active' });
+      showShareToast('登録が完了しました 📬');
+      return;
+    }
+    if(res.needsOtp){
+      _nlPendingEmail = email;
+      document.getElementById('nlm-code-email-label').textContent = email + ' 宛に送信しました';
+      document.getElementById('nlm-code').value='';
+      document.getElementById('nlm-step-email').style.display='none';
+      document.getElementById('nlm-step-code').style.display='block';
+    }
+  }
+
+  async function nlmVerifyCode(){
+    var code = document.getElementById('nlm-code').value.trim();
+    if(!code){ alert('認証コードを入力してください'); return; }
+    var btn = document.getElementById('nlm-verify-btn');
+    btn.disabled=true; btn.innerHTML='<span class="spinner"></span> 確認中…';
+    var res = await nlCallGas({ type:'newsletter_verify_login_otp', email:_nlPendingEmail, code: code });
+    btn.disabled=false; btn.textContent='確認する';
+    if(!res.ok){ alert('認証コードが正しくないか、有効期限が切れています'); return; }
+    localStorage.setItem(NEWSLETTER_TOKEN_KEY, res.token);
+    renderNlmSettings(res.token, res);
+  }
+
+  /* ---- 設定変更画面（カテゴリ変更・配信停止） ---- */
+  function renderNlmSettings(token, data){
+    var wrap=document.getElementById('newsletter-manage-content');
+    var isAll = Array.isArray(data.categories) && data.categories.indexOf('ALL')>=0;
+
+    if(data.status==='unsubscribed'){
       wrap.innerHTML = '<div class="static-page">'
         + '<h1 class="static-page-title">📬 メールマガジン設定</h1>'
-        + '<div class="static-page-lead">'+sub.email+'</div>'
-        + (sub.status==='unsubscribed'
-            ? '<p style="font-size:.9rem;color:var(--text-muted);margin-bottom:1.5rem">現在、配信は停止されています。</p><button class="contact-submit" onclick="reactivateNewsletter(\''+docSnap.id+'\',\''+token+'\')">配信を再開する</button>'
-            : '<div id="nlm-cat-checks" style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:1.5rem">'+checksHtml+'</div>'
-              + '<div style="display:flex;gap:.65rem;flex-wrap:wrap">'
-              + '<button class="contact-submit" onclick="saveNewsletterManage(\''+docSnap.id+'\',\''+token+'\',\''+sub.email+'\')">💾 設定を保存</button>'
-              + '<button class="share-btn" style="color:var(--danger);border-color:var(--danger)" onclick="unsubscribeNewsletter(\''+docSnap.id+'\',\''+token+'\',\''+sub.email+'\')">配信停止する</button>'
-              + '</div>')
+        + '<div class="static-page-lead">'+(data.email||'')+'</div>'
+        + '<p style="font-size:.9rem;color:var(--text-muted);margin-bottom:1.5rem">現在、配信は停止されています。</p>'
+        + '<button class="contact-submit" onclick="nlmReactivate(\''+token+'\')">配信を再開する</button>'
         + '</div>';
-    }catch(e){
-      wrap.innerHTML='<div class="static-page"><p style="text-align:center;color:var(--danger);padding:3rem 0">読み込みに失敗しました：'+e.message+'</p></div>';
+      return;
     }
+
+    var checksHtml = '<label style="display:flex;align-items:center;gap:.5rem;font-size:.9rem;font-weight:700;cursor:pointer"><input type="checkbox" id="nlm-cat-all" '+(isAll?'checked':'')+' onchange="onNlmCatAllChange()" style="width:16px;height:16px;accent-color:var(--accent)"> すべての情報を受け取る</label>'
+      + '<div style="height:1px;background:var(--border);margin:.5rem 0"></div>'
+      + NEWSLETTER_CATEGORIES.map(function(c){
+          var checked = !isAll && Array.isArray(data.categories) && data.categories.indexOf(c)>=0;
+          return '<label style="display:flex;align-items:center;gap:.5rem;font-size:.86rem;cursor:pointer"><input type="checkbox" class="nlm-cat-check" value="'+c+'" '+(checked?'checked':'')+' onchange="onNlmCatOptionChange()" style="width:16px;height:16px;accent-color:var(--accent)"> '+(CAT_EMOJI[c]||'')+' '+c+'</label>';
+        }).join('');
+
+    wrap.innerHTML = '<div class="static-page">'
+      + '<h1 class="static-page-title">📬 メールマガジン設定</h1>'
+      + '<div class="static-page-lead">'+(data.email||'')+'</div>'
+      + '<div id="nlm-cat-checks" style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:1.5rem">'+checksHtml+'</div>'
+      + '<div style="display:flex;gap:.65rem;flex-wrap:wrap">'
+      + '<button class="contact-submit" onclick="nlmSaveCategories(\''+token+'\')">💾 設定を保存</button>'
+      + '<button class="share-btn" style="color:var(--danger);border-color:var(--danger)" onclick="nlmUnsubscribe(\''+token+'\',\''+(data.email||'')+'\')">配信停止する</button>'
+      + '</div>'
+      + '</div>';
   }
   function onNlmCatAllChange(){
     if(document.getElementById('nlm-cat-all').checked) document.querySelectorAll('.nlm-cat-check').forEach(function(el){el.checked=false;});
@@ -2761,33 +2844,34 @@
     var any=Array.from(document.querySelectorAll('.nlm-cat-check')).some(function(el){return el.checked;});
     if(any) document.getElementById('nlm-cat-all').checked=false;
   }
-  async function saveNewsletterManage(docId, token, email){
-    var db=window._db; var ops=window._firestoreOp;
+
+  async function nlmSaveCategories(token){
     var allChecked=document.getElementById('nlm-cat-all').checked;
     var cats = allChecked ? ['ALL'] : Array.from(document.querySelectorAll('.nlm-cat-check:checked')).map(function(el){return el.value;});
-    try{
-      await ops.updateDoc(ops.doc(db,'newsletterSubscribers',docId), { categories:cats, status:'active', updatedAt:ops.serverTimestamp() });
-      sendNewsletterGas({ type:'newsletter_prefs_updated', email:email, categories: allChecked?['すべて']:cats, token:token });
-      showShareToast('配信設定を保存しました 📬');
-    }catch(e){ alert('保存に失敗しました：'+e.message); }
+    var res = await nlCallGas({ type:'newsletter_update_categories', token: token, categories: cats });
+    if(res.ok) showShareToast('配信設定を保存しました 📬');
+    else alert('保存に失敗しました：'+(res.error||''));
   }
-  async function unsubscribeNewsletter(docId, token, email){
+  async function nlmUnsubscribe(token, email){
     if(!confirm('メールマガジンの配信を停止します。よろしいですか？')) return;
-    var db=window._db; var ops=window._firestoreOp;
-    try{
-      await ops.updateDoc(ops.doc(db,'newsletterSubscribers',docId), { status:'unsubscribed', updatedAt:ops.serverTimestamp() });
-      sendNewsletterGas({ type:'newsletter_unsubscribed', email:email });
-      localStorage.removeItem(NEWSLETTER_REGISTERED_KEY);
-      renderNewsletterManage(token);
-    }catch(e){ alert('処理に失敗しました：'+e.message); }
+    var res = await nlCallGas({ type:'newsletter_unsubscribe_token', token: token });
+    if(res.ok){
+      localStorage.removeItem(NEWSLETTER_TOKEN_KEY);
+      renderNlmSettings(token, { email: email, categories: [], status:'unsubscribed' });
+      showShareToast('配信を停止しました');
+    } else {
+      alert('処理に失敗しました：'+(res.error||''));
+    }
   }
-  async function reactivateNewsletter(docId, token){
-    var db=window._db; var ops=window._firestoreOp;
-    try{
-      await ops.updateDoc(ops.doc(db,'newsletterSubscribers',docId), { status:'active', updatedAt:ops.serverTimestamp() });
-      localStorage.setItem(NEWSLETTER_REGISTERED_KEY,'1');
-      renderNewsletterManage(token);
-    }catch(e){ alert('処理に失敗しました：'+e.message); }
+  async function nlmReactivate(token){
+    var res = await nlCallGas({ type:'newsletter_update_categories', token: token, categories:['ALL'] });
+    if(res.ok){
+      localStorage.setItem(NEWSLETTER_TOKEN_KEY, token);
+      var info = await nlCallGas({ type:'newsletter_get_subscriber_by_token', token: token });
+      if(info.ok) renderNlmSettings(token, info);
+    } else {
+      alert('処理に失敗しました：'+(res.error||''));
+    }
   }
 
   /* ---- ダークモード ---- */
