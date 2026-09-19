@@ -1050,28 +1050,21 @@
             </div>
           </div>
 
-          <div id="nl-send-template-fields" class="fgrid" style="margin-top:.25rem">
-            <div class="frow full">
-              <label class="flabel">見出し（メール内の大見出し。空欄なら件名がそのまま使われます）</label>
-              <input id="nl-send-heading" type="text" class="finput" placeholder="〇〇についてのお知らせ" />
+          <div id="nl-send-template-fields" style="margin-top:.25rem">
+            <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem">
+              <button class="btn btn-o btn-sm" type="button" onclick="openNlTemplatePicker()">🧩 テンプレートから始める</button>
             </div>
-            <div class="frow full">
-              <label class="flabel">画像URL（任意）</label>
-              <input id="nl-send-image" type="url" class="finput" placeholder="https://i.imgur.com/xxxxx.jpg" />
-              <img id="nl-send-image-prev" class="tprev" alt="プレビュー" />
-            </div>
-            <div class="frow full">
-              <label class="flabel">本文 <span class="req">*</span></label>
-              <textarea id="nl-send-bodytext" class="finput" style="min-height:160px;resize:vertical;font-family:inherit" placeholder="本文を入力してください（空行を入れると段落が分かれます）"></textarea>
-            </div>
-            <div class="frow">
-              <label class="flabel">ボタンの文言（任意）</label>
-              <input id="nl-send-btnlabel" type="text" class="finput" placeholder="詳しくはこちら" />
-            </div>
-            <div class="frow">
-              <label class="flabel">ボタンのリンクURL（任意）</label>
-              <input id="nl-send-btnurl" type="url" class="finput" placeholder="https://..." />
-              <span class="fhint">ボタン文言を入れた場合はリンクURLも入力してください</span>
+            <div id="nl-blocks-list" style="display:flex;flex-direction:column;gap:1rem;margin-bottom:1rem"></div>
+            <div style="border-top:1px solid var(--border);padding-top:1rem">
+              <div class="flabel" style="margin-bottom:.5rem">＋ ブロックを追加</div>
+              <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+                <button class="btn btn-o btn-sm" onclick="addNlBlock('heading')">📝 見出し</button>
+                <button class="btn btn-o btn-sm" onclick="addNlBlock('text')">🖊️ テキスト</button>
+                <button class="btn btn-o btn-sm" onclick="addNlBlock('image')">🖼 画像</button>
+                <button class="btn btn-o btn-sm" onclick="addNlBlock('button')">🔘 ボタン</button>
+                <button class="btn btn-o btn-sm" onclick="addNlBlock('article')">📰 記事カード</button>
+                <button class="btn btn-o btn-sm" onclick="addNlBlock('articles')">📚 複数記事</button>
+              </div>
             </div>
           </div>
 
@@ -1559,6 +1552,18 @@
   </div>
 </div>
 
+<!-- メールマガジン手動配信 テンプレート選択モーダル -->
+<div class="mback" id="nl-template-picker-modal">
+  <div class="mbox" style="max-width:640px">
+    <h3>🧩 テンプレートから始める</h3>
+    <p style="margin-bottom:1rem">選ぶと、下のブロック欄が組み替わります（今入力中の内容は上書きされます）。あとから自由に編集・追加・削除できます。</p>
+    <div id="nl-template-picker-list" style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem"></div>
+    <div class="macts">
+      <button class="btn btn-o" onclick="closeNlTemplatePicker()">キャンセル</button>
+    </div>
+  </div>
+</div>
+
 <!-- パスワード直接変更モーダル（メールを介さない） -->
 <div class="mback" id="pwchange-modal">
   <div class="mbox" style="max-width:460px">
@@ -1589,7 +1594,7 @@ var PIN        = '2506';          // ← 削除PINコード
 var DRAFT_KEY  = 'ankatsu_drafts'; // localStorage キー
 var SUBMIT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyK9Q9uV7HZieT8CdjBc08Y6x7kx_d_e1DGPSrLk3ISAiZB0Mqm7g1OVGC1fZgEEi6kXQ/exec'; // submit.htmlと同じGASのURLに書き換え
 var ADMIN_API_SECRET = 'aK9x!mQ2vR7pL4wZ8nB1sT6yU3dF0hJ5'; // ← GASのスクリプトプロパティ ADMIN_API_SECRET と必ず同じ値にする
-var NEWSLETTER_GAS_URL = 'https://script.google.com/macros/s/AKfycbwFQ0o49WGzQzg01saJcoG_KB0PiveNZvjDoaUv7oyd_-_JQ117bFnWzKs5tUwLqX_nuw/exec'; // ← 新しく作成したメールマガジン専用GASのURLに書き換える（index.htmlのNEWSLETTER_GAS_URLと同じもの）
+var NEWSLETTER_GAS_URL = 'https://script.google.com/macros/s/XXXXXXXXXXXXXXXX/exec'; // ← 新しく作成したメールマガジン専用GASのURLに書き換える（index.htmlのNEWSLETTER_GAS_URLと同じもの）
 var NEWSLETTER_API_SECRET = 'uchioru0122ankatsu'; // ← メールマガジン用GASの NEWSLETTER_API_SECRET と必ず同じ値にする
 
 function sendResultMail(type, payload) {
@@ -3639,6 +3644,7 @@ function renderNewsletterAdmin() {
   document.getElementById('nl-logo-url').value = newsletterSettings.logoUrl || '';
   var logoPrev = document.getElementById('nl-logo-prev');
   if (newsletterSettings.logoUrl) { logoPrev.src = newsletterSettings.logoUrl; logoPrev.style.display = 'block'; } else { logoPrev.style.display = 'none'; }
+  renderNlBlocksList();
 
   var active = newsletterSubscribers.filter(function(s){ return s.status !== 'unsubscribed'; });
   var allWant = active.filter(function(s){ return Array.isArray(s.categories) && s.categories.indexOf('ALL') >= 0; });
@@ -3760,6 +3766,127 @@ function sendNewsletterManualForArticle(id) {
   sendNewsletterForArticle(Object.assign({}, a, { sendNewsletter: true }));
 }
 
+// ---- メールマガジン手動配信：ブロックエディタ ----
+var nlBlocks = [];
+var NL_BLOCK_LABEL = { heading:'📝 見出し', text:'🖊️ テキスト', image:'🖼 画像', button:'🔘 ボタン', article:'📰 記事カード', articles:'📚 複数記事' };
+var NL_TEMPLATES = [
+  { key:'blank',    label:'空から作る',       desc:'ブロックなしから始める', blocks: [] },
+  { key:'announce', label:'📢 お知らせ',      desc:'見出し＋本文＋ボタン', blocks: [
+      { type:'heading', text:'' }, { type:'text', body:'' }, { type:'button', label:'詳しくはこちら', url:'' }
+    ]},
+  { key:'article1', label:'📰 記事紹介',      desc:'見出し＋本文＋記事カード1件', blocks: [
+      { type:'heading', text:'' }, { type:'text', body:'' }, { type:'article', articleId:'' }
+    ]},
+  { key:'roundup',  label:'📚 まとめ紹介',    desc:'見出し＋本文＋複数記事', blocks: [
+      { type:'heading', text:'' }, { type:'text', body:'' }, { type:'articles', articleIds:[] }
+    ]},
+  { key:'event',    label:'🎉 イベント告知', desc:'見出し＋本文＋記事カード＋ボタン', blocks: [
+      { type:'heading', text:'' }, { type:'text', body:'' }, { type:'article', articleId:'' }, { type:'button', label:'詳細を見る', url:'' }
+    ]}
+];
+
+function openNlTemplatePicker() {
+  document.getElementById('nl-template-picker-list').innerHTML = NL_TEMPLATES.map(function (t) {
+    return '<div style="border:1.5px solid var(--border);border-radius:8px;padding:1rem;cursor:pointer" onclick="startNlFromTemplate(\'' + t.key + '\')" onmouseover="this.style.borderColor=\'var(--green)\'" onmouseout="this.style.borderColor=\'var(--border)\'">'
+      + '<div style="font-weight:700;font-size:.9rem;margin-bottom:.3rem">' + t.label + '</div>'
+      + '<div style="font-size:.78rem;color:var(--muted)">' + t.desc + '</div>'
+      + '</div>';
+  }).join('');
+  document.getElementById('nl-template-picker-modal').classList.add('on');
+}
+function closeNlTemplatePicker() { document.getElementById('nl-template-picker-modal').classList.remove('on'); }
+function startNlFromTemplate(key) {
+  var tpl = NL_TEMPLATES.find(function (t) { return t.key === key; });
+  closeNlTemplatePicker();
+  nlBlocks = JSON.parse(JSON.stringify((tpl && tpl.blocks) || []));
+  nlBlocks.forEach(function (b) { b._uid = 'b_' + Math.random().toString(36).slice(2, 9); });
+  renderNlBlocksList();
+}
+
+function nlInputHtml_(idx, field, value, placeholder) {
+  return '<input type="text" class="finput" placeholder="' + (placeholder || '') + '" value="' + escAttr(value) + '" oninput="updateNlBlockField(' + idx + ',\'' + field + '\',this.value)" />';
+}
+function nlTextareaHtml_(idx, field, value) {
+  return '<textarea class="finput" style="min-height:100px;font-family:inherit" oninput="updateNlBlockField(' + idx + ',\'' + field + '\',this.value)">' + escapeHtml(value) + '</textarea>';
+}
+function updateNlBlockField(idx, field, val) { if (nlBlocks[idx]) nlBlocks[idx][field] = val; }
+
+function nlArticleSelectHtml_(idx, selectedId) {
+  var opts = '<option value="">-- 選択してください --</option>' + articles.slice(0, 300).map(function (a) {
+    return '<option value="' + a.id + '"' + (a.id === selectedId ? ' selected' : '') + '>' + a.title + '</option>';
+  }).join('');
+  return '<select class="fselect" onchange="updateNlBlockField(' + idx + ',\'articleId\',this.value)">' + opts + '</select>';
+}
+function nlArticleChecklistHtml_(idx, selectedIds) {
+  var opts = articles.slice(0, 300).map(function (a) {
+    var checked = selectedIds.indexOf(a.id) >= 0 ? 'checked' : '';
+    return '<label style="display:flex;align-items:center;gap:.5rem;font-size:.82rem;padding:.25rem 0;cursor:pointer">'
+      + '<input type="checkbox" ' + checked + ' onchange="toggleNlBlockArticle(' + idx + ',\'' + a.id + '\',this.checked)" /> ' + a.title
+      + '</label>';
+  }).join('');
+  return '<div class="flabel" style="margin:.4rem 0">記事を選択（' + selectedIds.length + '件選択中）</div>'
+    + '<div style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:.5rem .75rem">' + (opts || '<div style="font-size:.8rem;color:var(--light)">記事がありません</div>') + '</div>';
+}
+function toggleNlBlockArticle(bIdx, articleId, checked) {
+  var b = nlBlocks[bIdx];
+  b.articleIds = b.articleIds || [];
+  var pos = b.articleIds.indexOf(articleId);
+  if (checked && pos < 0) b.articleIds.push(articleId);
+  if (!checked && pos >= 0) b.articleIds.splice(pos, 1);
+  renderNlBlocksList();
+}
+
+function nlBlockFieldsHtml_(b, idx) {
+  if (b.type === 'heading') return fRow('見出しテキスト', nlInputHtml_(idx, 'text', b.text));
+  if (b.type === 'text') return fRow('本文（空行で段落が分かれます）', nlTextareaHtml_(idx, 'body', b.body));
+  if (b.type === 'image') {
+    return fRow('画像URL', nlInputHtml_(idx, 'url', b.url, 'https://i.imgur.com/xxxxx.jpg'))
+      + fRow('キャプション（任意）', nlInputHtml_(idx, 'caption', b.caption));
+  }
+  if (b.type === 'button') {
+    return fRow('ボタンの文言', nlInputHtml_(idx, 'label', b.label, '詳しくはこちら'))
+      + fRow('リンクURL', nlInputHtml_(idx, 'url', b.url, 'https://...'));
+  }
+  if (b.type === 'article') return fRow('記事を選択', nlArticleSelectHtml_(idx, b.articleId));
+  if (b.type === 'articles') return fRow('', nlArticleChecklistHtml_(idx, b.articleIds || []));
+  return '';
+}
+function nlBlockHeaderHtml_(idx, label) {
+  return '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">'
+    + '<span style="font-weight:700;font-size:.85rem">' + label + '</span>'
+    + '<div style="display:flex;gap:.3rem">'
+    + '<button class="btn btn-o btn-sm" onclick="moveNlBlock(' + idx + ',-1)" title="上へ">↑</button>'
+    + '<button class="btn btn-o btn-sm" onclick="moveNlBlock(' + idx + ',1)" title="下へ">↓</button>'
+    + '<button class="btn btn-r btn-sm" onclick="deleteNlBlock(' + idx + ')">🗑️</button>'
+    + '</div></div>';
+}
+function nlBlockCardHtml_(b, idx) {
+  return '<div style="border:1px solid var(--border);border-radius:8px;padding:1rem 1.1rem;background:var(--bg)">'
+    + nlBlockHeaderHtml_(idx, NL_BLOCK_LABEL[b.type] || b.type)
+    + nlBlockFieldsHtml_(b, idx)
+    + '</div>';
+}
+function renderNlBlocksList() {
+  var wrap = document.getElementById('nl-blocks-list');
+  if (!nlBlocks.length) { wrap.innerHTML = '<div style="font-size:.82rem;color:var(--light)">まだブロックがありません。下の「＋ ブロックを追加」から追加するか、上の「🧩 テンプレートから始める」を使ってください。</div>'; return; }
+  wrap.innerHTML = nlBlocks.map(function (b, idx) { return nlBlockCardHtml_(b, idx); }).join('');
+}
+function addNlBlock(type) {
+  var defaults = {
+    heading: { text: '' }, text: { body: '' }, image: { url: '', caption: '' }, button: { label: '', url: '' },
+    article: { articleId: '' }, articles: { articleIds: [] }
+  };
+  nlBlocks.push(Object.assign({ type: type, _uid: 'b_' + Math.random().toString(36).slice(2, 9) }, defaults[type] || {}));
+  renderNlBlocksList();
+}
+function moveNlBlock(idx, dir) {
+  var n = idx + dir;
+  if (n < 0 || n >= nlBlocks.length) return;
+  var t = nlBlocks[idx]; nlBlocks[idx] = nlBlocks[n]; nlBlocks[n] = t;
+  renderNlBlocksList();
+}
+function deleteNlBlock(idx) { nlBlocks.splice(idx, 1); renderNlBlocksList(); }
+
 async function sendManualNewsletter() {
   var subject = document.getElementById('nl-send-subject').value.trim();
   if (!subject) { toast('件名を入力してください','warn'); return; }
@@ -3771,16 +3898,14 @@ async function sendManualNewsletter() {
     if (!bodyHtml) { toast('本文を入力してください','warn'); return; }
     payloadExtra.bodyHtml = bodyHtml;
   } else {
-    var bodyText = document.getElementById('nl-send-bodytext').value.trim();
-    if (!bodyText) { toast('本文を入力してください','warn'); return; }
-    var btnLabel = document.getElementById('nl-send-btnlabel').value.trim();
-    var btnUrl = document.getElementById('nl-send-btnurl').value.trim();
-    if (btnLabel && !btnUrl) { toast('ボタンのリンクURLも入力してください','warn'); return; }
-    payloadExtra.heading = document.getElementById('nl-send-heading').value.trim();
-    payloadExtra.image = document.getElementById('nl-send-image').value.trim();
-    payloadExtra.bodyText = bodyText;
-    payloadExtra.buttonLabel = btnLabel;
-    payloadExtra.buttonUrl = btnUrl;
+    if (!nlBlocks.length) { toast('ブロックを1つ以上追加してください（テンプレートも使えます）','warn'); return; }
+    var missingArticle = nlBlocks.some(function (b) {
+      if (b.type === 'article') return !b.articleId;
+      if (b.type === 'articles') return !b.articleIds || !b.articleIds.length;
+      return false;
+    });
+    if (missingArticle) { toast('記事カード／複数記事ブロックで、記事が選択されていないものがあります','warn'); return; }
+    payloadExtra.blocks = nlBlocks.map(function (b) { var c = Object.assign({}, b); delete c._uid; return c; });
   }
 
   var allChecked = document.getElementById('nl-send-cat-all').checked;
@@ -3801,12 +3926,8 @@ async function sendManualNewsletter() {
     if (res && res.ok) {
       toast((res.sent || recipients.length) + '件に配信しました ✅');
       document.getElementById('nl-send-subject').value = '';
-      document.getElementById('nl-send-heading').value = '';
-      document.getElementById('nl-send-image').value = '';
-      document.getElementById('nl-send-image-prev').style.display = 'none';
-      document.getElementById('nl-send-bodytext').value = '';
-      document.getElementById('nl-send-btnlabel').value = '';
-      document.getElementById('nl-send-btnurl').value = '';
+      nlBlocks = [];
+      renderNlBlocksList();
       document.getElementById('nl-send-body').value = '';
     } else {
       toast('配信に失敗しました：' + (res && res.error), 'error');
@@ -4772,14 +4893,6 @@ document.addEventListener('DOMContentLoaded', function() {
   // メールマガジン: ロゴ画像プレビュー
   document.getElementById('nl-logo-url').addEventListener('input', function(e){
     var prev = document.getElementById('nl-logo-prev');
-    var url  = e.target.value.trim();
-    if (url){ prev.src=url; prev.style.display='block'; }
-    else    { prev.style.display='none'; }
-  });
-
-  // メールマガジン: 手動配信の画像プレビュー
-  document.getElementById('nl-send-image').addEventListener('input', function(e){
-    var prev = document.getElementById('nl-send-image-prev');
     var url  = e.target.value.trim();
     if (url){ prev.src=url; prev.style.display='block'; }
     else    { prev.style.display='none'; }
