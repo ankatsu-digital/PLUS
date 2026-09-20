@@ -3737,21 +3737,16 @@ async function sendNewsletterForArticle(articleData) {
   if (!articleData) return;
   if (articleData.unlisted) return;
   if (articleData.sendNewsletter === false) return;
+  if (!articleData.id) return;
   await loadNewsletterData(); // 常に最新の設定・登録者リストを使う
   if (newsletterSettings.autoSendOnPublish === false) return;
   var cats = articleCategories(articleData);
   var targets = matchNewsletterSubscribers(cats);
   if (!targets.length) return;
   var recipients = targets.map(function(s){ return { email: s.email, token: s.token || '' }; });
-  var articleUrl = location.origin + location.pathname.replace('admin.html', 'index.html') + '#article/' + encodeURIComponent(articleData.slug || articleData.id);
-  var excerpt = (articleData.body || '').replace(/<[^>]*>/g, '').slice(0, 140);
   var res = await sendNewsletterGas({
     type: 'newsletter_article_notify',
-    title: articleData.title,
-    excerpt: excerpt,
-    articleUrl: articleUrl,
-    thumbnail: articleData.thumbnail || '',
-    category: cats[0] || '',
+    articleId: articleData.id,
     recipients: recipients
   });
   if (res && res.ok) toast('メールマガジンを' + (res.sent || recipients.length) + '件配信しました 📧');
