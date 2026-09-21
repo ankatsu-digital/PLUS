@@ -489,6 +489,12 @@
     .map-pin-badge-lg{width:34px;height:34px;top:12px;right:12px;font-size:1rem}
     .article-map-link{display:inline-flex;align-items:center;gap:.4rem;background:var(--accent);color:#fff;padding:.5rem 1.1rem;border-radius:20px;font-size:.82rem;font-weight:700;margin-top:.9rem;transition:background var(--tr)}
     .article-map-link:hover{background:var(--accent-light)}
+    .article-calendar-add{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.9rem}
+    .cal-add-btn{display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1.1rem;border-radius:20px;font-size:.82rem;font-weight:700;cursor:pointer;border:none;font-family:inherit;text-decoration:none;transition:background var(--tr),border-color var(--tr),color var(--tr)}
+    .cal-add-btn-g{background:var(--accent);color:#fff}
+    .cal-add-btn-g:hover{background:var(--accent-light)}
+    .cal-add-btn-o{background:var(--bg-card);color:var(--text-main);border:1.5px solid var(--border)}
+    .cal-add-btn-o:hover{border-color:var(--accent);color:var(--accent)}
     .news-info{flex:1;min-width:0}
     .news-cat-tag{display:inline-block;font-size:.67rem;font-weight:700;letter-spacing:.08em;color:var(--accent);background:var(--accent-pale);padding:.1rem .45rem;border-radius:3px;margin-bottom:.3rem;margin-right:.25rem}
     .news-item-title{font-size:.82rem;font-weight:600;line-height:1.45;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
@@ -1785,6 +1791,85 @@
     }
   }
 
+  /* ---- カレンダーに追加（Google／その他=.ics） ---- */
+  function calPad2_(n){ return (n<10?'0':'')+n; }
+  function calYmd_(d){ return d.getFullYear()+calPad2_(d.getMonth()+1)+calPad2_(d.getDate()); }
+  function calDateTime_(d){ return calYmd_(d)+'T'+calPad2_(d.getHours())+calPad2_(d.getMinutes())+'00'; }
+
+  /* eventDate("YYYY-MM-DD") + eventTime（"10:00-16:00" 等の自由入力）から開始・終了日時を推測する。
+     時間が読み取れなければ終日予定として扱う。 */
+  function parseArticleEventDateTime_(a){
+    if(!a.eventDate) return null;
+    var timeStr = (a.eventTime||'').trim();
+    var range = timeStr.match(/(\d{1,2}):(\d{2})\s*[-〜~]\s*(\d{1,2}):(\d{2})/);
+    if(range){
+      var s = new Date(a.eventDate+'T'+calPad2_(+range[1])+':'+range[2]+':00');
+      var e = new Date(a.eventDate+'T'+calPad2_(+range[3])+':'+range[4]+':00');
+      if(isNaN(s)) return null;
+      if(isNaN(e)||e<=s) e = new Date(s.getTime()+2*3600000);
+      return {start:s, end:e, allDay:false};
+    }
+    var single = timeStr.match(/(\d{1,2}):(\d{2})/);
+    if(single){
+      var s2 = new Date(a.eventDate+'T'+calPad2_(+single[1])+':'+single[2]+':00');
+      if(isNaN(s2)) return null;
+      return {start:s2, end:new Date(s2.getTime()+2*3600000), allDay:false};
+    }
+    var s3 = new Date(a.eventDate+'T00:00:00');
+    if(isNaN(s3)) return null;
+    return {start:s3, end:new Date(s3.getTime()+86400000), allDay:true};
+  }
+
+  function googleCalendarAddUrl_(a, dt){
+    var details = (a.body||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,400);
+    var full = details + (details?'\n\n':'') + buildShareUrl(a);
+    var datesParam = dt.allDay ? (calYmd_(dt.start)+'/'+calYmd_(dt.end)) : (calDateTime_(dt.start)+'/'+calDateTime_(dt.end));
+    var params = ['action=TEMPLATE','text='+encodeURIComponent(a.title||''),'dates='+datesParam,'details='+encodeURIComponent(full)];
+    if(!dt.allDay) params.push('ctz=Asia/Tokyo');
+    return 'https://calendar.google.com/calendar/render?'+params.join('&');
+  }
+
+  function icsEscape_(s){ return String(s||'').replace(/\\/g,'\\\\').replace(/,/g,'\\,').replace(/;/g,'\\;').replace(/\n/g,'\\n'); }
+
+  function buildIcsContent_(a, dt){
+    var uid = (a.id||a.slug||'event')+'@ankatsu-plus';
+    var stamp = calDateTime_(new Date())+'Z';
+    var lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//アンカツ＋//JP','BEGIN:VEVENT','UID:'+uid,'DTSTAMP:'+stamp];
+    if(dt.allDay){
+      lines.push('DTSTART;VALUE=DATE:'+calYmd_(dt.start));
+      lines.push('DTEND;VALUE=DATE:'+calYmd_(dt.end));
+    } else {
+      lines.push('DTSTART;TZID=Asia/Tokyo:'+calDateTime_(dt.start));
+      lines.push('DTEND;TZID=Asia/Tokyo:'+calDateTime_(dt.end));
+    }
+    lines.push('SUMMARY:'+icsEscape_(a.title||''));
+    lines.push('DESCRIPTION:'+icsEscape_(buildShareUrl(a)));
+    lines.push('URL:'+buildShareUrl(a));
+    lines.push('END:VEVENT','END:VCALENDAR');
+    return lines.join('\r\n');
+  }
+
+  /* Apple Calendar・Outlook・TimeTree（手動インポート）向け：.ics を直接開く。
+     iOS/macOS Safariではダウンロードにならず、そのままカレンダーの追加画面が開く。 */
+  function addArticleToOtherCalendar(articleId){
+    var a = allArticles.find(function(x){ return x.id===articleId; });
+    if(!a) return;
+    var dt = parseArticleEventDateTime_(a);
+    if(!dt){ showShareToast('この記事には開催日時が設定されていません'); return; }
+    var ics = buildIcsContent_(a, dt);
+    window.location.href = 'data:text/calendar;charset=utf-8,'+encodeURIComponent(ics);
+  }
+
+  function articleCalendarButtonsHtml_(a){
+    var dt = parseArticleEventDateTime_(a);
+    if(!dt) return '';
+    var gUrl = googleCalendarAddUrl_(a, dt);
+    return '<div class="article-calendar-add">'
+      + '<a class="cal-add-btn cal-add-btn-g" href="'+gUrl+'" target="_blank" rel="noopener">📅 Googleカレンダーに追加</a>'
+      + '<button class="cal-add-btn cal-add-btn-o" onclick="addArticleToOtherCalendar(\''+a.id+'\')">🍎 その他のカレンダーに追加</button>'
+      + '</div>';
+  }
+
   function renderArticle(a){
     if(!isArticleUnlocked(a)){ renderArticleGate(a); return; }
     var img=a.thumbnail
@@ -1801,6 +1886,7 @@
     var mapLink=a.mapSpotId
       ?'<a class="article-map-link" href="'+mapSpotUrl(a.mapSpotId)+'" target="_blank" rel="noopener">🗺️ この場所をアンカツMAPで見る</a>'
       :'';
+    var calButtons=articleCalendarButtonsHtml_(a);
     var shareBar='<div class="article-share-bar">'
       +'<span class="share-label">この記事をシェア</span>'
       +'<div class="share-buttons">'
@@ -1818,6 +1904,7 @@
       +'<h1 class="article-title">'+a.title+'</h1>'
       +'<div class="article-meta"><span>✍️ <span class="author-name-link" onclick="openAuthor(\''+(a.author||'編集部').replace(/'/g,"\\'")+'\')">'+(a.author||'編集部')+'</span></span><span>📅 '+fmtDate(a.createdAt)+'</span>'+articleViewCountHtml(a)+'</div>'
       +mapLink
+      +calButtons
       +shareBar
       +'</header>'+img
       +'<div class="article-body">'+(a.body||'<p>本文がありません。</p>')+'</div>'
