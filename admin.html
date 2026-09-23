@@ -515,14 +515,60 @@
                 <span class="fhint">選択すると記事に📍バッジが付き、アンカツMAPの該当ピンへ直接リンクされます。「🗺️ 地図スポット」から作成できます</span>
               </div>
 
-              <div class="frow" id="f-event-wrap" style="display:none">
-                <label class="flabel">📅 イベント日</label>
-                <input id="f-eventdate" type="date" class="finput" />
-                <span class="fhint">イベントカレンダーに反映されます</span>
+              <div class="frow full" id="f-event-wrap" style="display:none">
+                <label class="flabel">📅 開催形式</label>
+                <select id="f-event-mode" class="fselect" onchange="onEventModeChange()">
+                  <option value="single">単発（1日だけ）</option>
+                  <option value="range">連続開催（期間中ずっと）</option>
+                  <option value="multiple">複数日程（飛び飛びの日程）</option>
+                  <option value="weekly">毎週◯曜日</option>
+                </select>
+
+                <div id="f-event-single" style="margin-top:.75rem">
+                  <label class="flabel">開催日</label>
+                  <input id="f-eventdate" type="date" class="finput" />
+                </div>
+
+                <div id="f-event-range" style="display:none;margin-top:.75rem">
+                  <div class="fgrid">
+                    <div class="frow"><label class="flabel">開始日</label><input id="f-event-range-start" type="date" class="finput" /></div>
+                    <div class="frow"><label class="flabel">終了日</label><input id="f-event-range-end" type="date" class="finput" /></div>
+                  </div>
+                </div>
+
+                <div id="f-event-multiple" style="display:none;margin-top:.75rem">
+                  <label class="flabel">日程一覧</label>
+                  <div id="f-event-dates-list" style="display:flex;flex-direction:column;gap:.5rem;margin:.5rem 0"></div>
+                  <button type="button" class="btn btn-o btn-sm" onclick="addEventDateRow('')">＋ 日程を追加</button>
+                </div>
+
+                <div id="f-event-weekly" style="display:none;margin-top:.75rem">
+                  <div class="fgrid">
+                    <div class="frow">
+                      <label class="flabel">曜日</label>
+                      <select id="f-event-weekday" class="fselect">
+                        <option value="0">日曜</option><option value="1">月曜</option><option value="2">火曜</option>
+                        <option value="3">水曜</option><option value="4">木曜</option><option value="5">金曜</option><option value="6">土曜</option>
+                      </select>
+                    </div>
+                    <div class="frow"><label class="flabel">期間（開始）</label><input id="f-event-weekly-start" type="date" class="finput" /></div>
+                    <div class="frow"><label class="flabel">期間（終了）</label><input id="f-event-weekly-end" type="date" class="finput" /></div>
+                  </div>
+                </div>
+
+                <span class="fhint">イベントカレンダー・週次まとめメールに反映されます。開催が終わると記事タイトルに自動で「【終了】」が付きます</span>
               </div>
               <div class="frow" id="f-eventtime-wrap" style="display:none">
-                <label class="flabel">🕒 イベント時間</label>
+                <label class="flabel">🕒 開催時間（任意・共通）</label>
                 <input id="f-eventtime" type="text" class="finput" placeholder="10:00-16:00" />
+              </div>
+              <div class="frow full" id="f-event-registration-wrap" style="display:none">
+                <label class="flabel">📝 事前受付設定（任意）</label>
+                <div class="fgrid">
+                  <div class="frow"><label class="flabel">受付開始日</label><input id="f-event-regopen" type="date" class="finput" /></div>
+                  <div class="frow"><label class="flabel">受付締切日</label><input id="f-event-regclose" type="date" class="finput" /></div>
+                </div>
+                <span class="fhint">設定すると、受付開始前は「受付前」、締切後〜開催前は「開催前・事前申込終了」と自動表示されます</span>
               </div>
 
               <div class="frow full">
@@ -3206,10 +3252,94 @@ function onCatCheckChange() {
   var isEvent = cats.indexOf('イベント') >= 0;
   document.getElementById('f-event-wrap').style.display = isEvent ? 'flex' : 'none';
   document.getElementById('f-eventtime-wrap').style.display = isEvent ? 'flex' : 'none';
+  document.getElementById('f-event-registration-wrap').style.display = isEvent ? 'flex' : 'none';
+}
+
+// ============================================================
+// イベント開催形式（単発／連続期間／複数日程／毎週◯曜日）
+// ============================================================
+function onEventModeChange() {
+  var mode = document.getElementById('f-event-mode').value;
+  document.getElementById('f-event-single').style.display   = mode === 'single'   ? 'block' : 'none';
+  document.getElementById('f-event-range').style.display    = mode === 'range'    ? 'block' : 'none';
+  document.getElementById('f-event-multiple').style.display = mode === 'multiple' ? 'block' : 'none';
+  document.getElementById('f-event-weekly').style.display   = mode === 'weekly'   ? 'block' : 'none';
+}
+function addEventDateRow(value) {
+  var wrap = document.getElementById('f-event-dates-list');
+  var row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:.5rem;align-items:center';
+  row.innerHTML = '<input type="date" class="finput f-event-date-item" value="' + (value || '') + '" style="max-width:200px" />'
+    + '<button type="button" class="btn btn-r btn-sm" onclick="this.parentElement.remove()">✕</button>';
+  wrap.appendChild(row);
+}
+function getEventScheduleFromForm() {
+  var cats = getFormCategories();
+  if (cats.indexOf('イベント') < 0) return null;
+  var mode = document.getElementById('f-event-mode').value;
+  if (mode === 'single') {
+    var d = document.getElementById('f-eventdate').value;
+    return d ? { mode: 'single', date: d } : null;
+  }
+  if (mode === 'range') {
+    var s = document.getElementById('f-event-range-start').value, e = document.getElementById('f-event-range-end').value;
+    return (s && e) ? { mode: 'range', startDate: s, endDate: e } : null;
+  }
+  if (mode === 'multiple') {
+    var dates = Array.from(document.querySelectorAll('.f-event-date-item')).map(function (el) { return el.value; }).filter(Boolean);
+    dates.sort();
+    return dates.length ? { mode: 'multiple', dates: dates } : null;
+  }
+  if (mode === 'weekly') {
+    var wd = document.getElementById('f-event-weekday').value;
+    var ws = document.getElementById('f-event-weekly-start').value, we = document.getElementById('f-event-weekly-end').value;
+    return (ws && we) ? { mode: 'weekly', weekday: Number(wd), startDate: ws, endDate: we } : null;
+  }
+  return null;
+}
+// 開催形式から「代表日（最初の開催日）」を計算する。記事一覧・地図連携など、単一の日付だけを
+// 使う既存の仕組みとの互換性のために eventDate フィールドへ保存する
+function firstOccurrenceDateStr(schedule) {
+  if (!schedule) return '';
+  if (schedule.mode === 'single') return schedule.date || '';
+  if (schedule.mode === 'range') return schedule.startDate || '';
+  if (schedule.mode === 'multiple') return (schedule.dates || []).slice().sort()[0] || '';
+  if (schedule.mode === 'weekly') {
+    if (!schedule.startDate || schedule.weekday === undefined) return '';
+    var d = new Date(schedule.startDate + 'T00:00:00');
+    var guard = 0;
+    while (d.getDay() !== Number(schedule.weekday) && guard < 8) { d.setDate(d.getDate() + 1); guard++; }
+    return isNaN(d) ? '' : (d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'));
+  }
+  return '';
+}
+function setEventScheduleToForm(schedule, legacyEventDate) {
+  var mode = (schedule && schedule.mode) || 'single';
+  document.getElementById('f-event-mode').value = mode;
+  document.getElementById('f-eventdate').value = (schedule && schedule.mode === 'single' ? schedule.date : legacyEventDate) || '';
+  document.getElementById('f-event-range-start').value = (schedule && schedule.mode === 'range' ? schedule.startDate : '') || '';
+  document.getElementById('f-event-range-end').value = (schedule && schedule.mode === 'range' ? schedule.endDate : '') || '';
+  document.getElementById('f-event-dates-list').innerHTML = '';
+  if (schedule && schedule.mode === 'multiple' && Array.isArray(schedule.dates) && schedule.dates.length) {
+    schedule.dates.forEach(function (dt) { addEventDateRow(dt); });
+  } else {
+    addEventDateRow('');
+  }
+  document.getElementById('f-event-weekday').value = (schedule && schedule.mode === 'weekly' ? schedule.weekday : 1) || 1;
+  document.getElementById('f-event-weekly-start').value = (schedule && schedule.mode === 'weekly' ? schedule.startDate : '') || '';
+  document.getElementById('f-event-weekly-end').value = (schedule && schedule.mode === 'weekly' ? schedule.endDate : '') || '';
+  onEventModeChange();
 }
 
 function getFormData() {
   var cats = getFormCategories();
+  var eventSchedule = getEventScheduleFromForm();
+  var eventRegistration = null;
+  if (cats.indexOf('イベント') >= 0) {
+    var regOpen = document.getElementById('f-event-regopen').value;
+    var regClose = document.getElementById('f-event-regclose').value;
+    if (regOpen || regClose) eventRegistration = { openDate: regOpen || '', closeDate: regClose || '' };
+  }
   return {
     title:     document.getElementById('f-title').value.trim(),
     slug:      document.getElementById('f-slug').value.trim(),
@@ -3221,7 +3351,9 @@ function getFormData() {
     tags:      document.getElementById('f-tags').value.split(',').map(function(t){return t.trim();}).filter(Boolean),
     thumbnail: document.getElementById('f-thumb').value.trim(),
     featured:  document.getElementById('f-feat').checked,
-    eventDate: document.getElementById('f-eventdate').value.trim(),
+    eventSchedule: eventSchedule,
+    eventRegistration: eventRegistration,
+    eventDate: eventSchedule ? firstOccurrenceDateStr(eventSchedule) : document.getElementById('f-eventdate').value.trim(),
     eventTime: document.getElementById('f-eventtime').value.trim(),
     unlisted:  document.getElementById('f-unlisted').checked,
     accessPassword: document.getElementById('f-unlisted').checked ? document.getElementById('f-access-pw').value.trim() : '',
@@ -3240,8 +3372,10 @@ function setFormData(d) {
   document.getElementById('f-series').value = d.seriesId || '';
   populateSpotsSelect();
   document.getElementById('f-mapspot').value = d.mapSpotId || '';
-  document.getElementById('f-eventdate').value = d.eventDate || '';
+  setEventScheduleToForm(d.eventSchedule, d.eventDate);
   document.getElementById('f-eventtime').value = d.eventTime || '';
+  document.getElementById('f-event-regopen').value = (d.eventRegistration && d.eventRegistration.openDate) || '';
+  document.getElementById('f-event-regclose').value = (d.eventRegistration && d.eventRegistration.closeDate) || '';
   document.getElementById('f-tags').value   = (d.tags||[]).join(', ');
   document.getElementById('f-thumb').value  = d.thumbnail|| '';
   document.getElementById('f-feat').checked = !!d.featured;
