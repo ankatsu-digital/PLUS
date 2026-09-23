@@ -1224,10 +1224,83 @@
     if(!cats.length) return '<span class="'+cls+'">記事</span>';
     return cats.map(function(c){return '<span class="'+cls+'">'+c+'</span>';}).join('');
   }
+
+  /* =========================================================================
+     イベントの開催形式（単発／連続期間／複数日程／毎週◯曜日）と開催ステータス
+     ========================================================================= */
+  var EVENT_WEEKDAY_JP = ['日','月','火','水','木','金','土'];
+
+  /* 記事のeventSchedule（無ければ旧形式のeventDate）から、すべての開催日をDate配列で返す */
+  function getArticleEventOccurrences(a){
+    var sched = a && a.eventSchedule;
+    var results = [];
+    function push(ds){ if(!ds) return; var d=new Date(ds+'T00:00:00'); if(!isNaN(d)) results.push(d); }
+    if(!sched){ if(a&&a.eventDate) push(a.eventDate); return results; }
+    if(sched.mode==='single'){ push(sched.date); }
+    else if(sched.mode==='range' && sched.startDate && sched.endDate){
+      var s=new Date(sched.startDate+'T00:00:00'), e=new Date(sched.endDate+'T00:00:00');
+      if(!isNaN(s)&&!isNaN(e)){ for(var d=new Date(s); d<=e; d.setDate(d.getDate()+1)) results.push(new Date(d)); }
+    }
+    else if(sched.mode==='multiple' && Array.isArray(sched.dates)){ sched.dates.forEach(push); }
+    else if(sched.mode==='weekly' && sched.startDate && sched.endDate && sched.weekday!==undefined && sched.weekday!==null){
+      var ws=new Date(sched.startDate+'T00:00:00'), we=new Date(sched.endDate+'T00:00:00');
+      if(!isNaN(ws)&&!isNaN(we)){
+        for(var d2=new Date(ws); d2<=we; d2.setDate(d2.getDate()+1)){ if(d2.getDay()===Number(sched.weekday)) results.push(new Date(d2)); }
+      }
+    }
+    results.sort(function(x,y){return x-y;});
+    return results;
+  }
+
+  /* 次回（今日以降）の開催日を1件返す。無ければnull */
+  function getNextEventOccurrence(a, now){
+    now = now || new Date();
+    var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var occ = getArticleEventOccurrences(a);
+    for(var i=0;i<occ.length;i++){ if(occ[i] >= todayStart) return occ[i]; }
+    return null;
+  }
+
+  /* 開催ステータスを判定する： 受付前 / 開催前 / 開催前・事前申込終了 / 開催中 / 開催後 */
+  function getArticleEventStatus(a, now){
+    var occ = getArticleEventOccurrences(a);
+    if(!occ.length) return null;
+    now = now || new Date();
+    var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var first = occ[0];
+    var last = occ[occ.length-1];
+    var lastEnd = new Date(last.getFullYear(), last.getMonth(), last.getDate()+1); // 最終日の翌0時＝終了
+
+    var reg = a.eventRegistration || {};
+    if(reg.openDate){
+      var openD = new Date(reg.openDate+'T00:00:00');
+      if(!isNaN(openD) && todayStart < openD) return {key:'before_registration', label:'受付前'};
+    }
+    if(now >= lastEnd) return {key:'ended', label:'開催後'};
+
+    var isOngoing = occ.some(function(d){
+      return d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth() && d.getDate()===now.getDate();
+    });
+    if(isOngoing) return {key:'ongoing', label:'開催中'};
+
+    if(reg.closeDate){
+      var closeD = new Date(reg.closeDate+'T00:00:00');
+      var closeDEnd = new Date(closeD.getFullYear(), closeD.getMonth(), closeD.getDate()+1);
+      if(!isNaN(closeD) && now >= closeDEnd && todayStart < first) return {key:'registration_closed', label:'開催前・事前申込終了'};
+    }
+    return {key:'upcoming', label:'開催前'};
+  }
+
+  /* 開催後の記事はタイトルの先頭に【終了】を自動で付ける */
+  function articleDisplayTitle(a){
+    var st = getArticleEventStatus(a);
+    return (st && st.key==='ended') ? '【終了】'+a.title : a.title;
+  }
+
   function gridCardHtml(a){
     return '<article class="grid-card" onclick="openArticle(\''+a.id+'\')">'
       +(a.thumbnail?'<img src="'+a.thumbnail+'" class="grid-card-img" loading="lazy"/>':'<div class="grid-card-img-ph">'+(CAT_EMOJI[primaryCat(a)]||'📰')+'</div>')
-      +'<div class="grid-card-body">'+catTagsHtml(a,'news-cat-tag')+'<div class="grid-card-title">'+a.title+'</div><div class="grid-card-date">'+fmtDate(a.createdAt)+'</div></div></article>';
+      +'<div class="grid-card-body">'+catTagsHtml(a,'news-cat-tag')+'<div class="grid-card-title">'+articleDisplayTitle(a)+'</div><div class="grid-card-date">'+fmtDate(a.createdAt)+'</div></div></article>';
   }
 
   /* ---- メンテナンス設定 ---- */
@@ -1669,7 +1742,7 @@
       '<article class="main-feature-card" onclick="openArticle(\''+feat.id+'\')">'
       +imgWrap+'<div class="main-feature-body">'
       +catTagsHtml(feat,'feature-cat-tag')
-      +'<h2 class="main-feature-title">'+feat.title+'</h2>'
+      +'<h2 class="main-feature-title">'+articleDisplayTitle(feat)+'</h2>'
       +'<p class="main-feature-lead">'+(feat.body?feat.body.replace(/<[^>]*>/g,''):'')+'</p>'
       +'<div class="feature-meta"><span>✍️ '+(feat.author||'編集部')+'</span><span>📅 '+fmtDate(feat.createdAt)+'</span>'
       +'<span class="read-more-btn">続きを読む ›</span></div>'
@@ -1680,7 +1753,7 @@
       document.getElementById('related-grid').innerHTML=rel.map(function(a){
         return '<div class="related-card" onclick="openArticle(\''+a.id+'\')"> '
           +(a.thumbnail?'<img src="'+a.thumbnail+'" class="related-thumb" loading="lazy"/>':'<div class="related-thumb-ph">'+(CAT_EMOJI[primaryCat(a)]||'📰')+'</div>')
-          +'<div class="related-card-title">'+a.title+'</div></div>';
+          +'<div class="related-card-title">'+articleDisplayTitle(a)+'</div></div>';
       }).join('');
       document.getElementById('related-articles').style.display='';
     }
@@ -1697,7 +1770,7 @@
         +mapPinBadge(a)
         +'</div>'
         +'<div class="news-info">'+catTagsHtml(a,'news-cat-tag')
-        +'<div class="news-item-title">'+a.title+'</div>'
+        +'<div class="news-item-title">'+articleDisplayTitle(a)+'</div>'
         +'<div class="news-item-date">'+fmtDate(a.createdAt)+'</div></div></div>';
     }).join('');
     var moreBtn=document.getElementById('news-more-btn');
@@ -1796,56 +1869,107 @@
   function calYmd_(d){ return d.getFullYear()+calPad2_(d.getMonth()+1)+calPad2_(d.getDate()); }
   function calDateTime_(d){ return calYmd_(d)+'T'+calPad2_(d.getHours())+calPad2_(d.getMinutes())+'00'; }
 
-  /* eventDate("YYYY-MM-DD") + eventTime（"10:00-16:00" 等の自由入力）から開始・終了日時を推測する。
-     時間が読み取れなければ終日予定として扱う。 */
-  function parseArticleEventDateTime_(a){
-    if(!a.eventDate) return null;
-    var timeStr = (a.eventTime||'').trim();
+  /* eventTime（"10:00-16:00" や "10:00" 等の自由入力）を{sh,sm,eh,em}に変換。読み取れなければnull（終日扱い） */
+  function parseEventTimeRange_(timeStr){
+    timeStr = (timeStr||'').trim();
     var range = timeStr.match(/(\d{1,2}):(\d{2})\s*[-〜~]\s*(\d{1,2}):(\d{2})/);
-    if(range){
-      var s = new Date(a.eventDate+'T'+calPad2_(+range[1])+':'+range[2]+':00');
-      var e = new Date(a.eventDate+'T'+calPad2_(+range[3])+':'+range[4]+':00');
-      if(isNaN(s)) return null;
-      if(isNaN(e)||e<=s) e = new Date(s.getTime()+2*3600000);
-      return {start:s, end:e, allDay:false};
-    }
+    if(range) return {sh:+range[1], sm:range[2], eh:+range[3], em:range[4]};
     var single = timeStr.match(/(\d{1,2}):(\d{2})/);
-    if(single){
-      var s2 = new Date(a.eventDate+'T'+calPad2_(+single[1])+':'+single[2]+':00');
-      if(isNaN(s2)) return null;
-      return {start:s2, end:new Date(s2.getTime()+2*3600000), allDay:false};
-    }
-    var s3 = new Date(a.eventDate+'T00:00:00');
-    if(isNaN(s3)) return null;
-    return {start:s3, end:new Date(s3.getTime()+86400000), allDay:true};
+    if(single) return {sh:+single[1], sm:single[2], eh:+single[1]+2, em:single[2]};
+    return null;
   }
+  function eventSharedTimeStr_(a){ return (a.eventSchedule && a.eventSchedule.time) || a.eventTime || ''; }
 
-  function googleCalendarAddUrl_(a, dt){
+  /* Googleカレンダー用リンクは「次回（一番近い）開催日」だけを1件追加する形にする。
+     複数日程・毎週開催のすべてを一度に入れたい場合は「その他のカレンダー」（.ics）を使ってもらう。 */
+  function googleCalendarAddUrl_(a){
+    var next = getNextEventOccurrence(a);
+    if(!next) return '';
+    var tr = parseEventTimeRange_(eventSharedTimeStr_(a));
+    var s, e, allDay;
+    if(tr){
+      s = new Date(next); s.setHours(tr.sh, tr.sm, 0, 0);
+      e = new Date(next); e.setHours(tr.eh, tr.em, 0, 0);
+      if(e<=s) e = new Date(s.getTime()+2*3600000);
+      allDay = false;
+    } else {
+      s = next; e = new Date(next.getTime()+86400000); allDay = true;
+    }
     var details = (a.body||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,400);
     var full = details + (details?'\n\n':'') + buildShareUrl(a);
-    var datesParam = dt.allDay ? (calYmd_(dt.start)+'/'+calYmd_(dt.end)) : (calDateTime_(dt.start)+'/'+calDateTime_(dt.end));
+    var datesParam = allDay ? (calYmd_(s)+'/'+calYmd_(e)) : (calDateTime_(s)+'/'+calDateTime_(e));
     var params = ['action=TEMPLATE','text='+encodeURIComponent(a.title||''),'dates='+datesParam,'details='+encodeURIComponent(full)];
-    if(!dt.allDay) params.push('ctz=Asia/Tokyo');
+    if(!allDay) params.push('ctz=Asia/Tokyo');
     return 'https://calendar.google.com/calendar/render?'+params.join('&');
   }
 
   function icsEscape_(s){ return String(s||'').replace(/\\/g,'\\\\').replace(/,/g,'\\,').replace(/;/g,'\\;').replace(/\n/g,'\\n'); }
 
-  function buildIcsContent_(a, dt){
-    var uid = (a.id||a.slug||'event')+'@ankatsu-plus';
-    var stamp = calDateTime_(new Date())+'Z';
-    var lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//アンカツ＋//JP','BEGIN:VEVENT','UID:'+uid,'DTSTAMP:'+stamp];
-    if(dt.allDay){
-      lines.push('DTSTART;VALUE=DATE:'+calYmd_(dt.start));
-      lines.push('DTEND;VALUE=DATE:'+calYmd_(dt.end));
-    } else {
-      lines.push('DTSTART;TZID=Asia/Tokyo:'+calDateTime_(dt.start));
-      lines.push('DTEND;TZID=Asia/Tokyo:'+calDateTime_(dt.end));
+  /* .ics は開催形式に応じて中身を変える：
+     単発／複数日程＝日付ごとに1件ずつ、連続期間＝期間をまたぐ1件、毎週◯曜日＝RRULEで繰り返し予定。
+     Apple Calendar・Outlook・TimeTree（アプリ内インポート）はこれで一括登録できる。 */
+  function buildIcsContent_(a){
+    var sched = a.eventSchedule;
+    var tr = parseEventTimeRange_(eventSharedTimeStr_(a));
+    var url = buildShareUrl(a);
+    var uidBase = (a.id||a.slug||'event');
+    var lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//アンカツ＋//JP'];
+
+    function pushTimedEvent(dateObj, uidSuffix){
+      var s = new Date(dateObj); s.setHours(tr.sh, tr.sm, 0, 0);
+      var e = new Date(dateObj); e.setHours(tr.eh, tr.em, 0, 0);
+      if(e<=s) e = new Date(s.getTime()+2*3600000);
+      lines.push('BEGIN:VEVENT','UID:'+uidBase+uidSuffix+'@ankatsu-plus','DTSTAMP:'+calDateTime_(new Date())+'Z');
+      lines.push('DTSTART;TZID=Asia/Tokyo:'+calDateTime_(s));
+      lines.push('DTEND;TZID=Asia/Tokyo:'+calDateTime_(e));
+      lines.push('SUMMARY:'+icsEscape_(a.title||''), 'DESCRIPTION:'+icsEscape_(url), 'URL:'+url, 'END:VEVENT');
     }
-    lines.push('SUMMARY:'+icsEscape_(a.title||''));
-    lines.push('DESCRIPTION:'+icsEscape_(buildShareUrl(a)));
-    lines.push('URL:'+buildShareUrl(a));
-    lines.push('END:VEVENT','END:VCALENDAR');
+    function pushAllDayEvent(startObj, endObjExclusive, uidSuffix){
+      lines.push('BEGIN:VEVENT','UID:'+uidBase+uidSuffix+'@ankatsu-plus','DTSTAMP:'+calDateTime_(new Date())+'Z');
+      lines.push('DTSTART;VALUE=DATE:'+calYmd_(startObj));
+      lines.push('DTEND;VALUE=DATE:'+calYmd_(endObjExclusive));
+      lines.push('SUMMARY:'+icsEscape_(a.title||''), 'DESCRIPTION:'+icsEscape_(url), 'URL:'+url, 'END:VEVENT');
+    }
+
+    var mode = sched ? sched.mode : 'single';
+    if(mode==='single' || !sched){
+      var occ = getArticleEventOccurrences(a);
+      if(!occ.length) return '';
+      if(tr) pushTimedEvent(occ[0], ''); else pushAllDayEvent(occ[0], new Date(occ[0].getTime()+86400000), '');
+    } else if(mode==='range'){
+      var s=new Date(sched.startDate+'T00:00:00'), e=new Date(sched.endDate+'T00:00:00');
+      if(isNaN(s)||isNaN(e)) return '';
+      pushAllDayEvent(s, new Date(e.getTime()+86400000), '');
+    } else if(mode==='multiple'){
+      var occM = getArticleEventOccurrences(a);
+      if(!occM.length) return '';
+      occM.forEach(function(d,i){ if(tr) pushTimedEvent(d,'-'+i); else pushAllDayEvent(d, new Date(d.getTime()+86400000), '-'+i); });
+    } else if(mode==='weekly'){
+      if(!sched.startDate || !sched.endDate || sched.weekday===undefined || sched.weekday===null) return '';
+      var wd = Number(sched.weekday);
+      var first = new Date(sched.startDate+'T00:00:00');
+      var guard=0;
+      while(first.getDay()!==wd && guard<8){ first.setDate(first.getDate()+1); guard++; }
+      var untilD = new Date(sched.endDate+'T00:00:00');
+      var untilStr = calYmd_(untilD)+'T235959Z';
+      if(tr){
+        var s2=new Date(first); s2.setHours(tr.sh,tr.sm,0,0);
+        var e2=new Date(first); e2.setHours(tr.eh,tr.em,0,0);
+        if(e2<=s2) e2=new Date(s2.getTime()+2*3600000);
+        lines.push('BEGIN:VEVENT','UID:'+uidBase+'@ankatsu-plus','DTSTAMP:'+calDateTime_(new Date())+'Z');
+        lines.push('DTSTART;TZID=Asia/Tokyo:'+calDateTime_(s2));
+        lines.push('DTEND;TZID=Asia/Tokyo:'+calDateTime_(e2));
+        lines.push('RRULE:FREQ=WEEKLY;UNTIL='+untilStr);
+        lines.push('SUMMARY:'+icsEscape_(a.title||''), 'DESCRIPTION:'+icsEscape_(url), 'URL:'+url, 'END:VEVENT');
+      } else {
+        lines.push('BEGIN:VEVENT','UID:'+uidBase+'@ankatsu-plus','DTSTAMP:'+calDateTime_(new Date())+'Z');
+        lines.push('DTSTART;VALUE=DATE:'+calYmd_(first));
+        lines.push('DTEND;VALUE=DATE:'+calYmd_(new Date(first.getTime()+86400000)));
+        lines.push('RRULE:FREQ=WEEKLY;UNTIL='+calYmd_(untilD));
+        lines.push('SUMMARY:'+icsEscape_(a.title||''), 'DESCRIPTION:'+icsEscape_(url), 'URL:'+url, 'END:VEVENT');
+      }
+    }
+    lines.push('END:VCALENDAR');
     return lines.join('\r\n');
   }
 
@@ -1854,16 +1978,16 @@
   function addArticleToOtherCalendar(articleId){
     var a = allArticles.find(function(x){ return x.id===articleId; });
     if(!a) return;
-    var dt = parseArticleEventDateTime_(a);
-    if(!dt){ showShareToast('この記事には開催日時が設定されていません'); return; }
-    var ics = buildIcsContent_(a, dt);
+    var ics = buildIcsContent_(a);
+    if(!ics){ showShareToast('この記事には開催日時が設定されていません'); return; }
     window.location.href = 'data:text/calendar;charset=utf-8,'+encodeURIComponent(ics);
   }
 
   function articleCalendarButtonsHtml_(a){
-    var dt = parseArticleEventDateTime_(a);
-    if(!dt) return '';
-    var gUrl = googleCalendarAddUrl_(a, dt);
+    var st = getArticleEventStatus(a);
+    if(!st || st.key==='ended') return ''; // 終了したイベントには表示しない
+    var gUrl = googleCalendarAddUrl_(a);
+    if(!gUrl) return '';
     return '<div class="article-calendar-add">'
       + '<a class="cal-add-btn cal-add-btn-g" href="'+gUrl+'" target="_blank" rel="noopener">📅 Googleカレンダーに追加</a>'
       + '<button class="cal-add-btn cal-add-btn-o" onclick="addArticleToOtherCalendar(\''+a.id+'\')">🍎 その他のカレンダーに追加</button>'
@@ -1887,6 +2011,7 @@
       ?'<a class="article-map-link" href="'+mapSpotUrl(a.mapSpotId)+'" target="_blank" rel="noopener">🗺️ この場所をアンカツMAPで見る</a>'
       :'';
     var calButtons=articleCalendarButtonsHtml_(a);
+    var statusRow=eventStatusRowHtml_(a);
     var shareBar='<div class="article-share-bar">'
       +'<span class="share-label">この記事をシェア</span>'
       +'<div class="share-buttons">'
@@ -1901,7 +2026,8 @@
       '<header class="article-header">'
       +seriesBadge
       +'<div class="article-cat-badge">'+catTagsHtml(a,'article-cat-badge-item')+'</div>'
-      +'<h1 class="article-title">'+a.title+'</h1>'
+      +'<h1 class="article-title">'+articleDisplayTitle(a)+'</h1>'
+      +statusRow
       +'<div class="article-meta"><span>✍️ <span class="author-name-link" onclick="openAuthor(\''+(a.author||'編集部').replace(/'/g,"\\'")+'\')">'+(a.author||'編集部')+'</span></span><span>📅 '+fmtDate(a.createdAt)+'</span>'+articleViewCountHtml(a)+'</div>'
       +mapLink
       +calButtons
@@ -1910,7 +2036,28 @@
       +'<div class="article-body">'+(a.body||'<p>本文がありません。</p>')+'</div>'
       +'<div class="article-tags">'+tags+'</div>'
       +feedbackWidgetHtml(a);
-    document.title=a.title+' | アンカツ＋';
+    document.title=articleDisplayTitle(a)+' | アンカツ＋';
+  }
+
+  var EVENT_STATUS_COLORS = {
+    before_registration:  {bg:'#eef1f3', fg:'#55606b'},
+    upcoming:             {bg:'var(--accent-pale)', fg:'var(--accent)'},
+    registration_closed:  {bg:'#fdf0e0', fg:'#a56532'},
+    ongoing:               {bg:'#fde8ea', fg:'var(--danger)'},
+    ended:                 {bg:'#f0f0ec', fg:'var(--text-light)'}
+  };
+  function eventStatusRowHtml_(a){
+    var st=getArticleEventStatus(a);
+    if(!st) return '';
+    var c=EVENT_STATUS_COLORS[st.key]||EVENT_STATUS_COLORS.upcoming;
+    var badge='<span style="display:inline-block;background:'+c.bg+';color:'+c.fg+';font-size:.76rem;font-weight:700;padding:.3rem .8rem;border-radius:20px;margin-right:.6rem">'+st.label+'</span>';
+    var nextHtml='';
+    var occ=getArticleEventOccurrences(a);
+    if(st.key!=='ended' && occ.length>1){
+      var next=getNextEventOccurrence(a);
+      if(next) nextHtml='<span style="font-size:.82rem;color:var(--text-muted)">次回開催日：'+(next.getMonth()+1)+'/'+next.getDate()+'（'+EVENT_WEEKDAY_JP[next.getDay()]+'）</span>';
+    }
+    return '<div style="margin:.75rem 0">'+badge+nextHtml+'</div>';
   }
 
   function articleViewCountHtml(a){
@@ -2121,12 +2268,6 @@
 
   /* ---- イベントカレンダー ---- */
   var _calYear, _calMonth; /* 0-indexed month */
-  function articleEventDate(a){
-    try{
-      if(a.eventDate){ var d=new Date(a.eventDate); if(!isNaN(d)) return d; }
-      return (a.createdAt&&a.createdAt.toDate)?a.createdAt.toDate():new Date(a.createdAt||0);
-    }catch(e){ return null; }
-  }
   function dkey(d){ return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
 
   function renderCalendar(){
@@ -2135,11 +2276,17 @@
     var events=visibleArticles.filter(function(a){return articleCats(a).indexOf('イベント')>=0;});
     var eventsByDay={};
     events.forEach(function(a){
-      var d=articleEventDate(a);
-      if(!d||isNaN(d)) return;
-      var k=dkey(d);
-      if(!eventsByDay[k]) eventsByDay[k]=[];
-      eventsByDay[k].push(a);
+      var occ=getArticleEventOccurrences(a);
+      if(!occ.length){
+        // eventScheduleが無い旧記事は、投稿日をそのままイベント日とみなす
+        try{ occ=[(a.createdAt&&a.createdAt.toDate)?a.createdAt.toDate():new Date(a.createdAt||0)]; }catch(e){ occ=[]; }
+      }
+      occ.forEach(function(d){
+        if(!d||isNaN(d)) return;
+        var k=dkey(d);
+        if(!eventsByDay[k]) eventsByDay[k]=[];
+        if(eventsByDay[k].indexOf(a)<0) eventsByDay[k].push(a);
+      });
     });
 
     document.getElementById('cal-month-label').textContent=_calYear+'年 '+(_calMonth+1)+'月';
