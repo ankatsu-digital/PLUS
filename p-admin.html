@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>アンカツ抽選管理画面</title>
+<style>
+  :root{--ink:#20262a;--paper:#f2eee2;--primary:#1c4a3a;--accent:#e8a13a;--line:#d8d0bd;--danger:#b0392b;}
+  *{box-sizing:border-box;}
+  body{font-family:'Hiragino Sans','Yu Gothic',sans-serif;background:var(--paper);color:var(--ink);margin:0;padding:32px 20px 80px;line-height:1.7;}
+  .wrap{max-width:960px;margin:0 auto;}
+  h1{color:var(--primary);font-size:1.4rem;margin:0 0 24px;}
+  .card{background:#fffdf8;border:1px solid var(--line);border-radius:8px;padding:20px 22px;margin-bottom:20px;}
+  .card h2{font-size:1rem;color:var(--primary);margin:0 0 14px;}
+  input[type=password],input[type=number],input[type=text]{padding:9px 11px;border:1px solid #b9b2a0;border-radius:6px;font-size:1rem;}
+  button{padding:11px 18px;border:none;border-radius:6px;font-size:.95rem;font-weight:700;cursor:pointer;background:var(--primary);color:#fff;}
+  button.secondary{background:#fff;color:var(--primary);border:1px solid var(--primary);}
+  button.danger{background:var(--danger);}
+  button:disabled{opacity:.5;cursor:default;}
+  table{width:100%;border-collapse:collapse;font-size:.88rem;}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top;}
+  th{color:#6b7269;font-weight:700;}
+  tr.winner{background:#fbe9d9;}
+  .pill{display:inline-block;font-size:.75rem;padding:2px 8px;border-radius:999px;background:#e6efe9;color:var(--primary);}
+  .pill.win{background:var(--accent);color:#fff;}
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:14px;}
+  .row label{font-size:.85rem;font-weight:700;}
+  #log{font-size:.85rem;white-space:pre-wrap;background:#f6f3ea;border-radius:6px;padding:10px 12px;margin-top:14px;min-height:1.4em;}
+  #loginCard{max-width:360px;margin:80px auto;text-align:center;}
+  .hide{display:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="loginCard" class="card">
+    <h2>管理画面パスワード</h2>
+    <p style="font-size:.85rem;color:#666;">Code.gs の CONFIG.ADMIN_KEY と同じ値を入力してください。</p>
+    <input type="password" id="adminKeyInput" placeholder="パスワード" style="width:100%;margin-bottom:12px;">
+    <button onclick="login()" style="width:100%;">管理画面を開く</button>
+    <div class="error" id="loginError" style="color:var(--danger);font-size:.85rem;margin-top:10px;"></div>
+  </div>
+
+  <div id="dashboard" class="hide">
+    <h1>アンカツ防災グッズ 抽選管理</h1>
+
+    <div class="card">
+      <h2>抽選</h2>
+      <div class="row">
+        <label for="drawCount">当選人数</label>
+        <input type="number" id="drawCount" min="1" value="1" style="width:80px;">
+        <label><input type="checkbox" id="autoSendCheck"> 抽選と同時に当選メールを自動送信する</label>
+      </div>
+      <div class="row">
+        <button onclick="runAutoDraw()">自動抽選を実行</button>
+        <span style="font-size:.8rem;color:#777;">未当選の応募者の中からランダムに選びます。チェックを外せば送信せず候補を選ぶだけにできます。</span>
+      </div>
+      <hr style="border:none;border-top:1px solid var(--line);margin:16px 0;">
+      <div class="row">
+        <button class="secondary" onclick="sendSelected()">チェックした人に当選メールを送信</button>
+        <button class="secondary" onclick="unmarkSelected()">チェックした人の当選を取り消す</button>
+        <button class="secondary" onclick="loadList()">一覧を更新</button>
+      </div>
+      <div id="log"></div>
+    </div>
+
+    <div class="card">
+      <h2>応募者一覧（<span id="countLabel">0</span>件）</h2>
+      <table>
+        <thead>
+          <tr><th></th><th>応募日時</th><th>氏名</th><th>住所</th><th>メール</th><th>状態</th></tr>
+        </thead>
+        <tbody id="listBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+// ▼▼ デプロイしたGASウェブアプリのURL（.../exec）をここに貼り付けてください ▼▼
+const API_URL = 'ここにGASのウェブアプリURLを貼り付け';
+// ▲▲ ------------------------------------------------------- ▲▲
+
+let adminKey = localStorage.getItem('ankatsuAdminKey') || '';
+
+function callApi(payload){
+  payload.adminKey = adminKey;
+  return fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  }).then(function(res){ return res.json(); });
+}
+
+function login(){
+  adminKey = document.getElementById('adminKeyInput').value.trim();
+  loadList(true);
+}
+
+function showDashboard(){
+  document.getElementById('loginCard').classList.add('hide');
+  document.getElementById('dashboard').classList.remove('hide');
+  localStorage.setItem('ankatsuAdminKey', adminKey);
+}
+
+function log(msg){
+  document.getElementById('log').textContent = msg;
+}
+
+function loadList(isLogin){
+  callApi({ action: 'list' }).then(function(res){
+    if(!res.success){
+      if(isLogin){
+        document.getElementById('loginError').textContent = res.message || 'ログインに失敗しました。';
+      } else {
+        log('エラー: ' + res.message);
+      }
+      return;
+    }
+    if(isLogin) showDashboard();
+    renderList(res.applicants);
+  }).catch(function(){
+    if(isLogin) document.getElementById('loginError').textContent = '通信エラーが発生しました。';
+    else log('通信エラーが発生しました。');
+  });
+}
+
+function renderList(applicants){
+  document.getElementById('countLabel').textContent = applicants.length;
+  const body = document.getElementById('listBody');
+  body.innerHTML = '';
+  applicants.forEach(function(a){
+    const tr = document.createElement('tr');
+    if(a.winner) tr.className = 'winner';
+    tr.innerHTML =
+      '<td><input type="checkbox" class="rowCheck" data-id="' + a.id + '"></td>' +
+      '<td>' + a.timestamp + '</td>' +
+      '<td>' + escapeHtml(a.name) + '</td>' +
+      '<td>' + escapeHtml(a.address) + '</td>' +
+      '<td>' + escapeHtml(a.email) + '</td>' +
+      '<td>' + (a.winner ? '<span class="pill win">当選' + (a.notifiedAt ? '・通知済み' : '') + '</span>' : '<span class="pill">未当選</span>') + '</td>';
+    body.appendChild(tr);
+  });
+}
+
+function escapeHtml(s){
+  return String(s || '').replace(/[&<>"]/g, function(c){
+    return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c];
+  });
+}
+
+function getCheckedIds(){
+  return Array.prototype.map.call(document.querySelectorAll('.rowCheck:checked'), function(el){ return el.dataset.id; });
+}
+
+function runAutoDraw(){
+  const count = parseInt(document.getElementById('drawCount').value, 10) || 1;
+  const sendEmail = document.getElementById('autoSendCheck').checked;
+  if(!confirm(count + '名を抽選します。' + (sendEmail ? '当選メールも自動送信されます。' : 'メールは送信せず候補選定のみ行います。') + 'よろしいですか？')) return;
+
+  callApi({ action: 'autoDraw', count: count, sendEmail: sendEmail }).then(function(res){
+    if(!res.success){ log('エラー: ' + res.message); return; }
+    const names = res.winners.map(function(w){ return w.name; }).join('、');
+    log('抽選結果：' + names + (res.emailSent ? '（当選メール送信済み）' : '（メールは未送信・確認後に送信してください）'));
+    loadList(false);
+  }).catch(function(){ log('通信エラーが発生しました。'); });
+}
+
+function sendSelected(){
+  const ids = getCheckedIds();
+  if(ids.length === 0){ alert('送信先を1件以上選択してください。'); return; }
+  if(!confirm(ids.length + '件に当選メールを送信します。よろしいですか？')) return;
+
+  callApi({ action: 'sendWinnerEmails', ids: ids }).then(function(res){
+    if(!res.success){ log('エラー: ' + res.message); return; }
+    log(res.sentCount + '件に当選メールを送信しました。');
+    loadList(false);
+  }).catch(function(){ log('通信エラーが発生しました。'); });
+}
+
+function unmarkSelected(){
+  const ids = getCheckedIds();
+  if(ids.length === 0){ alert('取り消す対象を1件以上選択してください。'); return; }
+
+  callApi({ action: 'unmarkWinners', ids: ids }).then(function(res){
+    if(!res.success){ log('エラー: ' + res.message); return; }
+    log(res.count + '件の当選を取り消しました。');
+    loadList(false);
+  }).catch(function(){ log('通信エラーが発生しました。'); });
+}
+
+if(adminKey){ loadList(true); }
+</script>
+</body>
+</html>
