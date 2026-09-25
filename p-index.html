@@ -60,6 +60,12 @@
     <p class="lead">たくさんのご応募、誠にありがとうございました。</p>
   </div>
 
+  <div id="alreadyAppliedScreen" class="closed">
+    <h2>この端末からは応募済みです</h2>
+    <p class="lead">ご応募ありがとうございました。お一人様一回のご応募とさせていただいております。</p>
+    <div class="notice">確認メールをご確認いただけていない場合は、応募時に入力したメールアドレスの受信箱をご確認ください。</div>
+  </div>
+
   <div id="mainContent">
     <section>
       <h2>プレゼント内容</h2>
@@ -110,22 +116,48 @@
 const API_URL = 'https://script.google.com/macros/s/AKfycby20u7MyE1gyIBeW-vMmec35iskD_Tbj3b4Le9x72o4aZUG1361fB4IhVUksoj816wSmg/exec';
 // ▲▲ ------------------------------------------------------- ▲▲
 
+const APPLIED_KEY = 'ankatsu_bousai_applied'; // この端末で応募済みかどうかを保存するキー
+
 function showClosed(){
   document.getElementById('closedScreen').style.display = 'block';
   document.getElementById('mainContent').classList.add('hide');
 }
 
-// ページを開いたら現在の設定（締切・賞品・当選人数）をAPIから取得して表示に反映
-fetch(API_URL + '?action=config')
-  .then(function(res){ return res.json(); })
-  .then(function(cfg){
-    if(!cfg || !cfg.success) return;
-    document.getElementById('campaignTitle').textContent = cfg.campaignName;
-    document.getElementById('prizeName').textContent = cfg.prizeName;
-    document.getElementById('winnerCount').textContent = cfg.winnerCount + '名様';
-    if(cfg.isClosed){ showClosed(); }
-  })
-  .catch(function(){ /* 取得に失敗しても応募フォームはそのまま表示 */ });
+function showAlreadyApplied(){
+  document.getElementById('alreadyAppliedScreen').style.display = 'block';
+  document.getElementById('mainContent').classList.add('hide');
+}
+
+function hasAlreadyApplied(){
+  try {
+    return localStorage.getItem(APPLIED_KEY) === '1';
+  } catch (e) {
+    return false; // localStorageが使えない環境ではブロックしない
+  }
+}
+
+function markAsApplied(){
+  try {
+    localStorage.setItem(APPLIED_KEY, '1');
+    localStorage.setItem(APPLIED_KEY + '_at', new Date().toISOString());
+  } catch (e) { /* 保存できなくても応募自体は成功しているので何もしない */ }
+}
+
+if (hasAlreadyApplied()) {
+  showAlreadyApplied();
+} else {
+  // ページを開いたら現在の設定（締切・賞品・当選人数）をAPIから取得して表示に反映
+  fetch(API_URL + '?action=config')
+    .then(function(res){ return res.json(); })
+    .then(function(cfg){
+      if(!cfg || !cfg.success) return;
+      document.getElementById('campaignTitle').textContent = cfg.campaignName;
+      document.getElementById('prizeName').textContent = cfg.prizeName;
+      document.getElementById('winnerCount').textContent = cfg.winnerCount + '名様';
+      if(cfg.isClosed){ showClosed(); }
+    })
+    .catch(function(){ /* 取得に失敗しても応募フォームはそのまま表示 */ });
+}
 
 function submitForm(){
   const name = document.getElementById('name').value.trim();
@@ -152,6 +184,7 @@ function submitForm(){
     .then(function(res){ return res.json(); })
     .then(function(res){
       if(res.success){
+        markAsApplied();
         document.getElementById('formScreen').style.display = 'none';
         document.getElementById('doneScreen').style.display = 'block';
       } else {
