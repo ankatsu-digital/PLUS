@@ -27,6 +27,23 @@
   dd{margin:0;font-weight:700;}
   .notice{background:var(--alert-bg);border:1px solid var(--alert-border);border-radius:6px;padding:16px 18px;font-size:.88rem;color:#5a4013;}
   .notice strong{color:#8a4b00;}
+  .product-lead{font-size:.9rem;color:#4b524f;margin:0 0 16px;}
+  .product-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .product-item{background:#fffdf8;border:1px solid var(--line);border-radius:8px;padding:14px;text-align:center;cursor:pointer;}
+  .product-item svg{margin-bottom:8px;}
+  .product-item h3{font-size:.85rem;margin:0 0 4px;color:var(--primary);}
+  .product-item p{font-size:.78rem;color:#666;margin:0;}
+  .product-item .hint{font-size:.72rem;color:var(--accent);margin-top:8px;font-weight:700;}
+  .product-item .detail{display:none;}
+  @media (max-width:400px){.product-grid{grid-template-columns:1fr;}}
+
+  .modal-overlay{position:fixed;inset:0;background:rgba(20,20,18,.55);display:none;align-items:center;justify-content:center;padding:20px;z-index:50;}
+  .modal-overlay.open{display:flex;}
+  .modal-box{background:#fffdf8;border-radius:10px;max-width:360px;width:100%;padding:26px 22px 22px;position:relative;text-align:left;}
+  .modal-box .modal-icon{text-align:center;margin-bottom:10px;}
+  .modal-box h3{text-align:center;color:var(--primary);margin:0 0 12px;font-size:1.05rem;}
+  .modal-box .detail-text{font-size:.88rem;color:#444;line-height:1.7;}
+  button.modal-close{position:absolute;top:8px;right:10px;width:auto;background:none;border:none;color:#888;font-size:1.4rem;line-height:1;padding:6px;margin:0;font-weight:400;}
   label{display:block;font-size:.85rem;font-weight:700;margin:18px 0 6px;color:#3a413d;}
   input{width:100%;padding:11px 13px;border:1px solid #b9b2a0;border-radius:6px;font-size:1rem;background:#fffdf8;font-family:inherit;}
   input:focus{outline:2px solid var(--primary);outline-offset:1px;}
@@ -55,6 +72,10 @@
     </svg>
   </div>
 
+  <div id="loadingScreen" class="closed" style="display:block;">
+    <p class="lead">確認しています…</p>
+  </div>
+
   <div id="closedScreen" class="closed">
     <h2>応募の受付は終了しました</h2>
     <p class="lead">たくさんのご応募、誠にありがとうございました。</p>
@@ -66,7 +87,13 @@
     <div class="notice">確認メールをご確認いただけていない場合は、応募時に入力したメールアドレスの受信箱をご確認ください。</div>
   </div>
 
-  <div id="mainContent">
+  <div id="notSubscribedScreen" class="closed">
+    <h2>メルマガ会員限定のキャンペーンです</h2>
+    <p class="lead">本キャンペーンへのご応募は、アンカツのメールマガジン会員限定とさせていただいております。</p>
+    <div class="notice">メルマガにご登録いただくと、このページからそのまま応募できるようになります。<br><a href="index.html" style="color:var(--primary);font-weight:700;">メルマガ登録ページはこちら</a>（登録後、このページを再度開いてください）</div>
+  </div>
+
+  <div id="mainContent" class="hide">
     <section>
       <h2>プレゼント内容</h2>
       <dl>
@@ -74,6 +101,64 @@
         <dt>当選人数</dt><dd id="winnerCount">1名様</dd>
       </dl>
     </section>
+
+    <section>
+      <h2>セットの中身（例）</h2>
+      <p class="product-lead">もしもの時に頼れる、アンカツが厳選した防災アイテムをセットにしました。<br><span style="color:#999;">※内容は一例です。実際の内容に差し替えてください。</span></p>
+      <div class="product-grid">
+        <div class="product-item" tabindex="0" role="button" onclick="openModal(this)" onkeydown="if(event.key==='Enter'||event.key===' '){openModal(this);event.preventDefault();}">
+          <svg width="36" height="36" viewBox="0 0 36 36"><rect x="10" y="14" width="14" height="8" rx="2" fill="#1c4a3a"/><rect x="24" y="16" width="6" height="4" fill="#e8a13a"/></svg>
+          <h3>LEDライト</h3>
+          <p>手回し充電式の懐中電灯</p>
+          <div class="hint">＋ タップして詳しく見る</div>
+          <div class="detail">乾電池不要の手回し充電式。停電時でも約3時間の連続点灯が可能で、非常時の足元灯としても使えます。<br>※ここに実際の商品説明・サイズ・仕様などを記載してください。</div>
+        </div>
+        <div class="product-item" tabindex="0" role="button" onclick="openModal(this)" onkeydown="if(event.key==='Enter'||event.key===' '){openModal(this);event.preventDefault();}">
+          <svg width="36" height="36" viewBox="0 0 36 36"><path d="M14 8h8l2 6v14a2 2 0 0 1-2 2H14a2 2 0 0 1-2-2V14z" fill="#1c4a3a"/><rect x="15" y="6" width="6" height="4" fill="#1c4a3a"/></svg>
+          <h3>保存水</h3>
+          <p>長期保存が可能な飲料水</p>
+          <div class="hint">＋ タップして詳しく見る</div>
+          <div class="detail">賞味期限約5年の長期保存水。持ち運びやすい500mlサイズです。<br>※ここに実際の商品説明・サイズ・仕様などを記載してください。</div>
+        </div>
+        <div class="product-item" tabindex="0" role="button" onclick="openModal(this)" onkeydown="if(event.key==='Enter'||event.key===' '){openModal(this);event.preventDefault();}">
+          <svg width="36" height="36" viewBox="0 0 36 36"><rect x="8" y="10" width="20" height="16" rx="2" fill="#1c4a3a"/><rect x="15" y="16" width="6" height="2" fill="#e8a13a"/><rect x="17" y="14" width="2" height="6" fill="#e8a13a"/></svg>
+          <h3>救急セット</h3>
+          <p>絆創膏・消毒液などの応急セット</p>
+          <div class="hint">＋ タップして詳しく見る</div>
+          <div class="detail">絆創膏・ガーゼ・消毒液・ハサミなど、応急処置に必要な基本セットをコンパクトにまとめました。<br>※ここに実際の商品説明・サイズ・仕様などを記載してください。</div>
+        </div>
+        <div class="product-item" tabindex="0" role="button" onclick="openModal(this)" onkeydown="if(event.key==='Enter'||event.key===' '){openModal(this);event.preventDefault();}">
+          <svg width="36" height="36" viewBox="0 0 36 36"><rect x="9" y="12" width="18" height="12" rx="3" fill="#1c4a3a"/><circle cx="24" cy="10" r="2" fill="#e8a13a"/></svg>
+          <h3>携帯ラジオ</h3>
+          <p>災害情報を受信できる小型ラジオ</p>
+          <div class="hint">＋ タップして詳しく見る</div>
+          <div class="detail">AM/FM対応、手回し充電・スマホ充電機能付きの多機能ラジオです。<br>※ここに実際の商品説明・サイズ・仕様などを記載してください。</div>
+        </div>
+        <div class="product-item" tabindex="0" role="button" onclick="openModal(this)" onkeydown="if(event.key==='Enter'||event.key===' '){openModal(this);event.preventDefault();}">
+          <svg width="36" height="36" viewBox="0 0 36 36"><rect x="8" y="8" width="20" height="20" rx="2" fill="#1c4a3a" opacity="0.85"/><path d="M12 12l12 12M24 12l-12 12" stroke="#e8a13a" stroke-width="2"/></svg>
+          <h3>防寒アルミシート</h3>
+          <p>体温の低下を防ぐ簡易シート</p>
+          <div class="hint">＋ タップして詳しく見る</div>
+          <div class="detail">薄手ながら保温性が高く、コンパクトに収納可能。屋外での避難時の防寒対策に役立ちます。<br>※ここに実際の商品説明・サイズ・仕様などを記載してください。</div>
+        </div>
+        <div class="product-item" tabindex="0" role="button" onclick="openModal(this)" onkeydown="if(event.key==='Enter'||event.key===' '){openModal(this);event.preventDefault();}">
+          <svg width="36" height="36" viewBox="0 0 36 36"><circle cx="18" cy="18" r="8" fill="#1c4a3a"/><circle cx="18" cy="18" r="3" fill="#e8a13a"/></svg>
+          <h3>防災ホイッスル</h3>
+          <p>緊急時に居場所を知らせる笛</p>
+          <div class="hint">＋ タップして詳しく見る</div>
+          <div class="detail">軽い息でも大きな音が鳴る設計。ストラップ付きでカバンや首から下げて携帯できます。<br>※ここに実際の商品説明・サイズ・仕様などを記載してください。</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="modal-overlay" id="productModal" onclick="if(event.target.id==='productModal')closeModal()">
+      <div class="modal-box">
+        <button class="modal-close" onclick="closeModal()" aria-label="閉じる">&times;</button>
+        <div class="modal-icon" id="modalIconWrap"></div>
+        <h3 id="modalTitle"></h3>
+        <div class="detail-text" id="modalDetail"></div>
+      </div>
+    </div>
 
     <section>
       <h2>ご応募にあたって</h2>
@@ -113,19 +198,49 @@
 
 <script>
 // ▼▼ デプロイしたGASウェブアプリのURL（.../exec）をここに貼り付けてください ▼▼
-const API_URL = 'https://script.google.com/macros/s/AKfycby20u7MyE1gyIBeW-vMmec35iskD_Tbj3b4Le9x72o4aZUG1361fB4IhVUksoj816wSmg/exec';
+const API_URL = 'ここにGASのウェブアプリURLを貼り付け';
 // ▲▲ ------------------------------------------------------- ▲▲
 
 const APPLIED_KEY = 'ankatsu_bousai_applied'; // この端末で応募済みかどうかを保存するキー
 
+function openModal(el){
+  document.getElementById('modalIconWrap').innerHTML = el.querySelector('svg').outerHTML;
+  document.getElementById('modalTitle').textContent = el.querySelector('h3').textContent;
+  document.getElementById('modalDetail').innerHTML = el.querySelector('.detail').innerHTML;
+  document.getElementById('productModal').classList.add('open');
+}
+function closeModal(){
+  document.getElementById('productModal').classList.remove('open');
+}
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape') closeModal();
+});
+
+function hideLoading(){
+  document.getElementById('loadingScreen').style.display = 'none';
+}
+
 function showClosed(){
+  hideLoading();
   document.getElementById('closedScreen').style.display = 'block';
   document.getElementById('mainContent').classList.add('hide');
 }
 
 function showAlreadyApplied(){
+  hideLoading();
   document.getElementById('alreadyAppliedScreen').style.display = 'block';
   document.getElementById('mainContent').classList.add('hide');
+}
+
+function showNotSubscribed(){
+  hideLoading();
+  document.getElementById('notSubscribedScreen').style.display = 'block';
+  document.getElementById('mainContent').classList.add('hide');
+}
+
+function showMainContent(){
+  hideLoading();
+  document.getElementById('mainContent').classList.remove('hide');
 }
 
 function hasAlreadyApplied(){
@@ -143,31 +258,74 @@ function markAsApplied(){
   } catch (e) { /* 保存できなくても応募自体は成功しているので何もしない */ }
 }
 
+// ▼ メルマガ登録ページ（同一サイト内）が保存しているトークンから、メールアドレスを取得する ▼
+// 取得できた場合のみ応募フォームを表示する（＝メルマガ会員限定の制御はここで行う）
+const NEWSLETTER_TOKEN_KEY = 'ankatsu_newsletter_token';
+const NEWSLETTER_GAS_URL = 'https://script.google.com/macros/s/AKfycbwFQ0o49WGzQzg01saJcoG_KB0PiveNZvjDoaUv7oyd_-_JQ117bFnWzKs5tUwLqX_nuw/exec';
+
+let subscriberToken = null;
+
+function getSubscriberEmail(){
+  let token;
+  try { token = localStorage.getItem(NEWSLETTER_TOKEN_KEY); } catch (e) { token = null; }
+  if (!token) return Promise.resolve(null);
+  subscriberToken = token;
+
+  return fetch(NEWSLETTER_GAS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ type: 'newsletter_get_subscriber_by_token', token: token })
+  })
+    .then(function(res){ return res.json(); })
+    .then(function(data){
+      return (data && data.ok && data.email) ? data.email : null;
+    })
+    .catch(function(){ return null; });
+}
+// ▲ ------------------------------------------------------------------ ▲
+
 if (hasAlreadyApplied()) {
   showAlreadyApplied();
 } else {
-  // ページを開いたら現在の設定（締切・賞品・当選人数）をAPIから取得して表示に反映
-  fetch(API_URL + '?action=config')
-    .then(function(res){ return res.json(); })
-    .then(function(cfg){
-      if(!cfg || !cfg.success) return;
-      document.getElementById('campaignTitle').textContent = cfg.campaignName;
-      document.getElementById('prizeName').textContent = cfg.prizeName;
-      document.getElementById('winnerCount').textContent = cfg.winnerCount + '名様';
-      if(cfg.isClosed){ showClosed(); }
-    })
-    .catch(function(){ /* 取得に失敗しても応募フォームはそのまま表示 */ });
+  getSubscriberEmail().then(function(email){
+    if (!email) {
+      showNotSubscribed();
+      return;
+    }
+
+    // メルマガ会員本人と確認できたので、メールアドレスを固定表示して応募フォームを開放する
+    const emailInput = document.getElementById('email');
+    emailInput.value = email;
+    emailInput.readOnly = true;
+    showMainContent();
+
+    // 現在の設定（締切・賞品・当選人数）をAPIから取得して表示に反映
+    fetch(API_URL + '?action=config')
+      .then(function(res){ return res.json(); })
+      .then(function(cfg){
+        if(!cfg || !cfg.success) return;
+        document.getElementById('campaignTitle').textContent = cfg.campaignName;
+        document.getElementById('prizeName').textContent = cfg.prizeName;
+        document.getElementById('winnerCount').textContent = cfg.winnerCount + '名様';
+        if(cfg.isClosed){ showClosed(); }
+      })
+      .catch(function(){ /* 取得に失敗しても応募フォームはそのまま表示 */ });
+  });
 }
 
 function submitForm(){
   const name = document.getElementById('name').value.trim();
   const address = document.getElementById('address').value.trim();
-  const email = document.getElementById('email').value.trim();
   const err = document.getElementById('errorMsg');
   err.style.display = 'none';
 
-  if(!name || !address || !email){
+  if(!name || !address){
     err.textContent = 'すべての項目を入力してください。';
+    err.style.display = 'block';
+    return;
+  }
+  if(!subscriberToken){
+    err.textContent = 'メルマガ会員登録の確認ができませんでした。ページを再読み込みしてお試しください。';
     err.style.display = 'block';
     return;
   }
@@ -179,7 +337,7 @@ function submitForm(){
   fetch(API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // プリフライトを避けるための指定
-    body: JSON.stringify({ action: 'apply', name: name, address: address, email: email })
+    body: JSON.stringify({ action: 'apply', name: name, address: address, token: subscriberToken })
   })
     .then(function(res){ return res.json(); })
     .then(function(res){
