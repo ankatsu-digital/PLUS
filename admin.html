@@ -308,6 +308,26 @@
     .view{display:none}
     .view.on{display:block}
 
+    /* 定期配信 */
+    .dlv-nav{display:flex;align-items:center;justify-content:center;gap:1rem;margin-bottom:.75rem}
+    .dlv-layout{display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-start}
+    .dlv-grid{flex:1 1 560px;min-width:0;display:grid;grid-template-columns:repeat(7,minmax(70px,1fr));gap:.3rem;overflow-x:auto}
+    .dlv-dow{text-align:center;font-size:.7rem;font-weight:700;color:var(--light)}
+    .dlv-cell{min-height:92px;border:1px solid var(--border);border-radius:6px;padding:.25rem;background:var(--card);font-size:.7rem}
+    .dlv-cell.off{background:#f0f0ee;color:var(--light)}
+    .dlv-cell.paused{background:repeating-linear-gradient(45deg,#f0f0ee,#f0f0ee 6px,#e8e8e5 6px,#e8e8e5 12px)}
+    .dlv-cell.today{border:2px solid var(--green)}
+    .dlv-slot{margin-top:.2rem;padding:.2rem .3rem;border:1px dashed var(--green2);border-radius:4px;background:var(--gpale);cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .dlv-slot.empty{background:#fff;color:var(--light)}
+    .dlv-slot.auto{border-color:var(--warn);background:#fff3cd}
+    .dlv-side{flex:0 0 260px;max-width:100%}
+    .dlv-stock{padding:.45rem .6rem;border:1px solid var(--border);border-radius:6px;margin-bottom:.4rem;font-size:.78rem;background:var(--card);cursor:grab}
+    .dlv-stock.sel{border-color:var(--green);background:var(--gpale)}
+    .dlv-row{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;margin-bottom:.5rem;padding:.5rem;background:var(--bg);border-radius:6px}
+    .dlv-row .finput{width:auto;flex:1 1 110px}
+    .dlv-row label{font-size:.76rem;display:flex;align-items:center;gap:.25rem}
+    #dlv-warn .dw{background:#fff3cd;border:1px solid #ffc107;color:#856404;border-radius:6px;padding:.4rem .8rem;margin-bottom:.35rem;font-size:.8rem}
+
     /* レスポンシブ */
     @media(max-width:768px){
       #sidebar{transform:translateX(-100%)}
@@ -365,6 +385,7 @@
       <button class="sb-btn"     data-v="authors">✍️ 執筆者紹介</button>
       <button class="sb-btn"     data-v="spots">🗺️ 地図スポット</button>
       <button class="sb-btn"     data-v="breaking">📡 速報バー設定</button>
+      <button class="sb-btn"     data-v="delivery">📅 定期配信</button>
       <button class="sb-btn"     data-v="newsletter">📧 メールマガジン</button>
       <button class="sb-btn"     data-v="sitefeatures">📣 サイト機能設定</button>
       <button class="sb-btn"     data-v="specialpages">🎌 特設ページ</button>
@@ -574,6 +595,16 @@
               <div class="frow full">
                 <label class="flabel">タグ（カンマ区切り）</label>
                 <input id="f-tags" type="text" class="finput" placeholder="洲本, 移住, イベント" />
+              </div>
+
+              <div class="frow full">
+                <label class="flabel">📅 配信区分</label>
+                <select id="f-deliverymode" class="fselect">
+                  <option value="free">自由配信（今までどおり。予約投稿も可）</option>
+                  <option value="stock">ストック（公開されない。「📅 定期配信」の枠に入れる）</option>
+                  <option value="reserve">予備（枠が足りない朝6時に自動配置される。日付に依存しない記事向け）</option>
+                  <option value="scheduled" disabled>定期配信（枠に配置済み。変更は「📅 定期配信」で）</option>
+                </select>
               </div>
 
               <div class="frow full">
@@ -1051,6 +1082,24 @@
             <button class="btn btn-o" onclick="loadBreaking()">↺ リセット</button>
           </div>
         </div>
+      </div>
+
+      <!-- 定期配信 -->
+      <div id="v-delivery" class="view">
+        <div class="bpanel">
+          <h3>📅 定期配信カレンダー</h3>
+          <div id="dlv-warn"></div>
+          <div class="dlv-nav"><button class="btn btn-o btn-sm" onclick="dlvMove(-1)">‹ 前月</button><b id="dlv-month"></b><button class="btn btn-o btn-sm" onclick="dlvMove(1)">次月 ›</button></div>
+          <div class="dlv-layout">
+            <div class="dlv-grid" id="dlv-grid"></div>
+            <div class="dlv-side">
+              <div class="flabel" style="margin-bottom:.4rem">ストック・予備（ドラッグ、またはタップ→枠をタップ）</div>
+              <div id="dlv-stock"></div>
+              <div class="fhint">🔄＝予備の自動配置。手動で別の記事を入れると上書きされ、予備に戻ります。</div>
+            </div>
+          </div>
+        </div>
+        <div class="bpanel"><h3>⚙️ 配信ルール</h3><div id="dlv-settings"></div></div>
       </div>
 
       <!-- メールマガジン -->
@@ -1704,7 +1753,7 @@ var VTITLES = {
   series:'📚 連載・特集',
   authors:'✍️ 執筆者紹介',
   spots:'🗺️ 地図スポット',
-  breaking:'📡 速報バー設定', newsletter:'📧 メールマガジン', json:'📦 JSON入出力',
+  breaking:'📡 速報バー設定', delivery:'📅 定期配信', newsletter:'📧 メールマガジン', json:'📦 JSON入出力',
   sitefeatures:'📣 サイト機能設定', feedbacklist:'💬 記事フィードバック', analytics:'📊 記事アナリティクス',
   specialpages:'🎌 特設ページ', aichat:'🤖 AIアシスタント'
 };
@@ -1713,7 +1762,7 @@ var VTITLES = {
 var CONTRIBUTOR_APPROVED_VIEWS = ['authors', 'new', 'edit', 'articles'];
 // 編集部員が使えるビュー（投稿者の範囲＋記事全件管理・お問い合わせ・地図スポット・連載特集・アナリティクス・フィードバック）
 // 「投稿者アカウント」の承認/追加確認/権限設定や、サイト機能設定・速報バー・JSON入出力は管理者専用のまま。
-var EDITOR_APPROVED_VIEWS = CONTRIBUTOR_APPROVED_VIEWS.concat(['contacts','spots','series','analytics','feedbacklist','specialpages']);
+var EDITOR_APPROVED_VIEWS = CONTRIBUTOR_APPROVED_VIEWS.concat(['delivery','contacts','spots','series','analytics','feedbacklist','specialpages']);
 var _myPermissions = []; // ログイン中の投稿者に個別付与された権限（例: ['contacts.view']）
 
 function canAccessView(key) {
@@ -1790,6 +1839,7 @@ async function goView(key) {
   }
   if (key==='spots')     { closeSpotForm(); await loadSpots(); renderSpotsAdminList(); }
   if (key==='breaking')  loadBreaking();
+  if (key==='delivery')  { await Promise.all([loadArticles(), loadDelivery()]); renderDelivery(); }
   if (key==='newsletter') { await loadNewsletterData(); renderNewsletterAdmin(); }
   if (key==='sitefeatures') loadSiteFeatureSettings();
   if (key==='analytics') { document.getElementById('analytics-detail-panel').style.display='none'; document.getElementById('an-site-stats').style.display=''; document.getElementById('analytics-list-panel').style.display='block'; renderAnalyticsList(); }
@@ -2360,6 +2410,7 @@ function renderArticles(filter) {
   empty.style.display = 'none';
   tbody.innerHTML = list.map(function(a){
     var scheduleBadge = isArticleScheduled(a) ? '<span class="tag tag-y" title="'+fmtDate(a.createdAt)+'に公開予定">⏰予約中</span>' : '';
+    scheduleBadge += dlvTagHtml(a);
     var unlistedBadge = a.unlisted ? '<span class="tag" style="background:#e8e8f7;color:#5b4fc4" title="一覧・検索には表示されません">🔒限定公開</span>' : '';
     var isOwn = myUid && a.authorUid === myUid;
     var canEdit   = _role === 'admin' || _role === 'editor' || _myPermissions.indexOf('articles.edit')   >= 0 || isOwn;
@@ -3355,6 +3406,7 @@ function getFormData() {
     eventRegistration: eventRegistration,
     eventDate: eventSchedule ? firstOccurrenceDateStr(eventSchedule) : document.getElementById('f-eventdate').value.trim(),
     eventTime: document.getElementById('f-eventtime').value.trim(),
+    deliveryMode: document.getElementById('f-deliverymode').value || 'free',
     unlisted:  document.getElementById('f-unlisted').checked,
     accessPassword: document.getElementById('f-unlisted').checked ? document.getElementById('f-access-pw').value.trim() : '',
     sendNewsletter: document.getElementById('f-newsletter') ? (document.getElementById('f-newsletter').checked && !document.getElementById('f-unlisted').checked) : false,
@@ -3379,6 +3431,7 @@ function setFormData(d) {
   document.getElementById('f-tags').value   = (d.tags||[]).join(', ');
   document.getElementById('f-thumb').value  = d.thumbnail|| '';
   document.getElementById('f-feat').checked = !!d.featured;
+  document.getElementById('f-deliverymode').value = d.deliveryMode || 'free';
   setBodyHtml(d.body || '');
   var prev = document.getElementById('f-thumb-prev');
   if (d.thumbnail) { prev.src=d.thumbnail; prev.style.display='block'; }
@@ -3756,6 +3809,225 @@ function askDelSeries(id, title) {
 }
 
 // ============================================================
+// 定期配信（月水金など×朝N本）。記事: deliveryMode = free | stock | reserve | scheduled
+// 設定: settings/deliverySchedule ／ 優先順位: 単日の例外 ＞ 期間の上書き ＞ 基本ルール
+// ============================================================
+var DLV_DEFAULT = { weekdays:[1,3,5], perDay:2, publishTime:'08:00', reserveCheckTime:'06:00', reserveAuto:true, newsletterMode:'bundle', overrides:[], exceptions:[] };
+var dlv = JSON.parse(JSON.stringify(DLV_DEFAULT));
+var dlvMonth = new Date(); dlvMonth.setDate(1);
+var dlvSel = null;
+var DLV_WD = '日月火水木金土';
+function dKey(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function dlvParseWd(t){ var r=[]; for(var i=0;i<(t||'').length;i++){ var k=DLV_WD.indexOf(t[i]); if(k>=0&&r.indexOf(k)<0) r.push(k); } return r; }
+function dlvWdStr(a){ return (a||[]).slice().sort().map(function(i){ return DLV_WD[i]; }).join(''); }
+function dlvNum(v){ return (v===''||v==null||isNaN(v)) ? null : Number(v); }
+
+async function loadDelivery(){
+  try {
+    var snap = await window._getDoc('settings','deliverySchedule');
+    dlv = Object.assign(JSON.parse(JSON.stringify(DLV_DEFAULT)), snap.exists() ? snap.data() : {});
+  } catch(e){ console.error('loadDelivery:', e); }
+}
+
+function resolveDay(key){
+  var d = new Date(key+'T00:00:00');
+  var r = { perDay:dlv.perDay, time:dlv.publishTime, reserveAuto:dlv.reserveAuto!==false, newsletter:true, paused:false, label:'' };
+  var wds = dlv.weekdays, forced = false;
+  (dlv.overrides||[]).forEach(function(o){
+    if (!o.start || !o.end || key<o.start || key>o.end) return;
+    r.label = o.name || '期間設定';
+    if (o.paused) r.paused = true;
+    if (o.weekdays && o.weekdays.length) wds = o.weekdays;
+    if (dlvNum(o.perDay)!=null) r.perDay = dlvNum(o.perDay);
+    r.reserveAuto = o.reserveAuto!==false; r.newsletter = o.newsletter!==false;
+  });
+  (dlv.exceptions||[]).forEach(function(e){
+    if (e.date !== key) return;
+    r.label = e.note || '単日設定'; forced = !e.paused; r.paused = !!e.paused;
+    if (dlvNum(e.perDay)!=null) r.perDay = dlvNum(e.perDay);
+    if (e.time) r.time = e.time;
+  });
+  r.active = !r.paused && r.perDay>0 && (forced || wds.indexOf(d.getDay())>=0);
+  return r;
+}
+
+function dlvSlotsOf(key){
+  return articles.filter(function(a){ return a.deliveryMode==='scheduled' && a.slotDate===key; })
+    .sort(function(a,b){ return (a.slotIndex||0)-(b.slotIndex||0); });
+}
+function dlvTagHtml(a){
+  var m = {scheduled:['📅定期','tag-g'], stock:['📦ストック','tag-y'], reserve:['🔄予備','tag-y']}[a.deliveryMode];
+  return m ? '<span class="tag '+m[1]+'">'+m[0]+'</span>' : '';
+}
+function dlvMove(n){ dlvMonth.setMonth(dlvMonth.getMonth()+n); renderDelivery(); }
+
+function dlvWarnings(){
+  var w = [], today = dKey(new Date()), by = {};
+  articles.filter(function(a){ return a.deliveryMode==='scheduled' && a.slotDate; }).forEach(function(a){ (by[a.slotDate]=by[a.slotDate]||[]).push(a); });
+  Object.keys(by).sort().forEach(function(k){
+    if (k < today) return;
+    var r = resolveDay(k);
+    if (!r.active) w.push(k+' は配信休止／対象外ですが '+by[k].length+'本入っています（手動で移動してください）');
+    else if (by[k].length > r.perDay) w.push(k+' は'+r.perDay+'本枠に'+by[k].length+'本入っています');
+  });
+  var res = articles.filter(function(a){ return a.deliveryMode==='reserve'; }).length;
+  if (res===0) w.push('🚨 予備が0本です。枠が空いても自動配置できません');
+  else if (res<3) w.push('予備が残り'+res+'本です。補充してください');
+  return w;
+}
+
+function renderDelivery(){
+  var y = dlvMonth.getFullYear(), m = dlvMonth.getMonth(), today = dKey(new Date());
+  document.getElementById('dlv-month').textContent = y+'年 '+(m+1)+'月';
+  document.getElementById('dlv-warn').innerHTML = dlvWarnings().map(function(t){ return '<div class="dw">⚠️ '+t+'</div>'; }).join('');
+
+  var free = {};
+  articles.filter(function(a){ return !a.deliveryMode || a.deliveryMode==='free'; }).forEach(function(a){
+    try { var d=(a.createdAt&&a.createdAt.toDate)?a.createdAt.toDate():new Date(a.createdAt); if(!isNaN(d)){ var k=dKey(d); free[k]=(free[k]||0)+1; } } catch(e){}
+  });
+
+  var html = DLV_WD.split('').map(function(c){ return '<div class="dlv-dow">'+c+'</div>'; }).join('');
+  var first = new Date(y,m,1), days = new Date(y,m+1,0).getDate();
+  for (var i=0;i<first.getDay();i++) html += '<div></div>';
+  for (var d=1; d<=days; d++){
+    var key = dKey(new Date(y,m,d)), r = resolveDay(key), list = dlvSlotsOf(key);
+    var cls = 'dlv-cell'+(key===today?' today':'')+(r.paused?' paused':(r.active?'':' off'));
+    var inner = '<div><b>'+d+'</b>'+(r.label?' <span style="color:var(--warn)">'+escapeHtml(r.label)+'</span>':'')+(free[key]?' <span style="color:var(--light)">自由'+free[key]+'</span>':'')+'</div>';
+    if (r.paused) inner += '<div>休止</div>';
+    else if (r.active){
+      inner += '<div style="color:var(--light)">'+r.time+'</div>';
+      for (var n=0;n<Math.max(r.perDay,list.length);n++){
+        var a = list[n];
+        inner += a
+          ? '<div class="dlv-slot'+(a.autoFilled?' auto':'')+'" draggable="true" ondragstart="dlvDrag(event,\''+a.id+'\')" onclick="dlvSlotClick(\''+key+'\',\''+a.id+'\');event.stopPropagation()" title="'+escAttr(a.title)+'">'+(a.autoFilled?'🔄 ':'')+escapeHtml(a.title)+'</div>'
+          : '<div class="dlv-slot empty" onclick="dlvSlotClick(\''+key+'\',\'\');event.stopPropagation()">＋ 空き</div>';
+      }
+    }
+    html += '<div class="'+cls+'" ondragover="event.preventDefault()" ondrop="dlvDrop(event,\''+key+'\')">'+inner+'</div>';
+  }
+  document.getElementById('dlv-grid').innerHTML = html;
+
+  var stock = articles.filter(function(a){ return a.deliveryMode==='stock' || a.deliveryMode==='reserve'; });
+  document.getElementById('dlv-stock').innerHTML = stock.length ? stock.map(function(a){
+    return '<div class="dlv-stock'+(dlvSel===a.id?' sel':'')+'" draggable="true" ondragstart="dlvDrag(event,\''+a.id+'\')" onclick="dlvPick(\''+a.id+'\')">'
+      + dlvTagHtml(a)+' '+escapeHtml(a.title)
+      + '<div style="margin-top:.3rem;display:flex;gap:.3rem"><button class="btn btn-o btn-sm" onclick="dlvToggleKind(\''+a.id+'\');event.stopPropagation()">'+(a.deliveryMode==='reserve'?'→ストック':'→予備')+'</button>'
+      + '<button class="btn btn-o btn-sm" onclick="startEdit(\''+a.id+'\');event.stopPropagation()">✏️</button></div></div>';
+  }).join('') : '<div class="etbl" style="padding:1rem">ストックなし。記事フォームの「配信区分」から追加できます。</div>';
+  renderDlvSettings();
+}
+
+function dlvDrag(e,id){ e.dataTransfer.setData('text/plain', id); }
+function dlvDrop(e,key){ e.preventDefault(); var id = e.dataTransfer.getData('text/plain'); if (id) dlvAssign(id,key); }
+function dlvPick(id){ dlvSel = (dlvSel===id) ? null : id; renderDelivery(); }
+function dlvSlotClick(key,artId){
+  if (dlvSel){ var id=dlvSel; dlvSel=null; dlvAssign(id,key); return; }
+  if (artId && confirm('この記事を枠から外してストックに戻しますか？')) dlvUnassign(artId);
+  else if (!artId) toast('先に右のストックから記事をタップ（またはドラッグ）してください','warn');
+}
+async function dlvToggleKind(id){
+  var a = articles.find(function(x){ return x.id===id; }); if(!a) return;
+  await window._updateDoc('articles', id, { deliveryMode: a.deliveryMode==='reserve' ? 'stock' : 'reserve' });
+  await loadArticles(); renderDelivery();
+}
+async function dlvUnassign(id){
+  var a = articles.find(function(x){ return x.id===id; }); if(!a) return;
+  await window._updateDoc('articles', id, { deliveryMode: a.stockKind||'stock', slotDate:'', slotIndex:null, autoFilled:false, createdAt:window._ts(), updatedAt:window._ts() });
+}
+async function dlvAssign(id,key){
+  var a = articles.find(function(x){ return x.id===id; }); if(!a) return;
+  var r = resolveDay(key);
+  if (!r.active){ toast('この日は配信日ではありません（休止・対象外）','warn'); return; }
+  var list = dlvSlotsOf(key).filter(function(x){ return x.id!==id; });
+  if (list.length >= r.perDay){
+    var auto = list.find(function(x){ return x.autoFilled; });
+    if (!auto){ toast('この日の枠は埋まっています。先に枠の記事を外してください','warn'); return; }
+    await dlvUnassign(auto.id); list = list.filter(function(x){ return x.id!==auto.id; });
+  }
+  if (a.eventDate && a.eventDate < key && !confirm('イベント開催日（'+a.eventDate+'）より後の配信になります。配置しますか？')) return;
+  try {
+    await window._updateDoc('articles', id, {
+      deliveryMode:'scheduled', stockKind: a.deliveryMode==='scheduled' ? (a.stockKind||'stock') : a.deliveryMode,
+      slotDate:key, slotIndex:list.length, autoFilled:false,
+      createdAt:new Date(key+'T'+r.time+':00').toISOString(), updatedAt:window._ts()
+    });
+    toast(key+' の枠に配置しました ✅');
+  } catch(e){ toast('配置に失敗: '+e.message,'error'); }
+  await loadArticles(); renderDelivery();
+}
+
+// ---- 配信ルール（設定） ----
+function renderDlvSettings(){
+  var ov = (dlv.overrides||[]).map(function(o){
+    return '<div class="dlv-row">'
+      + '<input class="finput" data-f="name" placeholder="名前（夏休み等）" value="'+escAttr(o.name)+'">'
+      + '<input class="finput" type="date" data-f="start" value="'+(o.start||'')+'">〜<input class="finput" type="date" data-f="end" value="'+(o.end||'')+'">'
+      + '<input class="finput" data-f="wd" placeholder="曜日 例:水（空欄=基本）" value="'+dlvWdStr(o.weekdays)+'">'
+      + '<input class="finput" type="number" min="0" data-f="per" placeholder="本数（空欄=基本）" value="'+(dlvNum(o.perDay)==null?'':o.perDay)+'">'
+      + '<label><input type="checkbox" data-f="paused" '+(o.paused?'checked':'')+'>完全休止</label>'
+      + '<label><input type="checkbox" data-f="rauto" '+(o.reserveAuto!==false?'checked':'')+'>予備自動</label>'
+      + '<label><input type="checkbox" data-f="nl" '+(o.newsletter!==false?'checked':'')+'>メルマガ</label>'
+      + '<button class="btn btn-r btn-sm" onclick="dlvDelRow(\'overrides\',this)">✕</button></div>';
+  }).join('');
+  var ex = (dlv.exceptions||[]).map(function(e){
+    return '<div class="dlv-row">'
+      + '<input class="finput" type="date" data-f="date" value="'+(e.date||'')+'">'
+      + '<input class="finput" data-f="note" placeholder="メモ" value="'+escAttr(e.note)+'">'
+      + '<input class="finput" type="number" min="0" data-f="per" placeholder="本数（空欄=通常）" value="'+(dlvNum(e.perDay)==null?'':e.perDay)+'">'
+      + '<input class="finput" type="time" data-f="time" value="'+(e.time||'')+'">'
+      + '<label><input type="checkbox" data-f="paused" '+(e.paused?'checked':'')+'>この日は休み</label>'
+      + '<button class="btn btn-r btn-sm" onclick="dlvDelRow(\'exceptions\',this)">✕</button></div>';
+  }).join('');
+  document.getElementById('dlv-settings').innerHTML =
+    '<div class="flabel" style="margin-bottom:.4rem">基本ルール</div>'
+    + '<div class="dlv-row"><label>曜日 <input class="finput" id="dlv-wd" value="'+dlvWdStr(dlv.weekdays)+'" style="width:90px"></label>'
+    + '<label>1日の本数 <input class="finput" id="dlv-per" type="number" min="0" value="'+dlv.perDay+'" style="width:70px"></label>'
+    + '<label>公開時刻 <input class="finput" id="dlv-time" type="time" value="'+dlv.publishTime+'"></label>'
+    + '<label>予備チェック <input class="finput" id="dlv-rtime" type="time" value="'+dlv.reserveCheckTime+'"></label>'
+    + '<label><input type="checkbox" id="dlv-rauto" '+(dlv.reserveAuto!==false?'checked':'')+'>予備の自動配置</label></div>'
+    + '<div class="flabel" style="margin:1rem 0 .4rem">📆 期間の上書き（夏休み・年末年始など）</div><div id="dlv-ov">'+ov+'</div>'
+    + '<button class="bi-add" onclick="dlvAddRow(\'overrides\')">＋ 期間を追加</button>'
+    + '<div class="flabel" style="margin:1rem 0 .4rem">📌 単日の例外（休み・本数変更・時刻変更・臨時配信）</div><div id="dlv-ex">'+ex+'</div>'
+    + '<button class="bi-add" onclick="dlvAddRow(\'exceptions\')">＋ 日付を追加</button>'
+    + '<div class="fhint" style="margin-top:.6rem">優先順位：単日の例外 ＞ 期間の上書き ＞ 基本ルール。休止にした日に記事が入っていても自動では動かさず、上の警告に出ます。</div>'
+    + '<div style="margin-top:1rem"><button class="btn btn-g" onclick="dlvSave()">💾 保存して反映</button></div>';
+}
+function dlvCollect(){
+  var g = function(id){ return document.getElementById(id); };
+  dlv.weekdays = dlvParseWd(g('dlv-wd').value);
+  dlv.perDay = parseInt(g('dlv-per').value,10) || 0;
+  dlv.publishTime = g('dlv-time').value || '08:00';
+  dlv.reserveCheckTime = g('dlv-rtime').value || '06:00';
+  dlv.reserveAuto = g('dlv-rauto').checked;
+  var f = function(r,k){ return r.querySelector('[data-f="'+k+'"]'); };
+  dlv.overrides = Array.from(document.querySelectorAll('#dlv-ov .dlv-row')).map(function(r){
+    return { name:f(r,'name').value.trim(), start:f(r,'start').value, end:f(r,'end').value, weekdays:dlvParseWd(f(r,'wd').value),
+      perDay:f(r,'per').value===''?'':parseInt(f(r,'per').value,10), paused:f(r,'paused').checked, reserveAuto:f(r,'rauto').checked, newsletter:f(r,'nl').checked };
+  });
+  dlv.exceptions = Array.from(document.querySelectorAll('#dlv-ex .dlv-row')).map(function(r){
+    return { date:f(r,'date').value, note:f(r,'note').value.trim(), perDay:f(r,'per').value===''?'':parseInt(f(r,'per').value,10), time:f(r,'time').value, paused:f(r,'paused').checked };
+  });
+}
+function dlvAddRow(kind){
+  dlvCollect();
+  dlv[kind].push(kind==='overrides' ? {name:'',start:'',end:'',weekdays:[],perDay:'',paused:false,reserveAuto:true,newsletter:true} : {date:'',note:'',perDay:'',time:'',paused:true});
+  renderDlvSettings();
+}
+function dlvDelRow(kind,btn){
+  dlvCollect();
+  var rows = Array.from(btn.parentElement.parentElement.children);
+  dlv[kind].splice(rows.indexOf(btn.parentElement),1);
+  renderDelivery();
+}
+async function dlvSave(){
+  dlvCollect();
+  dlv.overrides = dlv.overrides.filter(function(o){ return o.start && o.end; });
+  dlv.exceptions = dlv.exceptions.filter(function(e){ return e.date; });
+  try { await window._setDoc('settings','deliverySchedule', dlv); toast('配信ルールを保存しました ✅'); renderDelivery(); }
+  catch(e){ toast('保存失敗: '+e.message,'error'); }
+}
+
+// ============================================================
 // メールマガジン
 // ============================================================
 var newsletterSubscribers = [];
@@ -3870,6 +4142,7 @@ function sendNewsletterGas(payload) {
 async function sendNewsletterForArticle(articleData) {
   if (!articleData) return;
   if (articleData.unlisted) return;
+  if (['stock','reserve','scheduled'].indexOf(articleData.deliveryMode) >= 0) return; // 定期配信・ストックは日次まとめメール（GAS）が担当
   if (articleData.sendNewsletter === false) return;
   if (!articleData.id) return;
   await loadNewsletterData(); // 常に最新の設定・登録者リストを使う
