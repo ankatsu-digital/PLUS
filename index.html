@@ -327,9 +327,6 @@
       getFirestore, collection, getDocs, getDoc, doc,
       query, orderBy, where, limit, addDoc, serverTimestamp, updateDoc, increment
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-    import {
-      getMessaging, getToken, onMessage, isSupported
-    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js";
 
     const firebaseConfig = {
       apiKey:            "AIzaSyC4HUWd4c5_fdgA-k34i1uthozfqYcRn9A",
@@ -346,21 +343,7 @@
     window._db          = db;
     window._firestoreOp = { collection, getDocs, getDoc, doc, query, orderBy, where, limit, addDoc, serverTimestamp, updateDoc, increment };
 
-    isSupported().then(function(supported){
-      if (supported) {
-        try {
-          const messaging = getMessaging(app);
-          window._messaging = messaging;
-          window._getToken  = getToken;
-          onMessage(messaging, function(payload){
-            window.dispatchEvent(new CustomEvent('push-foreground-message', { detail: payload }));
-          });
-        } catch(e) { console.error('messaging init error:', e); }
-      }
-      document.dispatchEvent(new Event("firebase-ready"));
-    }).catch(function(){
-      document.dispatchEvent(new Event("firebase-ready"));
-    });
+    document.dispatchEvent(new Event("firebase-ready"));
   </script>
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -425,6 +408,10 @@
     #mobile-nav{display:none;position:fixed;top:var(--header-h);left:0;right:0;background:var(--bg-card);border-bottom:1px solid var(--border);padding:1rem 1.5rem;z-index:99;flex-direction:column;gap:.25rem}
     #mobile-nav.open{display:flex}
     #mobile-nav .nav-link{font-size:1rem;padding:.6rem 1rem}
+
+    .delivery-badge{display:inline-block;font-size:.67rem;font-weight:700;letter-spacing:.06em;color:var(--accent);background:var(--bg-card);border:1px solid var(--accent);padding:.08rem .45rem;border-radius:3px;margin-bottom:.3rem;margin-right:.25rem}
+    .delivery-badge.today{background:var(--danger);border-color:var(--danger);color:#fff}
+    .feature-cat-tag ~ .delivery-badge{margin-bottom:.75rem}
 
     /* 速報バー */
     #breaking-bar{background:var(--accent);color:#fff;font-size:.82rem;display:flex;align-items:center;overflow:hidden;height:36px}
@@ -542,18 +529,6 @@
     #share-toast-container{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);z-index:9998;display:flex;flex-direction:column;align-items:center;gap:.5rem}
     .share-toast{background:var(--text-main);color:var(--bg);padding:.6rem 1.25rem;border-radius:20px;font-size:.82rem;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.25);animation:jmaSlideIn .2s ease-out}
 
-    /* プッシュ通知バナー */
-    #push-banner{display:none;position:fixed;bottom:1.25rem;left:1.25rem;right:1.25rem;z-index:9997;justify-content:center}
-    .push-banner-card{max-width:480px;width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:14px;box-shadow:0 10px 30px var(--shadow);padding:1.1rem 1.25rem;display:flex;align-items:center;gap:.9rem;flex-wrap:wrap;animation:jmaSlideIn .3s ease-out}
-    .push-banner-icon{font-size:1.6rem;flex-shrink:0}
-    .push-banner-text{flex:1;min-width:160px}
-    .push-banner-title{font-size:.87rem;font-weight:700;margin-bottom:.2rem;color:var(--text-main)}
-    .push-banner-sub{font-size:.74rem;color:var(--text-muted)}
-    .push-banner-actions{display:flex;gap:.5rem;flex-shrink:0}
-    .push-banner-btn{padding:.45rem .9rem;border-radius:20px;font-size:.8rem;font-weight:700}
-    .push-banner-btn-primary{background:var(--accent);color:#fff}
-    .push-banner-btn-primary:hover{background:var(--accent-light)}
-    .push-banner-btn-secondary{background:var(--bg-sub);color:var(--text-muted);border:1px solid var(--border)}
     .back-btn{display:inline-flex;align-items:center;gap:.5rem;font-size:.85rem;color:var(--text-muted);padding:.5rem 1rem;border:1px solid var(--border);border-radius:4px;margin-bottom:1.5rem;transition:background var(--tr);cursor:pointer}
     .back-btn:hover{background:var(--bg-sub);color:var(--accent)}
 
@@ -961,11 +936,6 @@
     </div>
   </div>
 
-  <!-- プッシュ通知 購読案内バナー -->
-
-    </div>
-  </div>
-
   <!-- 特設ページ用の簡易ヘッダー（layoutMode:minimal の時だけ表示） -->
   <header id="special-minimal-header" style="display:none;background:var(--bg-card);border-bottom:1px solid var(--border);height:56px;align-items:center;padding:0 1.25rem;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px var(--shadow)">
     <a href="index.html" style="font-family:var(--serif);font-weight:900;color:var(--accent);font-size:1.1rem;text-decoration:none">アンカツ＋</a>
@@ -1219,10 +1189,29 @@
     return (a && a.category) ? [a.category] : [];
   }
   function primaryCat(a){ var c=articleCats(a); return c.length?c[0]:''; }
+  /* 定期配信（deliveryMode:'scheduled'）の記事に「本日の配信／今週の配信」バッジを付ける（週は月曜始まり） */
+  function deliveryBadgeLabel(a){
+    if(!a || a.deliveryMode!=='scheduled') return '';
+    var d; try{ d=(a.createdAt&&a.createdAt.toDate)?a.createdAt.toDate():new Date(a.createdAt||0); }catch(e){ return ''; }
+    if(!d||isNaN(d)) return '';
+    var now=new Date();
+    var today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    var dDay=new Date(d.getFullYear(),d.getMonth(),d.getDate());
+    if(dDay.getTime()===today.getTime()) return '本日の配信';
+    var weekStart=new Date(today); weekStart.setDate(today.getDate()-((today.getDay()+6)%7));
+    var weekEnd=new Date(weekStart); weekEnd.setDate(weekStart.getDate()+7);
+    if(dDay>=weekStart && dDay<weekEnd) return '今週の配信';
+    return '';
+  }
+  function deliveryBadgeHtml(a){
+    var l=deliveryBadgeLabel(a);
+    return l ? '<span class="delivery-badge'+(l==='本日の配信'?' today':'')+'">'+l+'</span>' : '';
+  }
   function catTagsHtml(a,cls){
     var cats=articleCats(a);
-    if(!cats.length) return '<span class="'+cls+'">記事</span>';
-    return cats.map(function(c){return '<span class="'+cls+'">'+c+'</span>';}).join('');
+    var badge=(cls==='article-cat-badge-item')?'':deliveryBadgeHtml(a);
+    if(!cats.length) return badge+'<span class="'+cls+'">記事</span>';
+    return badge+cats.map(function(c){return '<span class="'+cls+'">'+c+'</span>';}).join('');
   }
 
   /* =========================================================================
@@ -1694,6 +1683,8 @@
       var now=new Date();
       allArticles=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());})
         .filter(function(a){
+          /* 予備・ストック記事（定期配信の枠に入るまで）は公開しない */
+          if(a.deliveryMode==='reserve' || a.deliveryMode==='stock') return false;
           /* 予約投稿（createdAtが未来日時）はサイトにはまだ表示しない */
           try{
             var createdAtDate=(a.createdAt&&a.createdAt.toDate)?a.createdAt.toDate():(a.createdAt?new Date(a.createdAt):null);
@@ -2026,6 +2017,7 @@
       '<header class="article-header">'
       +seriesBadge
       +'<div class="article-cat-badge">'+catTagsHtml(a,'article-cat-badge-item')+'</div>'
+      +(deliveryBadgeLabel(a)?'<div style="margin-bottom:.6rem">'+deliveryBadgeHtml(a)+'</div>':'')
       +'<h1 class="article-title">'+articleDisplayTitle(a)+'</h1>'
       +statusRow
       +'<div class="article-meta"><span>✍️ <span class="author-name-link" onclick="openAuthor(\''+(a.author||'編集部').replace(/'/g,"\\'")+'\')">'+(a.author||'編集部')+'</span></span><span>📅 '+fmtDate(a.createdAt)+'</span>'+articleViewCountHtml(a)+'</div>'
@@ -2131,61 +2123,6 @@
     wrap.appendChild(el);
     setTimeout(function(){ el.remove(); }, 2400);
   }
-
-  /* ---- プッシュ通知（Firebase Cloud Messaging + Google Apps Script） ---- */
-  var PUSH_GAS_URL = 'https://script.google.com/macros/s/XXXXXXXXXXXXXXXX/exec'; /* ← 発行したGASウェブアプリのURLに書き換えてください */
-  var PUSH_VAPID_KEY = 'YOUR_VAPID_KEY_HERE'; /* ← FirebaseコンソールのWeb Push証明書の鍵に書き換えてください */
-  var PUSH_DISMISS_KEY = 'ankatsu_push_prompt_dismissed';
-
-  function initPushNotifications(){
-    if(!('Notification' in window) || !('serviceWorker' in navigator) || !window._messaging) return;
-    if(Notification.permission!=='default') return; /* すでに許可・拒否済みなら何もしない */
-    if(localStorage.getItem(PUSH_DISMISS_KEY)==='1') return;
-    setTimeout(function(){ document.getElementById('push-banner').style.display='flex'; }, 2500);
-  }
-
-  function dismissPushBanner(remember){
-    document.getElementById('push-banner').style.display='none';
-    if(remember) localStorage.setItem(PUSH_DISMISS_KEY,'1');
-  }
-
-  async function enablePushNotifications(){
-    try{
-      var permission=await Notification.requestPermission();
-      if(permission!=='granted'){
-        dismissPushBanner(true);
-        showShareToast('通知が許可されませんでした');
-        return;
-      }
-      var reg=await navigator.serviceWorker.register('firebase-messaging-sw.js');
-      var token=await window._getToken(window._messaging, {vapidKey:PUSH_VAPID_KEY, serviceWorkerRegistration:reg});
-      if(!token){ showShareToast('通知の登録に失敗しました'); return; }
-      await fetch(PUSH_GAS_URL, {
-        method:'POST',
-        headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body: JSON.stringify({action:'subscribe', token:token})
-      });
-      dismissPushBanner(true);
-      showShareToast('プッシュ通知をオンにしました 🔔');
-    }catch(e){
-      console.error('push subscribe error:', e);
-      showShareToast('通知の設定に失敗しました');
-    }
-  }
-
-  window.addEventListener('push-foreground-message', function(e){
-    var payload=e.detail||{};
-    var title=(payload.notification&&payload.notification.title)||'アンカツ＋';
-    var body=(payload.notification&&payload.notification.body)||'';
-    var url=(payload.fcmOptions&&payload.fcmOptions.link)||(payload.data&&payload.data.url)||'';
-    showShareToast('🔔 '+title+(body?'：'+body:''));
-    if('Notification' in window && Notification.permission==='granted'){
-      try{
-        var n=new Notification(title, {body:body, icon:'web-app-manifest-512x512.png'});
-        if(url){ n.onclick=function(){ window.focus(); location.href=url; }; }
-      }catch(e){ /* 一部ブラウザ（iOS Safari等）はページ内からのNotification生成に対応していないため無視 */ }
-    }
-  });
 
   function goBack(){
     history.back();
@@ -3140,7 +3077,6 @@
       loadBreaking();
       checkMaintenance();
       setInterval(checkMaintenance, MAINTENANCE_CHECK_INTERVAL);
-      initPushNotifications();
       initNewsletterBanner();
       loadSiteFeatureSettings();
       Promise.all([loadArticles(), loadSeries(), loadAuthors()]).then(handleInitialHash);
