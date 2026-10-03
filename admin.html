@@ -3446,7 +3446,7 @@ function getFormData() {
     eventRegistration: eventRegistration,
     eventDate: eventSchedule ? firstOccurrenceDateStr(eventSchedule) : document.getElementById('f-eventdate').value.trim(),
     eventTime: document.getElementById('f-eventtime').value.trim(),
-    deliveryMode: document.getElementById('f-deliverymode').value || 'free',
+    deliveryMode: document.getElementById('f-unlisted').checked ? 'free' : (document.getElementById('f-deliverymode').value || 'free'),
     unlisted:  document.getElementById('f-unlisted').checked,
     accessPassword: document.getElementById('f-unlisted').checked ? document.getElementById('f-access-pw').value.trim() : '',
     sendNewsletter: document.getElementById('f-newsletter') ? (document.getElementById('f-newsletter').checked && !document.getElementById('f-unlisted').checked) : false,
@@ -3499,6 +3499,13 @@ function toggleUnlistedField(){
   document.getElementById('unlisted-pw-wrap').style.display = on ? 'block' : 'none';
   var nl = document.getElementById('f-newsletter');
   if (nl) { nl.disabled = on; if (on) nl.checked = false; }
+  // 限定公開はリンクで見せる記事なので、配信区分は「自由配信」に固定（ストックのままだとリンクでも開けなくなる）
+  var dm = document.getElementById('f-deliverymode');
+  if (dm) {
+    if (on) { if (dm.value !== 'free') { dm.dataset.prev = dm.value; dm.value = 'free'; } dm.disabled = true; }
+    else { dm.disabled = false; if (dm.dataset.prev) { dm.value = dm.dataset.prev; delete dm.dataset.prev; } }
+  }
+  updatePubBtnLabel();
 }
 function genArticlePassword(){
   var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
