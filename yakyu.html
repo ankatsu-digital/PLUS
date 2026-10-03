@@ -3,568 +3,154 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>阪神 vs 広島｜ライブ速報</title>
+<title>阪神・広島 APIテスト</title>
 
 <style>
-    * {
-        box-sizing: border-box;
-    }
+body {
+    font-family: Arial, sans-serif;
+    padding: 30px;
+    background: #f5f5f5;
+}
 
-    body {
-        margin: 0;
-        font-family:
-            -apple-system,
-            BlinkMacSystemFont,
-            "Segoe UI",
-            "Noto Sans JP",
-            sans-serif;
-        background: #f3f4f6;
-        color: #111827;
-    }
+.box {
+    max-width: 800px;
+    margin: auto;
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+}
 
-    .container {
-        max-width: 700px;
-        margin: 40px auto;
-        padding: 20px;
-    }
-
-    .live-card {
-        background: white;
-        border-radius: 18px;
-        box-shadow: 0 8px 30px rgba(0,0,0,0.08);
-        overflow: hidden;
-    }
-
-    .header {
-        padding: 20px;
-        background: #111827;
-        color: white;
-        text-align: center;
-    }
-
-    .header h1 {
-        margin: 0;
-        font-size: 22px;
-    }
-
-    .live {
-        display: inline-block;
-        margin-top: 10px;
-        padding: 5px 12px;
-        border-radius: 20px;
-        background: #dc2626;
-        color: white;
-        font-size: 13px;
-        font-weight: bold;
-    }
-
-    .score {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 35px;
-        padding: 35px 20px;
-    }
-
-    .team {
-        width: 150px;
-        text-align: center;
-    }
-
-    .team-name {
-        font-size: 18px;
-        font-weight: bold;
-    }
-
-    .team-score {
-        margin-top: 10px;
-        font-size: 50px;
-        font-weight: 800;
-    }
-
-    .vs {
-        font-size: 16px;
-        color: #6b7280;
-    }
-
-    .status {
-        text-align: center;
-        padding: 12px;
-        background: #f9fafb;
-        border-top: 1px solid #e5e7eb;
-        border-bottom: 1px solid #e5e7eb;
-        font-weight: bold;
-    }
-
-    .inning-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 20px 0;
-    }
-
-    .inning-table th,
-    .inning-table td {
-        padding: 9px 6px;
-        text-align: center;
-        border-bottom: 1px solid #e5e7eb;
-        font-size: 13px;
-    }
-
-    .inning-table th:first-child,
-    .inning-table td:first-child {
-        text-align: left;
-        padding-left: 20px;
-        font-weight: bold;
-    }
-
-    .loading {
-        text-align: center;
-        padding: 30px;
-        color: #6b7280;
-    }
-
-    .error {
-        margin: 20px;
-        padding: 15px;
-        border-radius: 10px;
-        background: #fee2e2;
-        color: #991b1b;
-        font-size: 14px;
-    }
-
-    .updated {
-        text-align: center;
-        color: #9ca3af;
-        font-size: 12px;
-        padding: 15px;
-    }
-
-    @media (max-width: 500px) {
-        .container {
-            margin: 15px auto;
-            padding: 10px;
-        }
-
-        .score {
-            gap: 15px;
-        }
-
-        .team {
-            width: 110px;
-        }
-
-        .team-name {
-            font-size: 15px;
-        }
-
-        .team-score {
-            font-size: 42px;
-        }
-
-        .inning-table th,
-        .inning-table td {
-            padding: 7px 3px;
-            font-size: 11px;
-        }
-    }
+pre {
+    white-space: pre-wrap;
+    word-break: break-all;
+    background: #111;
+    color: #0f0;
+    padding: 20px;
+    border-radius: 8px;
+}
 </style>
 </head>
 
 <body>
 
-<div class="container">
+<div class="box">
 
-    <div class="live-card">
+<h1>阪神 vs 広島 APIテスト</h1>
 
-        <div class="header">
-            <h1>プロ野球 ライブ速報</h1>
-            <div class="live">● LIVE</div>
-        </div>
+<p id="status">APIに接続しています...</p>
 
-        <div id="score-area">
-            <div class="loading">
-                試合情報を取得しています...
-            </div>
-        </div>
-
-    </div>
+<pre id="result"></pre>
 
 </div>
 
-
 <script>
 
-    // ==========================================
-    // API設定
-    // ==========================================
+const API_KEY = "fa0c70e4fb597c0d9c0f9952dc831eaf";
 
-    const API_KEY = "fa0c70e4fb597c0d9c0f9952dc831eaf
-";
+const API_URL =
+    "https://v1.baseball.api-sports.io/games" +
+    "?date=2026-10-03" +
+    "&timezone=Asia/Tokyo";
 
-    const API_URL =
-        "https://v1.baseball.api-sports.io/games";
 
+async function getGames() {
 
-    // ==========================================
-    // 阪神・広島の試合を取得
-    // ==========================================
+    const status =
+        document.getElementById("status");
 
-    async function getGame() {
+    const result =
+        document.getElementById("result");
 
-        const scoreArea = document.getElementById("score-area");
+    try {
 
-        try {
+        // 15秒でタイムアウト
+        const controller =
+            new AbortController();
 
-            /*
-             * NPB = league ID 2
-             *
-             * 2026 = 2026年シーズン
-             *
-             * 今日の試合を取得
-             */
+        const timeout =
+            setTimeout(() => {
+                controller.abort();
+            }, 15000);
 
-            const url =
-                API_URL +
-                "?league=2" +
-                "&season=2026" +
-                "&date=2026-10-03";
 
-            const response = await fetch(url, {
+        const response = await fetch(API_URL, {
 
-                method: "GET",
+            method: "GET",
 
-                headers: {
-                    "x-apisports-key": API_KEY
-                }
+            headers: {
+                "x-apisports-key": API_KEY,
+                "Accept": "application/json"
+            },
 
-            });
-
-
-            if (!response.ok) {
-                throw new Error(
-                    "APIエラー：" + response.status
-                );
-            }
-
-
-            const data = await response.json();
-
-
-            console.log("API Response:", data);
-
-
-            // --------------------------------------
-            // 阪神 vs 広島を探す
-            // --------------------------------------
-
-            const games = data.response || [];
-
-            const game = games.find(g => {
-
-                const home =
-                    g.teams?.home?.name || "";
-
-                const away =
-                    g.teams?.away?.name || "";
-
-                return (
-                    (
-                        home.includes("Hanshin") ||
-                        home.includes("阪神")
-                    ) &&
-                    (
-                        away.includes("Hiroshima") ||
-                        away.includes("広島")
-                    )
-                ) ||
-                (
-                    (
-                        home.includes("Hiroshima") ||
-                        home.includes("広島")
-                    ) &&
-                    (
-                        away.includes("Hanshin") ||
-                        away.includes("阪神")
-                    )
-                );
-
-            });
-
-
-            if (!game) {
-
-                scoreArea.innerHTML = `
-                    <div class="loading">
-                        本日の阪神－広島戦が見つかりませんでした。
-                    </div>
-                `;
-
-                return;
-            }
-
-
-            // --------------------------------------
-            // 表示
-            // --------------------------------------
-
-            renderGame(game);
-
-        }
-
-        catch (error) {
-
-            console.error(error);
-
-            scoreArea.innerHTML = `
-                <div class="error">
-                    試合情報を取得できませんでした。<br>
-                    APIキーやAPIの利用状況を確認してください。
-                </div>
-            `;
-
-        }
-
-    }
-
-
-    // ==========================================
-    // 試合情報を画面に表示
-    // ==========================================
-
-    function renderGame(game) {
-
-        const scoreArea =
-            document.getElementById("score-area");
-
-
-        const home =
-            game.teams?.home;
-
-        const away =
-            game.teams?.away;
-
-        const status =
-            game.status;
-
-
-        const homeScore =
-            home?.score ?? 0;
-
-        const awayScore =
-            away?.score ?? 0;
-
-
-        let statusText =
-            status?.long || "試合情報";
-
-
-        // --------------------------------------
-        // スコアボード
-        // --------------------------------------
-
-        scoreArea.innerHTML = `
-
-            <div class="score">
-
-                <div class="team">
-
-                    <div class="team-name">
-                        ${away?.name || "阪神"}
-                    </div>
-
-                    <div class="team-score">
-                        ${awayScore}
-                    </div>
-
-                </div>
-
-
-                <div class="vs">
-                    VS
-                </div>
-
-
-                <div class="team">
-
-                    <div class="team-name">
-                        ${home?.name || "広島"}
-                    </div>
-
-                    <div class="team-score">
-                        ${homeScore}
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            <div class="status">
-
-                ${statusText}
-
-            </div>
-
-
-            <div id="inning-area">
-
-                ${createInningTable(game)}
-
-            </div>
-
-
-            <div class="updated">
-
-                最終更新：
-                ${new Date().toLocaleTimeString("ja-JP")}
-
-            </div>
-
-        `;
-
-    }
-
-
-    // ==========================================
-    // イニング表示
-    // ==========================================
-
-    function createInningTable(game) {
-
-        const innings =
-            game.scores?.innings || {};
-
-        const awayName =
-            game.teams?.away?.name || "阪神";
-
-        const homeName =
-            game.teams?.home?.name || "広島";
-
-
-        const inningNumbers =
-            Object.keys(innings);
-
-
-        if (inningNumbers.length === 0) {
-
-            return `
-                <div class="loading">
-                    イニング情報はまだありません
-                </div>
-            `;
-
-        }
-
-
-        let header = `
-            <tr>
-                <th></th>
-        `;
-
-
-        inningNumbers.forEach(inning => {
-
-            header += `
-                <th>${inning}</th>
-            `;
+            signal: controller.signal
 
         });
 
 
-        header += `
-                <th>R</th>
-                <th>H</th>
-                <th>E</th>
-            </tr>
-        `;
+        clearTimeout(timeout);
 
 
-        let awayRow = `
-            <tr>
-                <td>${awayName}</td>
-        `;
+        const text =
+            await response.text();
 
 
-        let homeRow = `
-            <tr>
-                <td>${homeName}</td>
-        `;
+        console.log("HTTP STATUS:", response.status);
+
+        console.log("RESPONSE:", text);
 
 
-        inningNumbers.forEach(inning => {
+        if (!response.ok) {
 
-            const inningData =
-                innings[inning];
+            throw new Error(
+                "HTTPエラー " +
+                response.status +
+                "\n\n" +
+                text
+            );
 
-            awayRow += `
-                <td>
-                    ${inningData?.away ?? "-"}
-                </td>
-            `;
-
-            homeRow += `
-                <td>
-                    ${inningData?.home ?? "-"}
-                </td>
-            `;
-
-        });
+        }
 
 
-        awayRow += `
-                <td>${game.teams?.away?.score ?? 0}</td>
-                <td>${game.teams?.away?.hits ?? "-"}</td>
-                <td>${game.teams?.away?.errors ?? "-"}</td>
-            </tr>
-        `;
+        const data =
+            JSON.parse(text);
 
 
-        homeRow += `
-                <td>${game.teams?.home?.score ?? 0}</td>
-                <td>${game.teams?.home?.hits ?? "-"}</td>
-                <td>${game.teams?.home?.errors ?? "-"}</td>
-            </tr>
-        `;
+        status.textContent =
+            "✅ API接続成功";
 
 
-        return `
+        result.textContent =
+            JSON.stringify(data, null, 2);
 
-            <table class="inning-table">
 
-                <thead>
-                    ${header}
-                </thead>
+    } catch (error) {
 
-                <tbody>
-                    ${awayRow}
-                    ${homeRow}
-                </tbody>
+        console.error(error);
 
-            </table>
 
-        `;
+        status.textContent =
+            "❌ API接続エラー";
+
+
+        if (error.name === "AbortError") {
+
+            result.textContent =
+                "15秒経ってもAPIから返事がありません。\n\n" +
+                "APIのURL・通信・ブラウザ側の問題を確認します。";
+
+        } else {
+
+            result.textContent =
+                error.message;
+
+        }
 
     }
 
-
-    // ==========================================
-    // 初回取得
-    // ==========================================
-
-    getGame();
+}
 
 
-    // ==========================================
-    // 30秒ごとに更新
-    // ==========================================
-
-    setInterval(() => {
-
-        getGame();
-
-    }, 30000);
-
+getGames();
 
 </script>
 
