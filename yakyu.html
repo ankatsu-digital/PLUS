@@ -1,158 +1,270 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>阪神・広島 APIテスト</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>野球 試合情報</title>
 
-<style>
-body {
-    font-family: Arial, sans-serif;
-    padding: 30px;
-    background: #f5f5f5;
-}
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 20px;
+    }
 
-.box {
-    max-width: 800px;
-    margin: auto;
-    background: white;
-    padding: 25px;
-    border-radius: 12px;
-}
+    h1 {
+      text-align: center;
+    }
 
-pre {
-    white-space: pre-wrap;
-    word-break: break-all;
-    background: #111;
-    color: #0f0;
-    padding: 20px;
-    border-radius: 8px;
-}
-</style>
+    #games {
+      max-width: 800px;
+      margin: 20px auto;
+    }
+
+    .game {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 15px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .league {
+      color: #666;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+
+    .teams {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    .score {
+      font-size: 28px;
+      margin: 0 15px;
+    }
+
+    .status {
+      text-align: center;
+      margin-top: 10px;
+      color: #555;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 30px;
+    }
+
+    .error {
+      color: red;
+      text-align: center;
+    }
+  </style>
 </head>
 
 <body>
 
-<div class="box">
+  <h1>⚾ 野球の試合情報</h1>
 
-<h1>阪神 vs 広島 APIテスト</h1>
+  <div id="games">
+    <div class="loading">試合情報を取得しています...</div>
+  </div>
 
-<p id="status">APIに接続しています...</p>
+  <script>
+    // =========================
+    // API設定
+    // =========================
 
-<pre id="result"></pre>
+    const API_KEY = "ここにAPIキーを入れる";
 
-</div>
-
-<script>
-
-const API_KEY = "fa0c70e4fb597c0d9c0f9952dc831eaf";
-
-const API_URL =
-    "https://v1.baseball.api-sports.io/games" +
-    "?date=2026-10-03" +
-    "&timezone=Asia/Tokyo";
+    const API_URL = "https://v1.baseball.api-sports.io/games";
 
 
-async function getGames() {
+    // =========================
+    // 今日の日付を取得
+    // =========================
 
-    const status =
-        document.getElementById("status");
+    function getToday() {
+      const now = new Date();
 
-    const result =
-        document.getElementById("result");
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const day = String(now.getDate()).padStart(2, "0");
 
-    try {
-
-        // 15秒でタイムアウト
-        const controller =
-            new AbortController();
-
-        const timeout =
-            setTimeout(() => {
-                controller.abort();
-            }, 15000);
+      return `${year}-${month}-${day}`;
+    }
 
 
-        const response = await fetch(API_URL, {
+    // =========================
+    // 試合情報取得
+    // =========================
 
+    async function getGames() {
+
+      const gamesElement = document.getElementById("games");
+
+      try {
+
+        const today = getToday();
+
+        const response = await fetch(
+          `${API_URL}?date=${today}`,
+          {
             method: "GET",
-
             headers: {
-                "x-apisports-key": API_KEY,
-                "Accept": "application/json"
-            },
+              "x-rapidapi-key": API_KEY,
+              "x-rapidapi-host": "v1.baseball.api-sports.io"
+            }
+          }
+        );
 
-            signal: controller.signal
+
+        // HTTPエラー確認
+
+        if (!response.ok) {
+          throw new Error(
+            `APIエラー: ${response.status}`
+          );
+        }
+
+
+        const data = await response.json();
+
+        console.log("API取得結果:", data);
+
+
+        // 試合がない場合
+
+        if (!data.response || data.response.length === 0) {
+
+          gamesElement.innerHTML = `
+            <div class="game">
+              <p style="text-align:center;">
+                本日の試合情報はありません。
+              </p>
+            </div>
+          `;
+
+          return;
+        }
+
+
+        // =========================
+        // 試合表示
+        // =========================
+
+        gamesElement.innerHTML = "";
+
+
+        data.response.forEach(game => {
+
+          const homeTeam =
+            game.teams?.home?.name || "ホーム";
+
+          const awayTeam =
+            game.teams?.away?.name || "ビジター";
+
+
+          const homeScore =
+            game.scores?.home?.total ?? "-";
+
+          const awayScore =
+            game.scores?.away?.total ?? "-";
+
+
+          const league =
+            game.league?.name || "リーグ情報なし";
+
+
+          const status =
+            game.status?.long ||
+            game.status?.short ||
+            "情報なし";
+
+
+          const time =
+            game.date
+              ? new Date(game.date).toLocaleTimeString(
+                  "ja-JP",
+                  {
+                    hour: "2-digit",
+                    minute: "2-digit"
+                  }
+                )
+              : "";
+
+
+          const gameElement = document.createElement("div");
+
+          gameElement.className = "game";
+
+
+          gameElement.innerHTML = `
+
+            <div class="league">
+              ${league}
+            </div>
+
+            <div class="teams">
+
+              <div>
+                ${awayTeam}
+              </div>
+
+              <div class="score">
+                ${awayScore}
+                -
+                ${homeScore}
+              </div>
+
+              <div>
+                ${homeTeam}
+              </div>
+
+            </div>
+
+            <div class="status">
+              ${status}
+              ${time ? " ・ " + time : ""}
+            </div>
+
+          `;
+
+
+          gamesElement.appendChild(gameElement);
 
         });
 
 
-        clearTimeout(timeout);
+      } catch (error) {
+
+        console.error("試合情報取得エラー:", error);
 
 
-        const text =
-            await response.text();
+        gamesElement.innerHTML = `
+          <div class="error">
+            <p>試合情報を取得できませんでした。</p>
+            <p>${error.message}</p>
+          </div>
+        `;
 
-
-        console.log("HTTP STATUS:", response.status);
-
-        console.log("RESPONSE:", text);
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                "HTTPエラー " +
-                response.status +
-                "\n\n" +
-                text
-            );
-
-        }
-
-
-        const data =
-            JSON.parse(text);
-
-
-        status.textContent =
-            "✅ API接続成功";
-
-
-        result.textContent =
-            JSON.stringify(data, null, 2);
-
-
-    } catch (error) {
-
-        console.error(error);
-
-
-        status.textContent =
-            "❌ API接続エラー";
-
-
-        if (error.name === "AbortError") {
-
-            result.textContent =
-                "15秒経ってもAPIから返事がありません。\n\n" +
-                "APIのURL・通信・ブラウザ側の問題を確認します。";
-
-        } else {
-
-            result.textContent =
-                error.message;
-
-        }
+      }
 
     }
 
-}
 
+    // =========================
+    // 実行
+    // =========================
 
-getGames();
+    getGames();
 
-</script>
+  </script>
 
 </body>
 </html>
