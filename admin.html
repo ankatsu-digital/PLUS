@@ -654,7 +654,7 @@
               <div class="frow full">
                 <div class="crow">
                   <input id="f-newsletter" type="checkbox" checked />
-                  <label for="f-newsletter">📧 公開時にメールマガジンを配信する</label>
+                  <label for="f-newsletter">📧 公開時にメールマガジンを配信する（自由配信のみ。ストック・予備は枠の公開日の「まとめメール」で配信）</label>
                 </div>
                 <div class="fhint">この記事のカテゴリを希望している登録者にお知らせメールが届きます。限定公開にした記事では自動的にOFFになり、配信されません。</div>
               </div>
@@ -3491,6 +3491,7 @@ function setFormData(d) {
   document.getElementById('f-access-pw').value = d.accessPassword || '';
   toggleUnlistedField();
   if (document.getElementById('f-newsletter')) document.getElementById('f-newsletter').checked = (d.sendNewsletter !== false) && !d.unlisted;
+  updatePubBtnLabel();
 }
 
 function toggleUnlistedField(){
@@ -3508,7 +3509,15 @@ function genArticlePassword(){
 
 function updatePubBtnLabel() {
   var btn = document.getElementById('pub-btn'), sel = document.getElementById('f-deliverymode');
-  if (!btn || !sel || btn.disabled) return;
+  if (!btn || !sel) return;
+  // ストック／予備はメルマガが出ないので、チェックを外して押せなくする（自由配信に戻したら、限定公開でなければ再びON）
+  var nl = document.getElementById('f-newsletter'), un = document.getElementById('f-unlisted');
+  if (nl) {
+    var stocked = (sel.value==='stock' || sel.value==='reserve');
+    if (stocked) { nl.checked = false; nl.disabled = true; }
+    else if (nl.disabled && !(un && un.checked)) { nl.disabled = false; nl.checked = true; }
+  }
+  if (btn.disabled) return;
   btn.textContent = (sel.value==='stock' || sel.value==='reserve') ? '📦 ストックに保存' : '💾 公開保存';
 }
 
@@ -3553,8 +3562,13 @@ async function pubArticle() {
   btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 保存中…';
   try {
     if (editingId) {
+      var prevArt = articles.find(function(x){ return x.id===editingId; });
+      // ストック／予備 → 自由配信に切り替えて保存＝この瞬間が公開（日時を今にして、メルマガも配信する）
+      var goingLive = !!(prevArt && (prevArt.deliveryMode==='stock' || prevArt.deliveryMode==='reserve') && d.deliveryMode==='free' && !scheduleOn);
+      if (goingLive) d.createdAt = window._ts();
       await window._updateDoc('articles', editingId, d);
-      toast(scheduleOn ? '予約日時を更新しました ⏰' : '記事を更新しました ✅');
+      toast(goingLive ? '記事を公開しました ✅' : (scheduleOn ? '予約日時を更新しました ⏰' : '記事を更新しました ✅'));
+      if (goingLive) sendNewsletterForArticle(Object.assign({ id: editingId }, d));
     } else {
       if (!scheduleOn) d.createdAt = window._ts();
       if (_role === 'contributor' && window._auth && window._auth.currentUser) {
