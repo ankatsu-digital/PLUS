@@ -3,266 +3,555 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <title>野球 試合情報</title>
 
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f5f5f5;
-      margin: 0;
-      padding: 20px;
+    * {
+      box-sizing: border-box;
     }
 
-    h1 {
+    body {
+      margin: 0;
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        "Noto Sans JP",
+        sans-serif;
+      background: #f3f4f6;
+      color: #222;
+    }
+
+    header {
+      background: #111827;
+      color: white;
+      padding: 25px 20px;
       text-align: center;
     }
 
+    header h1 {
+      margin: 0;
+      font-size: 28px;
+    }
+
+    header p {
+      margin: 8px 0 0;
+      color: #d1d5db;
+      font-size: 14px;
+    }
+
     #games {
-      max-width: 800px;
-      margin: 20px auto;
+      max-width: 900px;
+      margin: 30px auto;
+      padding: 0 15px;
+    }
+
+    .loading {
+      background: white;
+      padding: 40px 20px;
+      text-align: center;
+      border-radius: 12px;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
     }
 
     .game {
       background: white;
-      border-radius: 12px;
+      margin-bottom: 18px;
       padding: 20px;
-      margin-bottom: 15px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      border-radius: 14px;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
     }
 
     .league {
-      color: #666;
       font-size: 14px;
-      margin-bottom: 10px;
+      color: #6b7280;
+      margin-bottom: 15px;
     }
 
     .teams {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      font-size: 20px;
+      justify-content: space-between;
+      gap: 15px;
+    }
+
+    .team {
+      width: 35%;
+      text-align: center;
+      font-size: 18px;
       font-weight: bold;
     }
 
     .score {
+      width: 30%;
+      text-align: center;
       font-size: 28px;
-      margin: 0 15px;
+      font-weight: bold;
     }
 
     .status {
+      margin-top: 15px;
       text-align: center;
-      margin-top: 10px;
-      color: #555;
-    }
-
-    .loading {
-      text-align: center;
-      padding: 30px;
+      font-size: 14px;
+      color: #6b7280;
     }
 
     .error {
-      color: red;
+      background: white;
+      color: #dc2626;
+      padding: 25px;
       text-align: center;
+      border-radius: 12px;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+    }
+
+    .no-game {
+      background: white;
+      padding: 30px;
+      text-align: center;
+      border-radius: 12px;
+      color: #666;
+    }
+
+    .debug {
+      max-width: 900px;
+      margin: 20px auto;
+      padding: 0 15px;
+    }
+
+    .debug details {
+      background: #1f2937;
+      color: white;
+      padding: 15px;
+      border-radius: 10px;
+    }
+
+    .debug pre {
+      white-space: pre-wrap;
+      word-break: break-all;
+      overflow-x: auto;
+      font-size: 12px;
     }
   </style>
 </head>
 
+
 <body>
 
-  <h1>⚾ 野球の試合情報</h1>
+  <header>
+    <h1>⚾ 野球 試合情報</h1>
+    <p id="date">試合情報を読み込んでいます...</p>
+  </header>
 
-  <div id="games">
-    <div class="loading">試合情報を取得しています...</div>
+
+  <main>
+
+    <div id="games">
+
+      <div class="loading">
+        試合情報を取得しています...
+      </div>
+
+    </div>
+
+  </main>
+
+
+  <!--
+    APIから取得したデータを確認するための場所
+    正常に動いたら閉じてもOK
+  -->
+
+  <div class="debug">
+
+    <details>
+
+      <summary>API取得データを確認</summary>
+
+      <pre id="debugData">
+まだデータがありません
+      </pre>
+
+    </details>
+
   </div>
 
-  <script>
-    // =========================
-    // API設定
-    // =========================
 
+  <script>
+
+    // ========================================
+    // API設定
+    // ========================================
+
+    // ★ここに自分のAPIキーを入れる
+    // 日本語や「APIキー：」などは入れない
     const API_KEY = "fa0c70e4fb597c0d9c0f9952dc831eaf";
 
-    const API_URL = "https://v1.baseball.api-sports.io/games";
+
+    // API-SPORTS Baseball
+    const API_URL =
+      "https://v1.baseball.api-sports.io/games";
 
 
-    // =========================
-    // 今日の日付を取得
-    // =========================
+    // ========================================
+    // 今日の日付
+    // ========================================
 
     function getToday() {
+
       const now = new Date();
 
       const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, "0");
-      const day = String(now.getDate()).padStart(2, "0");
+
+      const month =
+        String(now.getMonth() + 1).padStart(2, "0");
+
+      const day =
+        String(now.getDate()).padStart(2, "0");
 
       return `${year}-${month}-${day}`;
+
     }
 
 
-    // =========================
-    // 試合情報取得
-    // =========================
+    // ========================================
+    // 試合情報を取得
+    // ========================================
 
     async function getGames() {
 
-      const gamesElement = document.getElementById("games");
+      const gamesElement =
+        document.getElementById("games");
+
+      const debugElement =
+        document.getElementById("debugData");
+
+      const dateElement =
+        document.getElementById("date");
+
+
+      const today = getToday();
+
+
+      // 日付を表示
+
+      dateElement.textContent =
+        `${today} の試合情報`;
+
 
       try {
 
-        const today = getToday();
+        console.log("APIへ接続します");
+
+        console.log("取得日:", today);
+
+
+        // ====================================
+        // APIへアクセス
+        // ====================================
 
         const response = await fetch(
+
           `${API_URL}?date=${today}`,
+
           {
+
             method: "GET",
+
             headers: {
+
               "x-rapidapi-key": API_KEY,
-              "x-rapidapi-host": "v1.baseball.api-sports.io"
+
+              "x-rapidapi-host":
+                "v1.baseball.api-sports.io"
+
             }
+
           }
+
         );
 
 
-        // HTTPエラー確認
+        console.log(
+          "HTTPステータス:",
+          response.status
+        );
+
+
+        // ====================================
+        // HTTPエラー
+        // ====================================
 
         if (!response.ok) {
+
           throw new Error(
-            `APIエラー: ${response.status}`
+            `APIエラー: HTTP ${response.status}`
           );
+
         }
 
 
-        const data = await response.json();
+        // ====================================
+        // JSON取得
+        // ====================================
 
-        console.log("API取得結果:", data);
+        const data =
+          await response.json();
 
 
-        // 試合がない場合
+        console.log(
+          "API取得成功:",
+          data
+        );
 
-        if (!data.response || data.response.length === 0) {
+
+        // デバッグ用に表示
+
+        debugElement.textContent =
+          JSON.stringify(
+            data,
+            null,
+            2
+          );
+
+
+        // ====================================
+        // 試合情報がない場合
+        // ====================================
+
+        if (
+          !data.response ||
+          data.response.length === 0
+        ) {
 
           gamesElement.innerHTML = `
-            <div class="game">
-              <p style="text-align:center;">
-                本日の試合情報はありません。
+
+            <div class="no-game">
+
+              <h2>本日の試合はありません</h2>
+
+              <p>
+                ${today} に予定されている
+                試合情報が見つかりませんでした。
               </p>
+
             </div>
+
           `;
 
           return;
+
         }
 
 
-        // =========================
+        // ====================================
         // 試合表示
-        // =========================
+        // ====================================
 
         gamesElement.innerHTML = "";
 
 
-        data.response.forEach(game => {
-
-          const homeTeam =
-            game.teams?.home?.name || "ホーム";
-
-          const awayTeam =
-            game.teams?.away?.name || "ビジター";
+        data.response.forEach(
+          (game) => {
 
 
-          const homeScore =
-            game.scores?.home?.total ?? "-";
+            // -------------------------------
+            // リーグ
+            // -------------------------------
 
-          const awayScore =
-            game.scores?.away?.total ?? "-";
-
-
-          const league =
-            game.league?.name || "リーグ情報なし";
+            const league =
+              game.league?.name ||
+              "リーグ情報なし";
 
 
-          const status =
-            game.status?.long ||
-            game.status?.short ||
-            "情報なし";
+            // -------------------------------
+            // ホームチーム
+            // -------------------------------
+
+            const homeTeam =
+              game.teams?.home?.name ||
+              "ホーム";
 
 
-          const time =
-            game.date
-              ? new Date(game.date).toLocaleTimeString(
+            // -------------------------------
+            // ビジターチーム
+            // -------------------------------
+
+            const awayTeam =
+              game.teams?.away?.name ||
+              "ビジター";
+
+
+            // -------------------------------
+            // スコア
+            // -------------------------------
+
+            const homeScore =
+              game.scores?.home?.total ??
+              "-";
+
+
+            const awayScore =
+              game.scores?.away?.total ??
+              "-";
+
+
+            // -------------------------------
+            // 試合状況
+            // -------------------------------
+
+            const status =
+              game.status?.long ||
+              game.status?.short ||
+              "情報なし";
+
+
+            // -------------------------------
+            // 試合時間
+            // -------------------------------
+
+            let gameTime = "";
+
+
+            if (game.date) {
+
+              const date =
+                new Date(game.date);
+
+
+              gameTime =
+                date.toLocaleTimeString(
                   "ja-JP",
                   {
                     hour: "2-digit",
                     minute: "2-digit"
                   }
-                )
-              : "";
+                );
+
+            }
 
 
-          const gameElement = document.createElement("div");
+            // =================================
+            // HTML作成
+            // =================================
 
-          gameElement.className = "game";
+            const gameElement =
+              document.createElement("div");
 
 
-          gameElement.innerHTML = `
+            gameElement.className =
+              "game";
 
-            <div class="league">
-              ${league}
-            </div>
 
-            <div class="teams">
+            gameElement.innerHTML = `
 
-              <div>
-                ${awayTeam}
+              <div class="league">
+                ${league}
               </div>
 
-              <div class="score">
-                ${awayScore}
-                -
-                ${homeScore}
+
+              <div class="teams">
+
+                <div class="team">
+                  ${awayTeam}
+                </div>
+
+
+                <div class="score">
+
+                  ${awayScore}
+
+                  -
+
+                  ${homeScore}
+
+                </div>
+
+
+                <div class="team">
+                  ${homeTeam}
+                </div>
+
               </div>
 
-              <div>
-                ${homeTeam}
+
+              <div class="status">
+
+                ${status}
+
+                ${
+                  gameTime
+                    ? " ・ " + gameTime
+                    : ""
+                }
+
               </div>
 
-            </div>
-
-            <div class="status">
-              ${status}
-              ${time ? " ・ " + time : ""}
-            </div>
-
-          `;
+            `;
 
 
-          gamesElement.appendChild(gameElement);
+            // 画面に追加
 
-        });
+            gamesElement.appendChild(
+              gameElement
+            );
+
+
+          }
+        );
 
 
       } catch (error) {
 
-        console.error("試合情報取得エラー:", error);
+
+        // ====================================
+        // エラー処理
+        // ====================================
+
+        console.error(
+          "試合情報取得エラー:",
+          error
+        );
 
 
         gamesElement.innerHTML = `
+
           <div class="error">
-            <p>試合情報を取得できませんでした。</p>
-            <p>${error.message}</p>
+
+            <h2>
+              試合情報を取得できませんでした
+            </h2>
+
+            <p>
+              ${error.message}
+            </p>
+
+            <p>
+              ブラウザの開発者ツール
+              （F12）のConsoleも確認してください。
+            </p>
+
           </div>
+
         `;
+
+
+        debugElement.textContent =
+          error.stack ||
+          error.message;
 
       }
 
     }
 
 
-    // =========================
-    // 実行
-    // =========================
+    // ========================================
+    // ページ読み込み時に実行
+    // ========================================
 
     getGames();
+
 
   </script>
 
