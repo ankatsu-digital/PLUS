@@ -464,6 +464,7 @@
               <button class="btn btn-g btn-sm" onclick="goNew()">✏️ 新規記事</button>
             </div>
           </div>
+          <div id="art-tabs" style="display:flex;gap:.4rem;flex-wrap:wrap;padding:.75rem 1.25rem;border-bottom:1px solid var(--border)"></div>
           <div style="overflow-x:auto">
             <table class="tbl">
               <thead><tr><th style="width:58px"></th><th>タイトル</th><th>カテゴリ</th><th>著者</th><th>日付</th><th style="width:140px">操作</th></tr></thead>
@@ -599,9 +600,9 @@
 
               <div class="frow full">
                 <label class="flabel">📅 配信区分</label>
-                <select id="f-deliverymode" class="fselect">
-                  <option value="free">自由配信（今までどおり。予約投稿も可）</option>
-                  <option value="stock">ストック（公開されない。「📅 定期配信」の枠に入れる）</option>
+                <select id="f-deliverymode" class="fselect" onchange="updatePubBtnLabel()">
+                  <option value="free">✍️ 自由配信（すぐ公開。予約投稿も可）</option>
+                  <option value="stock">📦 ストック（基本。公開されず、「📅 定期配信」の枠に入れて配信）</option>
                   <option value="reserve">予備（枠が足りない朝6時に自動配置される。日付に依存しない記事向け）</option>
                   <option value="scheduled" disabled>定期配信（枠に配置済み。変更は「📅 定期配信」で）</option>
                 </select>
@@ -2401,6 +2402,8 @@ function renderArticles(filter) {
   if (_role === 'contributor' && !canSeeAll) {
     base = base.filter(function(a){ return a.authorUid === myUid; });
   }
+  renderArtTabs(base);
+  base = artTabFilter(base, artTab);
   var list = filter
     ? base.filter(function(a){ return (a.title||'').indexOf(filter)>=0||articleCategories(a).some(function(c){return c.indexOf(filter)>=0;}); })
     : base;
@@ -2428,6 +2431,43 @@ function renderArticles(filter) {
       +'<td><div class="acts">'+acts+'</div></td></tr>';
   }).join('');
 }
+
+// ---- 記事一覧の配信タブ ----
+var artTab = 'all';
+var ART_TABS = [['all','すべて'],['before','📦 配信前'],['today','📅 今日の配信'],['week','🗓 今週の配信'],['done','✅ 配信済み'],['free','✍️ 自由配信']];
+function artWeekRange(){
+  var n = new Date(), off = (n.getDay()+6)%7;
+  var st = new Date(n.getFullYear(), n.getMonth(), n.getDate()-off), en = new Date(st.getFullYear(), st.getMonth(), st.getDate()+6);
+  return [dKey(st), dKey(en)];
+}
+function artInTab(a, tab){
+  var m = a.deliveryMode || 'free', today = dKey(new Date()), wk = artWeekRange();
+  if (tab==='all') return true;
+  if (tab==='before') return m==='stock' || m==='reserve' || (m==='scheduled' && isArticleScheduled(a));
+  if (tab==='today')  return m==='scheduled' && a.slotDate===today;
+  if (tab==='week')   return m==='scheduled' && a.slotDate>=wk[0] && a.slotDate<=wk[1];
+  if (tab==='done')   return m==='scheduled' && !isArticleScheduled(a);
+  if (tab==='free')   return m==='free';
+  return true;
+}
+function artTabFilter(list, tab){
+  var out = list.filter(function(a){ return artInTab(a, tab); });
+  if (tab==='before' || tab==='today' || tab==='week') {
+    // 配信日が近い順（枠に入ってるもの）→ ストック → 予備
+    var rank = function(a){ return a.deliveryMode==='scheduled' ? '0'+(a.slotDate||'')+(a.slotIndex||0) : (a.deliveryMode==='stock' ? '1' : '2'); };
+    out = out.slice().sort(function(a,b){ return rank(a) < rank(b) ? -1 : 1; });
+  }
+  return out;
+}
+function renderArtTabs(base){
+  var el = document.getElementById('art-tabs');
+  if (!el) return;
+  el.innerHTML = ART_TABS.map(function(t){
+    var n = base.filter(function(a){ return artInTab(a, t[0]); }).length;
+    return '<button class="btn btn-sm '+(artTab===t[0]?'btn-g':'btn-o')+'" onclick="setArtTab(\''+t[0]+'\')">'+t[1]+' <span style="opacity:.8">'+n+'</span></button>';
+  }).join('');
+}
+function setArtTab(t){ artTab = t; renderArticles(document.getElementById('art-search').value.trim()); }
 
 function copyUnlistedLink(id){
   var a = articles.find(function(x){ return x.id===id; });
@@ -3431,7 +3471,10 @@ function setFormData(d) {
   document.getElementById('f-tags').value   = (d.tags||[]).join(', ');
   document.getElementById('f-thumb').value  = d.thumbnail|| '';
   document.getElementById('f-feat').checked = !!d.featured;
-  document.getElementById('f-deliverymode').value = d.deliveryMode || 'free';
+  var isNewForm = !d || !Object.keys(d).length;
+  var defMode = (isNewForm && (_role==='admin' || _role==='editor')) ? 'stock' : 'free'; // 新規はストックが基本（投稿者は枠を扱えないので自由配信）
+  document.getElementById('f-deliverymode').value = d.deliveryMode || defMode;
+  updatePubBtnLabel();
   setBodyHtml(d.body || '');
   var prev = document.getElementById('f-thumb-prev');
   if (d.thumbnail) { prev.src=d.thumbnail; prev.style.display='block'; }
@@ -3463,11 +3506,18 @@ function genArticlePassword(){
   document.getElementById('f-access-pw').value = pw;
 }
 
+function updatePubBtnLabel() {
+  var btn = document.getElementById('pub-btn'), sel = document.getElementById('f-deliverymode');
+  if (!btn || !sel || btn.disabled) return;
+  btn.textContent = (sel.value==='stock' || sel.value==='reserve') ? '📦 ストックに保存' : '💾 公開保存';
+}
+
 function resetForm() {
   editingId = null;
   editingDraftId = null;
   setFormData({});
   resetSubForm();
+  updatePubBtnLabel();
 }
 
 // ============================================================
@@ -3511,7 +3561,7 @@ async function pubArticle() {
         d.authorUid = window._auth.currentUser.uid; // 自分の記事だけ編集・削除できるようにするための所有者マーク
       }
       var newArtRef = await window._addDoc('articles', d);
-      toast(scheduleOn ? '予約投稿を設定しました ⏰' : '記事を公開しました ✅');
+      toast((d.deliveryMode==='stock'||d.deliveryMode==='reserve') ? 'ストックに保存しました 📦（「📅 定期配信」で枠に入れると公開されます）' : (scheduleOn ? '予約投稿を設定しました ⏰' : '記事を公開しました ✅'));
       if (editingDraftId) { delDraft(editingDraftId); editingDraftId = null; } // 下書きから公開した場合は元の下書きを消す
       if (scheduleOn) {
         if (!d.unlisted && d.sendNewsletter) toast('予約投稿のため、公開時刻になったら記事一覧の📧ボタンからメールマガジンを配信してください', 'warn');
@@ -3524,7 +3574,7 @@ async function pubArticle() {
   } catch(e) {
     console.error(e); toast('保存失敗: '+e.message,'error');
   } finally {
-    btn.disabled=false; btn.textContent='💾 公開保存';
+    btn.disabled=false; updatePubBtnLabel();
   }
 }
 
@@ -3695,7 +3745,7 @@ async function pubDraft(id) {
   if (!d.title||!d.slug||!articleCategories(d).length) { toast('タイトル・スラッグ・カテゴリが必要です','warn'); loadDraft(id); return; }
   try {
     var cats = articleCategories(d);
-    var data = {title:d.title,slug:d.slug,categories:cats,category:cats[0]||'',author:d.author||'編集部',tags:d.tags||[],thumbnail:d.thumbnail||'',featured:!!d.featured,body:d.body||'',createdAt:window._ts()};
+    var data = {title:d.title,slug:d.slug,categories:cats,category:cats[0]||'',author:d.author||'編集部',tags:d.tags||[],thumbnail:d.thumbnail||'',featured:!!d.featured,deliveryMode:(d.deliveryMode && d.deliveryMode!=='scheduled') ? d.deliveryMode : 'free',body:d.body||'',createdAt:window._ts()};
     await window._addDoc('articles', data);
     delDraft(id);
     await loadArticles();
@@ -3856,7 +3906,7 @@ function dlvSlotsOf(key){
     .sort(function(a,b){ return (a.slotIndex||0)-(b.slotIndex||0); });
 }
 function dlvTagHtml(a){
-  var m = {scheduled:['📅定期','tag-g'], stock:['📦ストック','tag-y'], reserve:['🔄予備','tag-y']}[a.deliveryMode];
+  var m = {scheduled:['📅'+(a.slotDate ? a.slotDate.slice(5).replace('-','/')+(a.autoFilled?'🔄':'') : '定期'),'tag-g'], stock:['📦ストック','tag-y'], reserve:['🔄予備','tag-y']}[a.deliveryMode];
   return m ? '<span class="tag '+m[1]+'">'+m[0]+'</span>' : '';
 }
 function dlvMove(n){ dlvMonth.setMonth(dlvMonth.getMonth()+n); renderDelivery(); }
@@ -5907,6 +5957,7 @@ function confirmAiChatArticle(draft, doPost, wrapEl) {
     tags: draft.tags,
     thumbnail: '',
     featured: false,
+    deliveryMode: 'stock', // AIの投稿もストックに入る（公開は「📅 定期配信」で枠に入れた時）
     createdAt: window._ts(),
     updatedAt: window._ts()
   };
@@ -5923,7 +5974,7 @@ function confirmAiChatArticle(draft, doPost, wrapEl) {
     .then(function (ref) {
       var articleUrl = location.origin + location.pathname.replace('admin.html', 'index.html') + '#article/' + encodeURIComponent(newData.slug);
       resultEl.style.color = 'var(--green)';
-      resultEl.innerHTML = '✅ 記事を投稿しました' + (newData.thumbnail ? '（アイキャッチ画像つき）' : '') + '　<a href="' + articleUrl + '" target="_blank" rel="noopener" style="color:var(--green);text-decoration:underline">記事を見る →</a>';
+      resultEl.innerHTML = '✅ ストックに保存しました' + (newData.thumbnail ? '（アイキャッチ画像つき）' : '') + '　「📅 定期配信」で枠に入れると公開されます';
       pushAiChatFunctionResponse('propose_article', { ok: true, posted: true, id: ref.id, title: newData.title, url: articleUrl });
       sendNewsletterForArticle(Object.assign({ id: ref.id }, newData, { sendNewsletter: true }));
       return loadArticles();
