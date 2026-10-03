@@ -1684,7 +1684,7 @@
       allArticles=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());})
         .filter(function(a){
           /* 予備・ストック記事（定期配信の枠に入るまで）は公開しない */
-          if(a.deliveryMode==='reserve' || a.deliveryMode==='stock') return false;
+          if((a.deliveryMode==='reserve' || a.deliveryMode==='stock') && !a.unlisted) return false; /* 限定公開の記事はリンクで開けるように除外しない */
           /* 予約投稿（createdAtが未来日時）はサイトにはまだ表示しない */
           try{
             var createdAtDate=(a.createdAt&&a.createdAt.toDate)?a.createdAt.toDate():(a.createdAt?new Date(a.createdAt):null);
@@ -2591,7 +2591,7 @@
   function handleInitialHash(){
     var h=location.hash;
     if(!h) return;
-    if(h.startsWith('#article/')){var id=decodeURIComponent(h.slice(9));var a=allArticles.find(function(x){return x.slug===id||x.id===id;});if(a){if(isArticleUnlocked(a)){trackArticleView(a);trackPageView(a);}renderArticle(a);showView('article');}}
+    if(h.startsWith('#article/')){var id=decodeURIComponent(h.slice(9));var a=allArticles.find(function(x){return x.slug===id||x.id===id;});if(a){if(isArticleUnlocked(a)){trackArticleView(a);trackPageView(a);}renderArticle(a);showView('article');}else{showShareToast('記事が見つかりませんでした（非公開、または削除された可能性があります）');}}
     else if(h==='#series')          filterByCategory('series');
     else if(h.startsWith('#series/')){var sid=decodeURIComponent(h.slice(8));var s=allSeries.find(function(x){return x.slug===sid||x.id===sid;});if(s){renderSeriesDetail(s);showView('series-detail');}}
     else if(h.startsWith('#calendar/')){var cparts=decodeURIComponent(h.slice(10)).split('-');openCalendarDay(cparts[0],cparts[1]);}
