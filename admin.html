@@ -379,6 +379,7 @@
       <button class="sb-btn"     data-v="new">✏️ 新規記事作成</button>
       <button class="sb-btn"     data-v="contacts">✉️ お問い合わせ<span id="sb-unread"></span></button>
       <button class="sb-btn"     data-v="submissions">📨 投稿申請<span id="sb-submissions"></span></button>
+      <button class="sb-btn"     data-v="tips">📮 情報提供<span id="sb-tips"></span></button>
       <button class="sb-btn"     data-v="accounts">🧑‍💼 投稿者アカウント<span id="sb-accounts"></span></button>
       <button class="sb-btn"     data-v="drafts">📝 下書き<span id="sb-drafts"></span></button>
       <button class="sb-btn"     data-v="series">📚 連載・特集</button>
@@ -427,6 +428,7 @@
             <div class="scard"><div class="slabel">カテゴリ数</div><div class="sval" id="s-cat">—</div><div class="ssub">登録済み</div></div>
             <div class="scard click" onclick="goView('contacts')"><div class="slabel">未読お問い合わせ</div><div class="sval red" id="s-contacts">—</div><div class="ssub">クリックで確認</div></div>
             <div class="scard click" onclick="goView('submissions')"><div class="slabel">投稿申請（未処理）</div><div class="sval red" id="s-submissions">—</div><div class="ssub">クリックで確認</div></div>
+            <div class="scard click" onclick="goView('tips')"><div class="slabel">情報提供（新着）</div><div class="sval red" id="s-tips">—</div><div class="ssub">クリックで確認</div></div>
             <div class="scard click" onclick="goView('accounts')"><div class="slabel">投稿者アカウント申請（未処理）</div><div class="sval red" id="s-accounts">—</div><div class="ssub">クリックで確認</div></div>
             <div class="scard click" onclick="goView('drafts')"><div class="slabel">下書き</div><div class="sval org" id="s-drafts-n">—</div><div class="ssub">ローカル保存</div></div>
             <div class="scard click" onclick="goView('series')"><div class="slabel">連載・特集</div><div class="sval" id="s-series">—</div><div class="ssub">クリックで管理</div></div>
@@ -731,6 +733,15 @@
             <span id="sub-count" style="font-size:.8rem;color:var(--muted)"></span>
           </div>
           <div id="sub-list"></div>
+        </div>
+      </div>
+
+      <!-- 読者からの情報提供 -->
+      <div id="v-tips" class="view">
+        <div class="panel">
+          <div class="phead"><span class="ptitle">📮 読者からの情報提供</span><span id="tips-count" style="font-size:.8rem;color:var(--muted)"></span></div>
+          <div id="tips-tabs" style="display:flex;gap:.4rem;flex-wrap:wrap;padding:.75rem 1.25rem;border-bottom:1px solid var(--border)"></div>
+          <div id="tips-list"></div>
         </div>
       </div>
 
@@ -1321,6 +1332,7 @@
           <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.6rem">
             <button class="btn btn-o btn-sm" type="button" onclick="addFmItem('','投稿申請はこちら','submit.html')">＋ 投稿申請</button>
             <button class="btn btn-o btn-sm" type="button" onclick="addFmItem('','投稿者登録はこちら','register.html')">＋ 投稿者登録</button>
+            <button class="btn btn-o btn-sm" type="button" onclick="addFmItem('','情報提供はこちら','index.html#page/tip')">＋ 情報提供</button>
             <button class="btn btn-o btn-sm" type="button" onclick="addFmItem('','お問い合わせ','index.html#page/contact')">＋ お問い合わせ</button>
             <button class="bi-add" onclick="addFmItem()">＋ 空欄を追加</button>
           </div>
@@ -1682,6 +1694,13 @@
   </div>
 </div>
 
+<!-- 情報提供の詳細モーダル -->
+<div class="mback" id="tip-modal">
+  <div class="mbox" style="max-width:600px;max-height:90vh;overflow-y:auto">
+    <div id="tip-modal-body"></div>
+  </div>
+</div>
+
 <!-- トースト -->
 <div id="toasts" style="position:fixed;bottom:1.25rem;right:1.25rem;display:flex;flex-direction:column;gap:.45rem;z-index:9999"></div>
 
@@ -1757,7 +1776,7 @@ var VTITLES = {
   series:'📚 連載・特集',
   authors:'✍️ 執筆者紹介',
   spots:'🗺️ 地図スポット',
-  breaking:'📡 速報バー設定', delivery:'📅 定期配信', newsletter:'📧 メールマガジン', json:'📦 JSON入出力',
+  breaking:'📡 速報バー設定', delivery:'📅 定期配信', tips:'📮 情報提供', newsletter:'📧 メールマガジン', json:'📦 JSON入出力',
   sitefeatures:'📣 サイト機能設定', feedbacklist:'💬 記事フィードバック', analytics:'📊 記事アナリティクス',
   specialpages:'🎌 特設ページ', aichat:'🤖 AIアシスタント'
 };
@@ -1766,7 +1785,7 @@ var VTITLES = {
 var CONTRIBUTOR_APPROVED_VIEWS = ['authors', 'new', 'edit', 'articles'];
 // 編集部員が使えるビュー（投稿者の範囲＋記事全件管理・お問い合わせ・地図スポット・連載特集・アナリティクス・フィードバック）
 // 「投稿者アカウント」の承認/追加確認/権限設定や、サイト機能設定・速報バー・JSON入出力は管理者専用のまま。
-var EDITOR_APPROVED_VIEWS = CONTRIBUTOR_APPROVED_VIEWS.concat(['delivery','contacts','spots','series','analytics','feedbacklist','specialpages']);
+var EDITOR_APPROVED_VIEWS = CONTRIBUTOR_APPROVED_VIEWS.concat(['delivery','tips','contacts','spots','series','analytics','feedbacklist','specialpages']);
 var _myPermissions = []; // ログイン中の投稿者に個別付与された権限（例: ['contacts.view']）
 
 function canAccessView(key) {
@@ -1827,6 +1846,7 @@ async function goView(key) {
     if (isAdmin) renderDash(); else renderContributorDashboard();
   }
   if (key==='contacts')  renderContacts();
+  if (key==='tips')      renderTips();
   if (key==='submissions') renderSubmissions();
   if (key==='accounts')  {
     document.getElementById('account-detail-panel').style.display = 'none';
@@ -1947,7 +1967,7 @@ function fmtDate(ts) {
 }
 
 async function loadAll() {
-  await Promise.all([loadArticles(), loadContacts(), loadSubmissions(), loadSeries(), loadSpots(), loadAuthors(), loadAccounts()]);
+  await Promise.all([loadArticles(), loadContacts(), loadTips(), loadSubmissions(), loadSeries(), loadSpots(), loadAuthors(), loadAccounts()]);
   populateArticleSelectForSpot();
   populateAuthorDatalist();
   renderDash();
@@ -3762,6 +3782,124 @@ function askDel(id, title) {
   }
 
   openPin('記事を削除', '「'+title+'」を削除します。\nこの操作は取り消せません。', doDelete);
+}
+
+// ============================================================
+// 読者からの情報提供（tips）。読者がindex.htmlの「情報提供」から送信 → ここで確認 → 「ストック記事にする」
+// ============================================================
+var tips = [];
+var tipTab = 'new';
+var TIP_STATUS = { new:['🆕 新着','tag-r'], reviewing:['👀 確認中','tag-y'], adopted:['✅ 記事化','tag-g'], rejected:['❌ 見送り',''] };
+
+async function loadTips() {
+  try {
+    var snap = await window._getAll('tips');
+    tips = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+    tips.sort(function(a,b){
+      try { var ta=(a.createdAt&&a.createdAt.toDate)?a.createdAt.toDate():new Date(0); var tb=(b.createdAt&&b.createdAt.toDate)?b.createdAt.toDate():new Date(0); return tb-ta; }
+      catch(e){ return 0; }
+    });
+    updateTipBadge();
+  } catch(e) { console.error('loadTips:', e); }
+}
+function updateTipBadge() {
+  var n = tips.filter(function(t){ return t.status==='new'; }).length;
+  var sb = document.getElementById('sb-tips'); if (sb) sb.innerHTML = n ? '<span class="nbadge">'+n+'</span>' : '';
+  var sc = document.getElementById('s-tips'); if (sc) sc.textContent = n;
+}
+function setTipTab(t){ tipTab = t; renderTips(true); }
+
+async function renderTips(skipLoad) {
+  if (!skipLoad) await loadTips();
+  var defs = [['new','🆕 新着'],['reviewing','👀 確認中'],['adopted','✅ 記事化'],['rejected','❌ 見送り'],['all','すべて']];
+  document.getElementById('tips-tabs').innerHTML = defs.map(function(d){
+    var n = d[0]==='all' ? tips.length : tips.filter(function(t){ return (t.status||'new')===d[0]; }).length;
+    return '<button class="btn btn-sm '+(tipTab===d[0]?'btn-g':'btn-o')+'" onclick="setTipTab(\''+d[0]+'\')">'+d[1]+' <span style="opacity:.8">'+n+'</span></button>';
+  }).join('');
+  document.getElementById('tips-count').textContent = '全' + tips.length + '件';
+  var list = tipTab==='all' ? tips : tips.filter(function(t){ return (t.status||'new')===tipTab; });
+  var wrap = document.getElementById('tips-list');
+  if (!list.length) { wrap.innerHTML = '<div class="etbl">該当する情報提供はありません。</div>'; return; }
+  wrap.innerHTML = list.map(function(t){
+    var st = TIP_STATUS[t.status||'new'] || TIP_STATUS.new;
+    var photos = t.photos || [];
+    var thumb = photos[0] ? '<img src="'+photos[0]+'" class="rthumb" loading="lazy"/>' : '<div class="rthumb-ph">📮</div>';
+    var head = t.title || (t.message||'').replace(/\n/g,' ').slice(0,40) || '（写真のみ）';
+    return '<div class="citem" onclick="openTip(\''+t.id+'\')">'
+      + thumb
+      + '<div class="cinfo"><div class="cname">'+escapeHtml(head)+' <span class="tag '+st[1]+'" style="'+(st[1]?'':'background:#f3f3f3;color:var(--muted)')+'">'+st[0]+'</span></div>'
+      + '<div class="cmeta">'+escapeHtml(t.category||'')+' ・ '+fmtDate(t.createdAt)+(photos.length?' ・ 📷'+photos.length:'')+(t.place?' ・ 📍'+escapeHtml(t.place):'')+'</div>'
+      + '<div class="cprev">'+escapeHtml((t.message||'').replace(/\n/g,' '))+'</div></div></div>';
+  }).join('');
+}
+
+async function openTip(id) {
+  var t = tips.find(function(x){ return x.id===id; });
+  if (!t) return;
+  curTipId = id;
+  var photos = t.photos || [];
+  var map = (t.lat!=null && t.lng!=null) ? '<a href="https://www.google.com/maps?q='+t.lat+','+t.lng+'" target="_blank" rel="noopener" style="color:var(--green)">🗺️ 地図で見る</a>' : '';
+  var row = function(k,v){ return v ? '<tr><td style="padding:.3rem 0;width:80px;color:var(--light);font-size:.76rem;vertical-align:top">'+k+'</td><td>'+v+'</td></tr>' : ''; };
+  document.getElementById('tip-modal-body').innerHTML =
+    '<h3 style="font-size:1rem;margin-bottom:.75rem">'+escapeHtml(t.title || t.category || '情報提供')+'</h3>'
+    + '<table style="width:100%;border-collapse:collapse;font-size:.84rem;margin-bottom:.75rem">'
+    + row('分類', escapeHtml(t.category||'')) + row('日時', fmtDate(t.createdAt))
+    + row('お名前', escapeHtml(t.name||'（匿名）') + (t.creditOk ? '　<span class="tag tag-g">掲載OK</span>' : ''))
+    + row('メール', t.email ? '<a href="mailto:'+escAttr(t.email)+'" style="color:var(--green)">'+escapeHtml(t.email)+'</a>' : '')
+    + row('場所', escapeHtml(t.place||'') + (map ? '　'+map : '')) + row('いつ', escapeHtml(t.whenText||''))
+    + '</table>'
+    + (t.message ? '<div style="background:var(--bg);border-radius:6px;padding:.8rem;white-space:pre-wrap;font-size:.85rem;line-height:1.8;margin-bottom:.75rem">'+escapeHtml(t.message)+'</div>' : '')
+    + (photos.length ? '<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.75rem">'+photos.map(function(u){ return '<a href="'+u+'" target="_blank" rel="noopener"><img src="'+u+'" style="width:120px;height:120px;object-fit:cover;border-radius:6px;border:1px solid var(--border)"></a>'; }).join('')+'</div>' : '')
+    + '<div class="flabel" style="margin:.5rem 0 .3rem">状態・メモ（編集部用・非公開）</div>'
+    + '<select id="tip-status" class="fselect" style="margin-bottom:.5rem">'
+    + Object.keys(TIP_STATUS).map(function(k){ return '<option value="'+k+'"'+((t.status||'new')===k?' selected':'')+'>'+TIP_STATUS[k][0]+'</option>'; }).join('')
+    + '</select>'
+    + '<textarea id="tip-note" class="finput" style="min-height:60px;resize:vertical" placeholder="確認したこと・対応メモ">'+escapeHtml(t.adminNote||'')+'</textarea>'
+    + '<div class="macts" style="flex-wrap:wrap">'
+    + '<button class="btn btn-r btn-sm" onclick="askDelTip(\''+id+'\')">🗑️ 削除</button>'
+    + '<button class="btn btn-o btn-sm" onclick="saveTipStatus(\''+id+'\')">💾 状態を保存</button>'
+    + '<button class="btn btn-g btn-sm" onclick="tipToArticle(\''+id+'\')">📝 ストック記事にする</button>'
+    + '<button class="btn btn-o btn-sm" onclick="closeTipModal()">閉じる</button></div>';
+  document.getElementById('tip-modal').classList.add('on');
+  if ((t.status||'new')==='new') { // 開いたら「確認中」に
+    try { await window._updateDoc('tips', id, { status:'reviewing' }); t.status='reviewing'; document.getElementById('tip-status').value='reviewing'; updateTipBadge(); } catch(e) {}
+  }
+}
+var curTipId = null;
+function closeTipModal(){ document.getElementById('tip-modal').classList.remove('on'); curTipId = null; renderTips(true); }
+
+async function saveTipStatus(id) {
+  try {
+    await window._updateDoc('tips', id, { status: document.getElementById('tip-status').value, adminNote: document.getElementById('tip-note').value.trim() });
+    toast('保存しました ✅'); await loadTips(); closeTipModal();
+  } catch(e) { toast('保存失敗: '+e.message,'error'); }
+}
+function askDelTip(id) {
+  openPin('情報提供を削除', 'この情報提供を削除します。この操作は取り消せません。', function(){
+    window._deleteDoc('tips', id).then(function(){ toast('削除しました'); closeTipModal(); return loadTips(); }).then(function(){ renderTips(true); })
+      .catch(function(e){ toast('削除失敗: '+e.message,'error'); });
+  });
+}
+
+// 情報提供 → 新規記事フォーム（配信区分はストック）に流し込む。写真は本文に入り、1枚目はサムネイルにも入る
+async function tipToArticle(id) {
+  var t = tips.find(function(x){ return x.id===id; });
+  if (!t) return;
+  var catMap = { 'イベント情報':'イベント' };
+  var body = '';
+  if (t.message) body += '<p>' + escapeHtml(t.message).replace(/\n/g,'<br>') + '</p>';
+  if (t.place) body += '<p>場所：' + escapeHtml(t.place) + '</p>';
+  if (t.whenText) body += '<p>日時：' + escapeHtml(t.whenText) + '</p>';
+  (t.photos||[]).forEach(function(u){ body += '<p><img src="'+u+'" style="max-width:100%;height:auto;border-radius:4px" alt="" /></p>'; });
+  if (t.creditOk && t.name) body += '<p>情報提供：' + escapeHtml(t.name) + ' さん</p>';
+  closeTipModal();
+  await goView('new');
+  setFormData({
+    title: t.title || '', slug: 'tip-' + Date.now(), categories: [catMap[t.category] || 'まちの話題'],
+    author: '編集部', body: body, thumbnail: (t.photos||[])[0] || '', deliveryMode: 'stock'
+  });
+  try { await window._updateDoc('tips', id, { status:'adopted' }); await loadTips(); } catch(e) {}
+  toast('情報提供の内容を記事フォームに入れました。確認・編集して「ストックに保存」してください', 'warn');
 }
 
 // ============================================================
