@@ -319,6 +319,7 @@
     .dlv-cell.today{border:2px solid var(--green)}
     .dlv-slot{margin-top:.2rem;padding:.2rem .3rem;border:1px dashed var(--green2);border-radius:4px;background:var(--gpale);cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .dlv-slot.empty{background:#fff;color:var(--light)}
+    .dlv-slot.plan{border:1px dotted #7b8fa3;background:#eef3f8;color:#3b5068}
     .dlv-slot.auto{border-color:var(--warn);background:#fff3cd}
     .dlv-side{flex:0 0 260px;max-width:100%}
     .dlv-stock{padding:.45rem .6rem;border:1px solid var(--border);border-radius:6px;margin-bottom:.4rem;font-size:.78rem;background:var(--card);cursor:grab}
@@ -388,6 +389,7 @@
       <button class="sb-btn"     data-v="breaking">📡 速報バー設定</button>
       <button class="sb-btn"     data-v="delivery">📅 定期配信</button>
       <button class="sb-btn"     data-v="newsletter">📧 メールマガジン</button>
+      <button class="sb-btn"     data-v="backup">💾 バックアップ</button>
       <button class="sb-btn"     data-v="sitefeatures">📣 サイト機能設定</button>
       <button class="sb-btn"     data-v="specialpages">🎌 特設ページ</button>
       <button class="sb-btn"     data-v="analytics">📊 記事アナリティクス</button>
@@ -1099,6 +1101,20 @@
         </div>
       </div>
 
+      <!-- バックアップ（復元） -->
+      <div id="v-backup" class="view">
+        <div class="bpanel">
+          <h3>💾 バックアップから復元</h3>
+          <p style="font-size:.83rem;color:var(--muted);line-height:1.8;margin-bottom:1rem">毎日3時の自動バックアップ（Googleドライブ）から、データを戻せます。復元の前に、今の状態を「復元前」バックアップとして自動で保存します。今あって、バックアップに無いデータは消えません。</p>
+          <div class="frow" style="max-width:440px;margin-bottom:1rem">
+            <label class="flabel">バックアップを選ぶ</label>
+            <select id="bk-folder" class="fselect" onchange="onBackupFolderChange()"></select>
+          </div>
+          <div id="bk-detail"></div>
+          <div id="bk-log" style="margin-top:1rem;max-height:240px;overflow-y:auto;font-size:.82rem;line-height:1.9;background:var(--bg);border-radius:6px;padding:.6rem .9rem;display:none"></div>
+        </div>
+      </div>
+
       <!-- 定期配信 -->
       <div id="v-delivery" class="view">
         <div class="bpanel">
@@ -1113,6 +1129,12 @@
               <div class="fhint">🔄＝予備の自動配置。手動で別の記事を入れると上書きされ、予備に戻ります。</div>
             </div>
           </div>
+        </div>
+        <div class="bpanel">
+          <h3>📝 仮の予定をまとめて入れる</h3>
+          <p class="fhint" style="margin-bottom:.5rem">記事ができる前でも、配信の予定だけ先に決められます（公開はされません）。1行＝1本で、今日以降の空き枠に日付順で入ります。1枠だけ入れたい時は、カレンダーの「＋ 空き」をタップしてください。仮の枠に記事を入れると、仮は自動で消えます。</p>
+          <textarea id="dlv-bulk" class="finput" style="min-height:90px;resize:vertical;font-family:inherit" placeholder="〇〇商店街のインタビュー&#10;夏祭りの特集&#10;空き家の話"></textarea>
+          <div style="margin-top:.6rem"><button class="btn btn-g btn-sm" onclick="dlvBulkPlans()">📝 空き枠に入れる</button></div>
         </div>
         <div class="bpanel"><h3>⚙️ 配信ルール</h3><div id="dlv-settings"></div></div>
       </div>
@@ -1776,7 +1798,7 @@ var VTITLES = {
   series:'📚 連載・特集',
   authors:'✍️ 執筆者紹介',
   spots:'🗺️ 地図スポット',
-  breaking:'📡 速報バー設定', delivery:'📅 定期配信', tips:'📮 情報提供', newsletter:'📧 メールマガジン', json:'📦 JSON入出力',
+  breaking:'📡 速報バー設定', delivery:'📅 定期配信', tips:'📮 情報提供', backup:'💾 バックアップ', newsletter:'📧 メールマガジン', json:'📦 JSON入出力',
   sitefeatures:'📣 サイト機能設定', feedbacklist:'💬 記事フィードバック', analytics:'📊 記事アナリティクス',
   specialpages:'🎌 特設ページ', aichat:'🤖 AIアシスタント'
 };
@@ -1847,6 +1869,7 @@ async function goView(key) {
   }
   if (key==='contacts')  renderContacts();
   if (key==='tips')      renderTips();
+  if (key==='backup')    renderBackupView();
   if (key==='submissions') renderSubmissions();
   if (key==='accounts')  {
     document.getElementById('account-detail-panel').style.display = 'none';
@@ -1863,7 +1886,7 @@ async function goView(key) {
   }
   if (key==='spots')     { closeSpotForm(); await loadSpots(); renderSpotsAdminList(); }
   if (key==='breaking')  loadBreaking();
-  if (key==='delivery')  { await Promise.all([loadArticles(), loadDelivery()]); renderDelivery(); }
+  if (key==='delivery')  { await Promise.all([loadArticles(), loadDelivery(), loadPlans()]); renderDelivery(); }
   if (key==='newsletter') { await loadNewsletterData(); renderNewsletterAdmin(); }
   if (key==='sitefeatures') loadSiteFeatureSettings();
   if (key==='analytics') { document.getElementById('analytics-detail-panel').style.display='none'; document.getElementById('an-site-stats').style.display=''; document.getElementById('analytics-list-panel').style.display='block'; renderAnalyticsList(); }
@@ -3785,6 +3808,134 @@ function askDel(id, title) {
 }
 
 // ============================================================
+// バックアップからの復元（GASのドライブ上のバックアップを読んで、Firestoreへ書き戻す。管理者専用）
+// ============================================================
+var bkFolders = [];
+var bkRunning = false;
+var BK_LABEL = { articles:'📰 記事', series:'📚 連載・特集', authors:'✍️ 執筆者紹介', spots:'🗺️ 地図スポット', specialPages:'🎌 特設ページ',
+  settings:'⚙️ サイト設定', tips:'📮 情報提供', submissions:'📨 投稿申請', contacts:'✉️ お問い合わせ', feedback:'💬 フィードバック',
+  accounts:'🧑‍💼 投稿者アカウント', admins:'🔐 管理者の台帳', newsletterSubscribers:'📧 メルマガ登録者', aichatSessions:'🤖 AI会話履歴',
+  nhkNews:'📺 NHKニュース', kumamonDecor:'🐻 くまモン装飾', pageViews:'📊 アクセスログ', deliveryPlans:'📝 仮の配信予定' };
+
+async function bkCall(payload) {
+  var res = await fetch(NEWSLETTER_GAS_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(Object.assign({ secret: NEWSLETTER_API_SECRET }, payload)) });
+  return res.json();
+}
+
+async function renderBackupView() {
+  var sel = document.getElementById('bk-folder'), detail = document.getElementById('bk-detail');
+  sel.innerHTML = '<option>読み込み中…</option>'; detail.innerHTML = '';
+  try {
+    var r = await bkCall({ type:'backup_list' });
+    if (!r.ok) throw new Error(r.error);
+    bkFolders = r.backups || [];
+  } catch (e) { sel.innerHTML = ''; detail.innerHTML = '<div class="etbl">バックアップ一覧を読み込めませんでした：' + escapeHtml(String(e.message || e)) + '<br>（GASを新しいバージョンでデプロイしているか確認してください）</div>'; return; }
+  if (!bkFolders.length) { sel.innerHTML = ''; detail.innerHTML = '<div class="etbl">バックアップがまだありません。</div>'; return; }
+  sel.innerHTML = bkFolders.map(function (b, i) {
+    var total = Object.keys(b.collections || {}).reduce(function (n, k) { return n + b.collections[k]; }, 0);
+    return '<option value="' + i + '">' + escapeHtml(b.name) + '（' + total + '件）</option>';
+  }).join('');
+  onBackupFolderChange();
+}
+
+function onBackupFolderChange() {
+  var b = bkFolders[parseInt(document.getElementById('bk-folder').value, 10)];
+  if (!b) return;
+  var cols = Object.keys(b.collections || {});
+  var rows = cols.map(function (c) {
+    var lock = (c === 'admins');
+    return '<label style="display:flex;align-items:center;gap:.5rem;padding:.3rem 0;font-size:.86rem"><input type="checkbox" class="bk-col" value="' + c + '" ' + (lock ? 'disabled' : '') + '> '
+      + (BK_LABEL[c] || c) + ' <span style="color:var(--light)">' + b.collections[c] + '件</span>' + (lock ? ' <span class="tag tag-y">安全のため復元不可</span>' : '') + '</label>';
+  }).join('');
+  var colOptions = cols.filter(function (c) { return c !== 'admins'; }).map(function (c) { return '<option value="' + c + '">' + (BK_LABEL[c] || c) + '</option>'; }).join('');
+  document.getElementById('bk-detail').innerHTML =
+    (b.errors && b.errors.length ? '<div style="background:#fff3cd;border:1px solid #ffc107;color:#856404;border-radius:6px;padding:.5rem .8rem;margin-bottom:.8rem;font-size:.8rem">⚠️ このバックアップは一部のコレクションの保存に失敗しています</div>' : '')
+    + '<div class="flabel" style="margin-bottom:.4rem">① 復元の方法</div>'
+    + '<label style="display:flex;gap:.5rem;font-size:.86rem;margin-bottom:.3rem"><input type="radio" name="bk-mode" value="missing" checked> <span><b>消えたデータだけ戻す（おすすめ）</b><br><span style="color:var(--muted);font-size:.78rem">今あるデータは変えません。誤って削除したものを戻したい時に。</span></span></label>'
+    + '<label style="display:flex;gap:.5rem;font-size:.86rem;margin-bottom:1rem"><input type="radio" name="bk-mode" value="overwrite"> <span><b>バックアップの内容で上書きする</b><br><span style="color:var(--muted);font-size:.78rem">同じIDのデータは、バックアップの時点の内容に戻ります（その後の編集は失われます）。</span></span></label>'
+    + '<div class="flabel" style="margin-bottom:.4rem">② まとめて戻す：コレクションを選ぶ</div>'
+    + '<div style="margin-bottom:.8rem">' + rows + '</div>'
+    + '<button class="btn btn-g" onclick="bkRunSelected()">♻️ 選んだコレクションを復元する</button>'
+    + '<div style="border-top:1px solid var(--border);margin:1.4rem 0 1rem"></div>'
+    + '<div class="flabel" style="margin-bottom:.4rem">③ 1件だけ戻す（例：誤って消した記事）</div>'
+    + '<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.6rem"><select id="bk-one-col" class="fselect" style="max-width:200px">' + colOptions + '</select>'
+    + '<input id="bk-one-q" class="finput" style="max-width:240px" placeholder="タイトル・名前で検索" onkeydown="if(event.key===\'Enter\')bkSearch()">'
+    + '<button class="btn btn-o btn-sm" onclick="bkSearch()">🔍 検索</button></div>'
+    + '<div id="bk-one-results" style="margin-bottom:.6rem"></div>';
+}
+
+async function bkSearch() {
+  var b = bkFolders[parseInt(document.getElementById('bk-folder').value, 10)];
+  var wrap = document.getElementById('bk-one-results');
+  wrap.innerHTML = '<span style="color:var(--muted);font-size:.82rem">検索中…</span>';
+  try {
+    var r = await bkCall({ type:'backup_search', folder:b.name, collection:document.getElementById('bk-one-col').value, query:document.getElementById('bk-one-q').value.trim() });
+    if (!r.ok) throw new Error(r.error);
+    wrap.innerHTML = r.results.length
+      ? r.results.map(function (x) { return '<label style="display:flex;gap:.5rem;font-size:.84rem;padding:.2rem 0"><input type="radio" name="bk-one" value="' + escAttr(x.id) + '"> ' + escapeHtml(x.label) + ' <span style="color:var(--light);font-size:.72rem">' + escapeHtml(x.id) + '</span></label>'; }).join('')
+        + '<button class="btn btn-g btn-sm" style="margin-top:.5rem" onclick="bkRestoreOne()">♻️ この1件を復元する</button>'
+      : '<span style="color:var(--muted);font-size:.82rem">見つかりませんでした</span>';
+  } catch (e) { wrap.innerHTML = '<span style="color:var(--red);font-size:.82rem">検索に失敗：' + escapeHtml(String(e.message || e)) + '</span>'; }
+}
+
+function bkMode() { var el = document.querySelector('input[name="bk-mode"]:checked'); return el ? el.value : 'missing'; }
+function bkConfirm(summary) {
+  if (bkRunning) { toast('復元の実行中です','warn'); return false; }
+  if (!confirm(summary + '\n\n復元の前に、今の状態を「復元前」バックアップとして自動保存します。実行しますか？')) return false;
+  var pin = prompt('復元にはPINコードが必要です：');
+  if (pin !== PIN) { if (pin !== null) toast('PINコードが違います', 'error'); return false; }
+  return true;
+}
+function bkRunSelected() {
+  var b = bkFolders[parseInt(document.getElementById('bk-folder').value, 10)];
+  var cols = Array.from(document.querySelectorAll('.bk-col:checked')).map(function (el) { return el.value; });
+  if (!cols.length) { toast('復元するコレクションを選んでください', 'warn'); return; }
+  var mode = bkMode();
+  if (!bkConfirm('【' + b.name + '】から ' + cols.length + 'コレクションを復元します。\n方法：' + (mode === 'missing' ? '消えたデータだけ戻す' : 'バックアップの内容で上書き'))) return;
+  bkExecute(b.name, cols, mode, '');
+}
+function bkRestoreOne() {
+  var b = bkFolders[parseInt(document.getElementById('bk-folder').value, 10)];
+  var picked = document.querySelector('input[name="bk-one"]:checked');
+  if (!picked) { toast('戻したいデータを選んでください', 'warn'); return; }
+  var col = document.getElementById('bk-one-col').value, mode = bkMode();
+  if (!bkConfirm('【' + b.name + '】の ' + (BK_LABEL[col] || col) + ' から、選んだ1件を復元します。\n方法：' + (mode === 'missing' ? '消えている場合だけ戻す' : 'バックアップの内容で上書き'))) return;
+  bkExecute(b.name, [col], mode, picked.value);
+}
+
+async function bkExecute(folderName, cols, mode, docId) {
+  bkRunning = true;
+  var log = document.getElementById('bk-log');
+  log.style.display = 'block'; log.innerHTML = '';
+  var L = function (t) { log.innerHTML += t + '<br>'; log.scrollTop = log.scrollHeight; };
+  try {
+    L('🛟 復元前の安全バックアップを作成中…（少し時間がかかります）');
+    var snap = await bkCall({ type:'backup_snapshot' });
+    if (!snap.ok) throw new Error('安全バックアップに失敗したため、復元を中止しました：' + snap.error);
+    L('✅ 安全バックアップ：' + escapeHtml(snap.folder));
+    for (var c = 0; c < cols.length; c++) {
+      var col = cols[c], label = BK_LABEL[col] || col, start = 0, sum = { created:0, skipped:0, failed:0 };
+      L('▶ ' + label + ' を復元中…');
+      while (true) {
+        var r = await bkCall({ type:'backup_restore', folder:folderName, collection:col, mode:mode, docId:docId, startIndex:start });
+        if (!r.ok) throw new Error(label + '：' + r.error);
+        sum.created += r.created; sum.skipped += r.skipped; sum.failed += r.failed;
+        (r.errors || []).forEach(function (e) { L('⚠️ ' + escapeHtml(e)); });
+        if (r.done) break;
+        start = r.nextIndex; L('　… ' + r.nextIndex + ' / ' + r.total);
+      }
+      L('✅ ' + label + '：復元 ' + sum.created + '件 ／ 既にあるためスキップ ' + sum.skipped + '件 ／ 失敗 ' + sum.failed + '件');
+    }
+    L('🎉 完了しました。画面のデータを読み込み直します…');
+    await loadAll();
+    toast('復元が完了しました ✅');
+  } catch (e) {
+    L('❌ ' + escapeHtml(String(e.message || e)));
+    toast('復元に失敗しました', 'error');
+  } finally { bkRunning = false; }
+}
+
+// ============================================================
 // 読者からの情報提供（tips）。読者がindex.htmlの「情報提供」から送信 → ここで確認 → 「ストック記事にする」
 // ============================================================
 var tips = [];
@@ -4204,6 +4355,7 @@ function dlvWarnings(){
     if (!r.active) w.push(k+' は配信休止／対象外ですが '+by[k].length+'本入っています（手動で移動してください）');
     else if (by[k].length > r.perDay) w.push(k+' は'+r.perDay+'本枠に'+by[k].length+'本入っています');
   });
+  dlvPlans.forEach(function(p){ if (p.date >= today && !resolveDay(p.date).active) w.push(p.date+' の仮の予定「'+p.text+'」は、配信日ではない日（休止・対象外）に入っています'); });
   var res = articles.filter(function(a){ return a.deliveryMode==='reserve'; }).length;
   if (res===0) w.push('🚨 予備が0本です。枠が空いても自動配置できません');
   else if (res<3) w.push('予備が残り'+res+'本です。補充してください');
@@ -4230,11 +4382,12 @@ function renderDelivery(){
     if (r.paused) inner += '<div>休止</div>';
     else if (r.active){
       inner += '<div style="color:var(--light)">'+r.time+'</div>';
+      var plans = key >= today ? dlvPlansOf(key) : [];
       for (var n=0;n<Math.max(r.perDay,list.length);n++){
         var a = list[n];
         inner += a
           ? '<div class="dlv-slot'+(a.autoFilled?' auto':'')+'" draggable="true" ondragstart="dlvDrag(event,\''+a.id+'\')" onclick="dlvSlotClick(\''+key+'\',\''+a.id+'\');event.stopPropagation()" title="'+escAttr(a.title)+'">'+(a.autoFilled?'🔄 ':'')+escapeHtml(a.title)+'</div>'
-          : '<div class="dlv-slot empty" onclick="dlvSlotClick(\''+key+'\',\'\');event.stopPropagation()">＋ 空き</div>';
+          : dlvEmptySlotHtml_(key, plans[n - list.length]);
       }
     }
     html += '<div class="'+cls+'" ondragover="event.preventDefault()" ondrop="dlvDrop(event,\''+key+'\')">'+inner+'</div>';
@@ -4254,11 +4407,66 @@ function renderDelivery(){
 function dlvDrag(e,id){ e.dataTransfer.setData('text/plain', id); }
 function dlvDrop(e,key){ e.preventDefault(); var id = e.dataTransfer.getData('text/plain'); if (id) dlvAssign(id,key); }
 function dlvPick(id){ dlvSel = (dlvSel===id) ? null : id; renderDelivery(); }
-function dlvSlotClick(key,artId){
-  if (dlvSel){ var id=dlvSel; dlvSel=null; dlvAssign(id,key); return; }
-  if (artId && confirm('この記事を枠から外してストックに戻しますか？')) dlvUnassign(artId);
-  else if (!artId) toast('先に右のストックから記事をタップ（またはドラッグ）してください','warn');
+function dlvSlotClick(key,artId,planId){
+  if (dlvSel){ var id=dlvSel; dlvSel=null; dlvAssign(id,key,planId); return; }
+  if (artId){
+    if (confirm('この記事を枠から外してストックに戻しますか？')) dlvUnassign(artId).then(async function(){ await loadArticles(); renderDelivery(); });
+    return;
+  }
+  dlvEditPlan(key, planId);
 }
+
+// ---- 仮の予定（テキストだけ。記事ができる前に、配信の予定だけ見えるようにする。公開はされない） ----
+var dlvPlans = [];
+async function loadPlans() {
+  try {
+    var snap = await window._getAll('deliveryPlans');
+    dlvPlans = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+  } catch(e) { console.error('loadPlans:', e); dlvPlans = []; }
+}
+function dlvPlansOf(key) {
+  return dlvPlans.filter(function(p){ return p.date===key; }).sort(function(a,b){ return (a.order||0)-(b.order||0); });
+}
+function dlvEmptySlotHtml_(key, plan) {
+  if (plan) return '<div class="dlv-slot plan" onclick="dlvSlotClick(\''+key+'\',\'\',\''+plan.id+'\');event.stopPropagation()" title="'+escAttr(plan.text)+'">📝 仮：'+escapeHtml(plan.text)+'</div>';
+  return '<div class="dlv-slot empty" onclick="dlvSlotClick(\''+key+'\',\'\');event.stopPropagation()">＋ 空き（仮を入れる）</div>';
+}
+async function dlvEditPlan(key, planId) {
+  var plan = planId ? dlvPlans.find(function(p){ return p.id===planId; }) : null;
+  var t = prompt(plan ? '仮の内容を編集（空にしてOKで削除）' : key+' の仮の予定（テキストだけでOK。例：〇〇商店街のインタビュー）', plan ? plan.text : '');
+  if (t === null) return;
+  t = t.trim();
+  try {
+    if (plan && !t) await window._deleteDoc('deliveryPlans', plan.id);
+    else if (plan) await window._updateDoc('deliveryPlans', plan.id, { text: t });
+    else if (t) await window._addDoc('deliveryPlans', { date:key, text:t, order:Date.now(), createdAt:window._ts() });
+    await loadPlans(); renderDelivery();
+  } catch(e) { toast('仮の予定の保存に失敗: '+e.message,'error'); }
+}
+async function dlvBulkPlans() {
+  var lines = document.getElementById('dlv-bulk').value.split('\n').map(function(t){ return t.trim(); }).filter(Boolean);
+  if (!lines.length) { toast('入れたい予定を、1行ずつ書いてください','warn'); return; }
+  var d = new Date(), added = 0, guard = 0, base = Date.now();
+  try {
+    while (lines.length && guard < 400) {
+      var key = dKey(d), r = resolveDay(key);
+      if (r.active) {
+        var free = r.perDay - dlvSlotsOf(key).length - dlvPlansOf(key).length;
+        while (free > 0 && lines.length) {
+          var t = lines.shift();
+          await window._addDoc('deliveryPlans', { date:key, text:t, order:base+added, createdAt:window._ts() });
+          dlvPlans.push({ id:'tmp'+added, date:key, text:t, order:base+added });
+          free--; added++;
+        }
+      }
+      d.setDate(d.getDate()+1); guard++;
+    }
+    await loadPlans(); renderDelivery();
+    document.getElementById('dlv-bulk').value = lines.join('\n');
+    toast(added + '本の仮の予定を入れました 📝' + (lines.length ? '（空き枠に入りきらなかった'+lines.length+'本は、欄に残してあります）' : ''), lines.length ? 'warn' : undefined);
+  } catch(e) { toast('仮の予定の追加に失敗: '+e.message,'error'); }
+}
+
 async function dlvToggleKind(id){
   var a = articles.find(function(x){ return x.id===id; }); if(!a) return;
   await window._updateDoc('articles', id, { deliveryMode: a.deliveryMode==='reserve' ? 'stock' : 'reserve' });
@@ -4268,7 +4476,7 @@ async function dlvUnassign(id){
   var a = articles.find(function(x){ return x.id===id; }); if(!a) return;
   await window._updateDoc('articles', id, { deliveryMode: a.stockKind||'stock', slotDate:'', slotIndex:null, autoFilled:false, createdAt:window._ts(), updatedAt:window._ts() });
 }
-async function dlvAssign(id,key){
+async function dlvAssign(id,key,planId){
   var a = articles.find(function(x){ return x.id===id; }); if(!a) return;
   var r = resolveDay(key);
   if (!r.active){ toast('この日は配信日ではありません（休止・対象外）','warn'); return; }
@@ -4286,6 +4494,12 @@ async function dlvAssign(id,key){
       createdAt:new Date(key+'T'+r.time+':00').toISOString(), updatedAt:window._ts()
     });
     toast(key+' の枠に配置しました ✅');
+    // 仮の予定がある日は、記事が入った分だけ仮を消す（タップした仮があればそれを、無ければ先頭の仮を）
+    var plansHere = dlvPlansOf(key);
+    if (plansHere.length && (list.length + 1 + plansHere.length > r.perDay)) {
+      var victim = (planId && plansHere.find(function(p){ return p.id===planId; })) || plansHere[0];
+      await window._deleteDoc('deliveryPlans', victim.id); await loadPlans();
+    }
   } catch(e){ toast('配置に失敗: '+e.message,'error'); }
   await loadArticles(); renderDelivery();
 }
