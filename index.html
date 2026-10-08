@@ -823,6 +823,14 @@
     .popup-close-btn{background:var(--accent);color:#fff;padding:.5rem 1.2rem;border-radius:6px;font-size:.85rem;font-weight:700;cursor:pointer;flex-shrink:0}
     .popup-close-btn:hover{background:var(--accent-light)}
 
+    /* お気に入りイベント */
+    #favorites-view{display:none}
+    #favorites-view.visible{display:block}
+    .cal-add-btn.fav-on{border-color:var(--danger);color:var(--danger)}
+    #fav-popup{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:15400;align-items:center;justify-content:center;padding:1.25rem}
+    #fav-popup.is-open{display:flex}
+    .fav-note{background:var(--bg-sub);border:1px solid var(--border);border-radius:8px;padding:.9rem 1.1rem;font-size:.84rem;line-height:1.8;color:var(--text-muted);margin-bottom:1.25rem}
+
     /* レスポンシブ */
     @media(max-width:900px){
       #top-layout{grid-template-columns:1fr}
@@ -900,6 +908,24 @@
     </div>
   </div>
 
+  <!-- お気に入り追加時の、メルマガ登録案内ポップアップ -->
+  <div id="fav-popup">
+    <div class="newsletter-modal-card">
+      <div class="newsletter-modal-header">
+        <span>♥ お気に入りに追加しました</span>
+        <button class="newsletter-modal-close-btn" onclick="closeFavPopup()">&times;</button>
+      </div>
+      <div class="newsletter-modal-body">
+        <p style="font-size:.9rem;line-height:1.9;margin-bottom:.6rem">お気に入りは、この端末に保存されました。</p>
+        <p style="font-size:.9rem;line-height:1.9;margin-bottom:1.1rem;font-weight:700;color:var(--accent)">📬 メルマガに登録すると、お気に入りにしたイベントの前日（夕方）に、メールでリマインドが届きます。</p>
+        <div style="display:flex;gap:.65rem;flex-wrap:wrap">
+          <button class="contact-submit" onclick="favPopupRegister()">📬 メルマガに登録する</button>
+          <button class="share-btn" onclick="closeFavPopup()">あとで</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- メールマガジン 登録モーダル -->
   <div id="newsletter-modal">
     <div class="newsletter-modal-card">
@@ -959,6 +985,7 @@
         <span class="nav-link" data-cat="インタビュー">インタビュー</span>
         <span class="nav-link" data-cat="series">連載・特集</span>
         <span class="nav-link" data-cat="calendar">イベントカレンダー</span>
+        <span class="nav-link" data-cat="favorites">♡ お気に入り</span>
       </nav>
       <div class="search-box">
         <span>🔍</span>
@@ -979,6 +1006,7 @@
     <span class="nav-link" data-cat="防災">防災</span>
     <span class="nav-link" data-cat="series">連載・特集</span>
     <span class="nav-link" data-cat="calendar">イベントカレンダー</span>
+        <span class="nav-link" data-cat="favorites">♡ お気に入り</span>
     <span class="nav-link" data-cat="archive">アーカイブ</span>
     <div style="padding:.75rem 1rem">
       <div class="search-box"><span>🔍</span><input id="search-input-mob" type="search" placeholder="記事を検索..." style="width:100%" /></div>
@@ -1008,6 +1036,7 @@
       <button class="cat-btn" data-cat="防災">🚨 防災</button>
       <button class="cat-btn" data-cat="series">📚 連載・特集</button>
       <button class="cat-btn" data-cat="calendar">📅 イベントカレンダー</button>
+      <button class="cat-btn" data-cat="favorites">♡ お気に入り</button>
       <button class="cat-btn" data-cat="archive">🗄 アーカイブ</button>
     </div>
   </div>
@@ -1128,6 +1157,10 @@
 
     <section id="newsletter-manage-view">
       <div id="newsletter-manage-content"></div>
+    </section>
+
+    <section id="favorites-view">
+      <div id="favorites-content"></div>
     </section>
 
     <section id="special-view">
@@ -1809,6 +1842,7 @@
     document.getElementById('archive-view').classList.toggle('visible',v==='archive');
     document.getElementById('author-view').classList.toggle('visible',v==='author');
     document.getElementById('special-view').classList.toggle('visible',v==='special');
+    document.getElementById('favorites-view').classList.toggle('visible',v==='favorites');
     document.getElementById('newsletter-manage-view').classList.toggle('visible',v==='newsletter-manage');
     currentView=v; window.scrollTo(0,0);
   }
@@ -1906,6 +1940,12 @@
     var url = buildShareUrl(a);
     var uidBase = (a.id||a.slug||'event');
     var lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//アンカツ＋//JP'];
+    /* 通知（リマインド）：時刻つきは「前日」と「1時間前」、終日は「前日の18時」 */
+    function alarmLines(timed){
+      var t = icsEscape_(a.title||'');
+      function al(trigger){ return ['BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+t,'TRIGGER:'+trigger,'END:VALARM']; }
+      return timed ? al('-P1D').concat(al('-PT1H')) : al('-PT6H');
+    }
 
     function pushTimedEvent(dateObj, uidSuffix){
       var s = new Date(dateObj); s.setHours(tr.sh, tr.sm, 0, 0);
@@ -1914,13 +1954,13 @@
       lines.push('BEGIN:VEVENT','UID:'+uidBase+uidSuffix+'@ankatsu-plus','DTSTAMP:'+calDateTime_(new Date())+'Z');
       lines.push('DTSTART;TZID=Asia/Tokyo:'+calDateTime_(s));
       lines.push('DTEND;TZID=Asia/Tokyo:'+calDateTime_(e));
-      lines.push('SUMMARY:'+icsEscape_(a.title||''), 'DESCRIPTION:'+icsEscape_(url), 'URL:'+url, 'END:VEVENT');
+      lines.push('SUMMARY:'+icsEscape_(a.title||''), 'DESCRIPTION:'+icsEscape_(url), 'URL:'+url); lines = lines.concat(alarmLines(true)); lines.push('END:VEVENT');
     }
     function pushAllDayEvent(startObj, endObjExclusive, uidSuffix){
       lines.push('BEGIN:VEVENT','UID:'+uidBase+uidSuffix+'@ankatsu-plus','DTSTAMP:'+calDateTime_(new Date())+'Z');
       lines.push('DTSTART;VALUE=DATE:'+calYmd_(startObj));
       lines.push('DTEND;VALUE=DATE:'+calYmd_(endObjExclusive));
-      lines.push('SUMMARY:'+icsEscape_(a.title||''), 'DESCRIPTION:'+icsEscape_(url), 'URL:'+url, 'END:VEVENT');
+      lines.push('SUMMARY:'+icsEscape_(a.title||''), 'DESCRIPTION:'+icsEscape_(url), 'URL:'+url); lines = lines.concat(alarmLines(false)); lines.push('END:VEVENT');
     }
 
     var mode = sched ? sched.mode : 'single';
@@ -1952,13 +1992,13 @@
         lines.push('DTSTART;TZID=Asia/Tokyo:'+calDateTime_(s2));
         lines.push('DTEND;TZID=Asia/Tokyo:'+calDateTime_(e2));
         lines.push('RRULE:FREQ=WEEKLY;UNTIL='+untilStr);
-        lines.push('SUMMARY:'+icsEscape_(a.title||''), 'DESCRIPTION:'+icsEscape_(url), 'URL:'+url, 'END:VEVENT');
+        lines.push('SUMMARY:'+icsEscape_(a.title||''), 'DESCRIPTION:'+icsEscape_(url), 'URL:'+url); lines = lines.concat(alarmLines(true)); lines.push('END:VEVENT');
       } else {
         lines.push('BEGIN:VEVENT','UID:'+uidBase+'@ankatsu-plus','DTSTAMP:'+calDateTime_(new Date())+'Z');
         lines.push('DTSTART;VALUE=DATE:'+calYmd_(first));
         lines.push('DTEND;VALUE=DATE:'+calYmd_(new Date(first.getTime()+86400000)));
         lines.push('RRULE:FREQ=WEEKLY;UNTIL='+calYmd_(untilD));
-        lines.push('SUMMARY:'+icsEscape_(a.title||''), 'DESCRIPTION:'+icsEscape_(url), 'URL:'+url, 'END:VEVENT');
+        lines.push('SUMMARY:'+icsEscape_(a.title||''), 'DESCRIPTION:'+icsEscape_(url), 'URL:'+url); lines = lines.concat(alarmLines(false)); lines.push('END:VEVENT');
       }
     }
     lines.push('END:VCALENDAR');
@@ -2003,6 +2043,7 @@
       ?'<a class="article-map-link" href="'+mapSpotUrl(a.mapSpotId)+'" target="_blank" rel="noopener">🗺️ この場所をアンカツMAPで見る</a>'
       :'';
     var calButtons=articleCalendarButtonsHtml_(a);
+    var favBtn=favButtonHtml_(a);
     var statusRow=eventStatusRowHtml_(a);
     var shareBar='<div class="article-share-bar">'
       +'<span class="share-label">この記事をシェア</span>'
@@ -2023,6 +2064,7 @@
       +statusRow
       +'<div class="article-meta"><span>✍️ <span class="author-name-link" onclick="openAuthor(\''+(a.author||'編集部').replace(/'/g,"\\'")+'\')">'+(a.author||'編集部')+'</span></span><span>📅 '+fmtDate(a.createdAt)+'</span>'+articleViewCountHtml(a)+'</div>'
       +mapLink
+      +favBtn
       +calButtons
       +shareBar
       +'</header>'+img
@@ -2134,6 +2176,12 @@
   function filterByCategory(cat){
     document.querySelectorAll('.nav-link,.cat-btn').forEach(function(el){el.classList.toggle('active',el.dataset.cat===cat);});
     if(cat==='all'){showView('top');history.pushState(null,'',location.pathname);document.title='アンカツ＋ | 城下町洲本のデジタルアーカイブ';return;}
+    if(cat==='favorites'){
+      renderFavoritesPage();showView('favorites');
+      history.pushState({view:'favorites'},'','#favorites');
+      document.title='お気に入りイベント | アンカツ＋';
+      return;
+    }
     if(cat==='series'){
       renderSeriesList();showView('series');
       history.pushState({view:'series'},'','#series');
@@ -2633,18 +2681,12 @@
                   name:name, email:email, creditOk:document.getElementById('tip-credit').checked,
                   status:'new', createdAt:ops.serverTimestamp() };
       if(_tipLoc){ doc.lat = _tipLoc.lat; doc.lng = _tipLoc.lng; }
-      await ops.addDoc(ops.collection(db,'tips'), doc);
+      var tipRef = await ops.addDoc(ops.collection(db,'tips'), doc);
       localStorage.setItem('ankatsu_tip_last', String(Date.now()));
 
-      var lines = ['分類：'+cat, title?('タイトル：'+title):'', msg?('内容：'+msg):'', place?('場所：'+place):'', when?('いつ：'+when):'',
-                   _tipLoc?('地図：https://www.google.com/maps?q='+_tipLoc.lat+','+_tipLoc.lng):'',
-                   _tipPhotos.length?('写真：\n'+_tipPhotos.join('\n')):''].filter(Boolean).join('\n');
-      sendContactGasMail({
-        type:'contact_admin_notify', to:CONTACT_ADMIN_NOTIFY_EMAIL,
-        name:name||'（匿名）', from_email:email||'（なし）', category:'【情報提供】'+cat, body:lines,
-        submitted_at:new Date().toLocaleString('ja-JP'),
-        admin_url: location.origin + location.pathname.replace('index.html','') + 'admin.html'
-      });
+      /* 通知メール（編集部へ「情報提供がありました」／メールアドレスがあれば提供者へ「受付しました」）はGASが送る */
+      nlCallGas({ type:'tip_notify', tipId: tipRef.id }).catch(function(){});
+      document.getElementById('tip-done').innerHTML = '✅ 情報をお送りいただきありがとうございます。<br>編集部で内容を確認します。'+(email?'<br><span style="font-size:.85rem;font-weight:400">ご入力のメールアドレスに、受付のメールをお送りしました。</span>':'');
       document.getElementById('tip-form').style.display = 'none';
       document.getElementById('tip-done').classList.add('visible');
       document.title = '情報提供ありがとうございます | アンカツ＋';
@@ -2652,6 +2694,96 @@
       console.error(e); btn.disabled = false; btn.textContent = '送信する →';
       alert('送信に失敗しました。しばらくしてから、もう一度お試しください。');
     }
+  }
+
+  /* =========================================================================
+     お気に入りイベント（端末に保存）＋ メルマガ登録者には、前日の夕方にリマインドメール
+     ・端末：localStorage「ankatsu_fav_events」に記事IDの配列
+     ・登録者：GAS経由で newsletterSubscribers.favorites に保存（複数端末の分は合わさる）
+     ========================================================================= */
+  var FAV_KEY = 'ankatsu_fav_events';
+  var FAV_POPUP_KEY = 'ankatsu_fav_popup_last';
+  function getFavs(){ try{ var v = JSON.parse(localStorage.getItem(FAV_KEY)||'[]'); return Array.isArray(v)?v:[]; }catch(e){ return []; } }
+  function setFavs(a){ try{ localStorage.setItem(FAV_KEY, JSON.stringify(a)); }catch(e){} }
+  function isFav(id){ return getFavs().indexOf(id) >= 0; }
+  function favLabel(on){ return on ? '♥ お気に入り済み（前日にお知らせ）' : '♡ 行きたい（お気に入りに追加）'; }
+
+  function favButtonHtml_(a){
+    if(articleCats(a).indexOf('イベント') < 0) return '';
+    var st = getArticleEventStatus(a);
+    if(st && st.key === 'ended') return '';
+    var on = isFav(a.id);
+    return '<div class="article-calendar-add"><button class="cal-add-btn cal-add-btn-o fav-btn'+(on?' fav-on':'')+'" data-fav-id="'+a.id+'" onclick="toggleFavorite(\''+a.id+'\')">'+favLabel(on)+'</button></div>';
+  }
+  function updateFavButtons(id){
+    var on = isFav(id);
+    document.querySelectorAll('.fav-btn[data-fav-id="'+id+'"]').forEach(function(b){ b.textContent = favLabel(on); b.classList.toggle('fav-on', on); });
+  }
+
+  function toggleFavorite(id){
+    var favs = getFavs(), i = favs.indexOf(id), on = i < 0;
+    if(on) favs.push(id); else favs.splice(i, 1);
+    setFavs(favs);
+    updateFavButtons(id);
+    showShareToast(on ? '♥ お気に入りに追加しました' : 'お気に入りから外しました');
+    var token = localStorage.getItem(NEWSLETTER_TOKEN_KEY);
+    if(token){ nlCallGas({ type:'newsletter_fav_update', token:token, id:id, on:on }); }
+    else if(on){ maybeShowFavPopup(); }
+    if(currentView === 'favorites') renderFavoritesPage();
+  }
+
+  /* 登録済みの端末では、保存分をまとめてサーバーと合わせる（他の端末で付けたお気に入りも、ここに入る） */
+  async function syncFavoritesToServer(){
+    var token = localStorage.getItem(NEWSLETTER_TOKEN_KEY);
+    if(!token) return;
+    var res = await nlCallGas({ type:'newsletter_fav_sync', token:token, favorites:getFavs() });
+    if(res && res.ok && Array.isArray(res.favorites)){
+      setFavs(res.favorites);
+      res.favorites.forEach(updateFavButtons);
+      if(currentView === 'favorites') renderFavoritesPage();
+    }
+  }
+
+  /* ---- メルマガ登録の案内ポップアップ（未登録の端末で、お気に入りを追加した時。同じセッションでは1回、日をまたぐと3日おき） ---- */
+  function maybeShowFavPopup(){
+    try{
+      if(sessionStorage.getItem('ankatsu_fav_popup_shown')) return;
+      var last = parseInt(localStorage.getItem(FAV_POPUP_KEY)||'0', 10);
+      if(Date.now() - last < 3*86400000) return;
+      sessionStorage.setItem('ankatsu_fav_popup_shown','1');
+    }catch(e){}
+    setTimeout(function(){ document.getElementById('fav-popup').classList.add('is-open'); }, 500);
+  }
+  function closeFavPopup(){
+    document.getElementById('fav-popup').classList.remove('is-open');
+    try{ localStorage.setItem(FAV_POPUP_KEY, String(Date.now())); }catch(e){}
+  }
+  function favPopupRegister(){
+    document.getElementById('fav-popup').classList.remove('is-open');
+    openNewsletterModal();
+  }
+
+  /* ---- お気に入り一覧ページ ---- */
+  function renderFavoritesPage(){
+    var arts = getFavs().map(function(id){ return allArticles.find(function(a){ return a.id === id; }); }).filter(Boolean);
+    arts.forEach(function(a){ a._favNext = getNextEventOccurrence(a); });
+    var upcoming = arts.filter(function(a){ return a._favNext; }).sort(function(x,y){ return x._favNext - y._favNext; });
+    var past = arts.filter(function(a){ return !a._favNext; });
+    var registered = !!localStorage.getItem(NEWSLETTER_TOKEN_KEY);
+    var card = function(a, dim){
+      return '<div style="'+(dim?'opacity:.55':'')+'">'+gridCardHtml(a)
+        +'<button class="share-btn" style="margin-top:.5rem" onclick="toggleFavorite(\''+a.id+'\')">♡ お気に入りから外す</button></div>';
+    };
+    document.getElementById('favorites-content').innerHTML =
+      '<div class="list-header"><h2 class="list-title">♥ お気に入りイベント</h2><span class="list-count">'+arts.length+'件</span></div>'
+      +'<div class="fav-note">'+(registered
+          ? '✅ メルマガ登録済みです。お気に入りにしたイベントの<b>前日の夕方</b>に、メールでお知らせします。'
+          : '📬 メルマガに登録すると、お気に入りにしたイベントの<b>前日の夕方</b>に、メールでリマインドが届きます。<br><button class="contact-submit" style="margin-top:.6rem" onclick="openNewsletterModal()">メルマガに登録する</button>')
+      +'</div>'
+      +(!arts.length
+          ? '<div class="empty-state"><div class="icon">♡</div><p>お気に入りのイベントは、まだありません。<br>イベント記事の「♡ 行きたい」を押すと、ここに保存されます。</p></div>'
+          : '<div class="articles-grid">'+upcoming.map(function(a){ return card(a,false); }).join('')+'</div>'
+            +(past.length ? '<div class="series-detail-articles-head" style="margin-top:2rem">終了したイベント・日程のないイベント</div><div class="articles-grid">'+past.map(function(a){ return card(a,true); }).join('')+'</div>' : ''));
   }
 
   /* ---- お問い合わせフォーム：GAS自動返信 ---- */
@@ -2708,6 +2840,7 @@
     else if(h.startsWith('#series/')){var sid=decodeURIComponent(h.slice(8));var s=allSeries.find(function(x){return x.slug===sid||x.id===sid;});if(s){renderSeriesDetail(s);showView('series-detail');}}
     else if(h.startsWith('#calendar/')){var cparts=decodeURIComponent(h.slice(10)).split('-');openCalendarDay(cparts[0],cparts[1]);}
     else if(h==='#calendar')        filterByCategory('calendar');
+    else if(h==='#favorites')       filterByCategory('favorites');
     else if(h==='#archive')         filterByCategory('archive');
     else if(h.startsWith('#archive/')){var parts=decodeURIComponent(h.slice(9)).split('-');openArchiveMonth(parseInt(parts[0],10),parseInt(parts[1],10));}
     else if(h.startsWith('#author/')){var an=decodeURIComponent(h.slice(8));renderAuthorPage(an);showView('author');}
@@ -2729,6 +2862,7 @@
     else if(h.startsWith('#series/')){var sid=decodeURIComponent(h.slice(8));var s=allSeries.find(function(x){return x.slug===sid||x.id===sid;});if(s){renderSeriesDetail(s);showView('series-detail');}}
     else if(h.startsWith('#calendar/')){var cparts=decodeURIComponent(h.slice(10)).split('-');openCalendarDay(cparts[0],cparts[1]);}
     else if(h==='#calendar')        filterByCategory('calendar');
+    else if(h==='#favorites')       filterByCategory('favorites');
     else if(h==='#archive')         filterByCategory('archive');
     else if(h.startsWith('#archive/')){var parts=decodeURIComponent(h.slice(9)).split('-');openArchiveMonth(parseInt(parts[0],10),parseInt(parts[1],10));}
     else if(h.startsWith('#author/')){var an=decodeURIComponent(h.slice(8));renderAuthorPage(an);showView('author');}
@@ -2992,7 +3126,7 @@
     if(!res.ok){ alert('登録に失敗しました：'+(res.error||'')); return; }
 
     if(res.isNew){
-      localStorage.setItem(NEWSLETTER_TOKEN_KEY, res.token);
+      localStorage.setItem(NEWSLETTER_TOKEN_KEY, res.token); syncFavoritesToServer();
       document.getElementById('nl-done-title').textContent = '登録が完了しました！';
       document.getElementById('nl-done-sub').textContent = '確認メールをお送りしました。配信設定の変更・停止はフッターの「メールマガジンの登録・設定変更」からいつでも行えます。';
       document.getElementById('nl-step-email').style.display='none';
@@ -3018,7 +3152,7 @@
     var res = await nlCallGas({ type:'newsletter_verify_login_otp', email:_nlPendingEmail, code: code });
     btn.disabled=false; btn.textContent='確認する';
     if(!res.ok){ alert('認証コードが正しくないか、有効期限が切れています'); return; }
-    localStorage.setItem(NEWSLETTER_TOKEN_KEY, res.token);
+    localStorage.setItem(NEWSLETTER_TOKEN_KEY, res.token); syncFavoritesToServer();
     closeNewsletterModal();
     openNewsletterManagePage(); /* 既存登録者は、そのまま設定変更ページへ */
   }
@@ -3083,7 +3217,7 @@
     if(!res.ok){ alert('処理に失敗しました：'+(res.error||'')); return; }
 
     if(res.isNew){
-      localStorage.setItem(NEWSLETTER_TOKEN_KEY, res.token);
+      localStorage.setItem(NEWSLETTER_TOKEN_KEY, res.token); syncFavoritesToServer();
       renderNlmSettings(res.token, { email: email, categories: res.categories, status:'active' });
       showShareToast('登録が完了しました 📬');
       return;
@@ -3105,7 +3239,7 @@
     var res = await nlCallGas({ type:'newsletter_verify_login_otp', email:_nlPendingEmail, code: code });
     btn.disabled=false; btn.textContent='確認する';
     if(!res.ok){ alert('認証コードが正しくないか、有効期限が切れています'); return; }
-    localStorage.setItem(NEWSLETTER_TOKEN_KEY, res.token);
+    localStorage.setItem(NEWSLETTER_TOKEN_KEY, res.token); syncFavoritesToServer();
     renderNlmSettings(res.token, res);
   }
 
@@ -3211,6 +3345,7 @@
       checkMaintenance();
       setInterval(checkMaintenance, MAINTENANCE_CHECK_INTERVAL);
       initNewsletterBanner();
+      setTimeout(function(){ try{ if(localStorage.getItem(NEWSLETTER_TOKEN_KEY) && !sessionStorage.getItem('ankatsu_fav_synced')){ sessionStorage.setItem('ankatsu_fav_synced','1'); syncFavoritesToServer(); } }catch(e){} }, 3000);
       loadSiteFeatureSettings();
       Promise.all([loadArticles(), loadSeries(), loadAuthors()]).then(handleInitialHash);
     }
