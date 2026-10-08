@@ -823,6 +823,13 @@
     .popup-close-btn{background:var(--accent);color:#fff;padding:.5rem 1.2rem;border-radius:6px;font-size:.85rem;font-weight:700;cursor:pointer;flex-shrink:0}
     .popup-close-btn:hover{background:var(--accent-light)}
 
+    /* 記事の言語切り替え */
+    .lang-switch{display:flex;gap:.4rem;flex-wrap:wrap;margin:.25rem 0 .6rem}
+    .lang-btn{padding:.35rem .95rem;border:1.5px solid var(--border);border-radius:20px;font-size:.8rem;font-weight:700;background:var(--bg-card);color:var(--text-muted);transition:background var(--tr),color var(--tr),border-color var(--tr)}
+    .lang-btn:hover{border-color:var(--accent);color:var(--accent)}
+    .lang-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+    .lang-note{font-size:.76rem;color:var(--text-light);margin-bottom:.75rem;line-height:1.7}
+
     /* お気に入りイベント */
     #favorites-view{display:none}
     #favorites-view.visible{display:block}
@@ -860,7 +867,7 @@
 
   <div id="loading-screen">
     <div class="loading-logo">アンカツ＋</div>
-    <div class="loading-sub">城下町洲本</div>
+    <div class="loading-sub">城下町洲本 デジタルアーカイブ</div>
     <div class="loading-bar"><div class="loading-bar-inner"></div></div>
   </div>
 
@@ -985,6 +992,7 @@
         <span class="nav-link" data-cat="インタビュー">インタビュー</span>
         <span class="nav-link" data-cat="series">連載・特集</span>
         <span class="nav-link" data-cat="calendar">イベントカレンダー</span>
+        <span class="nav-link" data-cat="favorites">♡ お気に入り</span>
       </nav>
       <div class="search-box">
         <span>🔍</span>
@@ -1005,6 +1013,8 @@
     <span class="nav-link" data-cat="防災">防災</span>
     <span class="nav-link" data-cat="series">連載・特集</span>
     <span class="nav-link" data-cat="calendar">イベントカレンダー</span>
+        <span class="nav-link" data-cat="favorites">♡ お気に入り</span>
+    <span class="nav-link" data-cat="archive">アーカイブ</span>
     <div style="padding:.75rem 1rem">
       <div class="search-box"><span>🔍</span><input id="search-input-mob" type="search" placeholder="記事を検索..." style="width:100%" /></div>
     </div>
@@ -1030,11 +1040,11 @@
       <button class="cat-btn" data-cat="学校・子育て">学校・子育て</button>
       <button class="cat-btn" data-cat="移住・定住">移住・定住</button>
       <button class="cat-btn" data-cat="お知らせ">お知らせ</button>
-      <button class="cat-btn" data-cat="防災">防災</button>
-      <button class="cat-btn" data-cat="series">連載・特集</button>
-      <button class="cat-btn" data-cat="calendar">イベントカレンダー</button>
-      <button class="cat-btn" data-cat="favorites">お気に入り</button>
-      <button class="cat-btn" data-cat="archive">アーカイブ</button>
+      <button class="cat-btn" data-cat="防災">🚨 防災</button>
+      <button class="cat-btn" data-cat="series">📚 連載・特集</button>
+      <button class="cat-btn" data-cat="calendar">📅 イベントカレンダー</button>
+      <button class="cat-btn" data-cat="favorites">♡ お気に入り</button>
+      <button class="cat-btn" data-cat="archive">🗄 アーカイブ</button>
     </div>
   </div>
 
@@ -1190,9 +1200,9 @@
           <a data-page="about">発行団体について</a>
           <a data-page="tokku">「生涯活躍のまち」特区</a>
           <a data-page="privacy">プライバシーポリシー</a>
-          <a data-page="tip">情報提供（写真・イベント・事件事故）</a>
+          <a data-page="tip">📮 情報提供（写真・イベント・事件事故）</a>
           <a data-page="contact">お問い合わせ</a>
-          <a onclick="openNewsletterManagePage()">メールマガジンの登録・設定変更</a>
+          <a onclick="openNewsletterManagePage()">📬 メールマガジンの登録・設定変更</a>
           <a href="admin.html">管理ページ</a>
         </div>
       </div>
@@ -2057,7 +2067,8 @@
       +seriesBadge
       +'<div class="article-cat-badge">'+catTagsHtml(a,'article-cat-badge-item')+'</div>'
       +(deliveryBadgeLabel(a)?'<div style="margin-bottom:.6rem">'+deliveryBadgeHtml(a)+'</div>':'')
-      +'<h1 class="article-title">'+articleDisplayTitle(a)+'</h1>'
+      +'<div id="lang-switch" data-aid="'+a.id+'"></div>'
+      +'<h1 class="article-title" id="article-title-el">'+articleDisplayTitle(a)+'</h1>'
       +statusRow
       +'<div class="article-meta"><span>✍️ <span class="author-name-link" onclick="openAuthor(\''+(a.author||'編集部').replace(/'/g,"\\'")+'\')">'+(a.author||'編集部')+'</span></span><span>📅 '+fmtDate(a.createdAt)+'</span>'+articleViewCountHtml(a)+'</div>'
       +mapLink
@@ -2065,10 +2076,11 @@
       +calButtons
       +shareBar
       +'</header>'+img
-      +'<div class="article-body">'+(a.body||'<p>本文がありません。</p>')+'</div>'
+      +'<div class="article-body" id="article-body-el">'+(a.body||'<p>本文がありません。</p>')+'</div>'
       +'<div class="article-tags">'+tags+'</div>'
       +feedbackWidgetHtml(a);
     document.title=articleDisplayTitle(a)+' | アンカツ＋';
+    initArticleTranslation(a);
   }
 
   var EVENT_STATUS_COLORS = {
@@ -2781,6 +2793,72 @@
           ? '<div class="empty-state"><div class="icon">♡</div><p>お気に入りのイベントは、まだありません。<br>イベント記事の「♡ 行きたい」を押すと、ここに保存されます。</p></div>'
           : '<div class="articles-grid">'+upcoming.map(function(a){ return card(a,false); }).join('')+'</div>'
             +(past.length ? '<div class="series-detail-articles-head" style="margin-top:2rem">終了したイベント・日程のないイベント</div><div class="articles-grid">'+past.map(function(a){ return card(a,true); }).join('')+'</div>' : ''));
+  }
+
+  /* =========================================================================
+     記事の言語切り替え（日本語／やさしい日本語／English）
+     翻訳は、GASがAIで事前に作って、Firestoreの translations に保存している。ここでは、保存済みの翻訳を読んで表示するだけ。
+     ・翻訳が無い記事には、切り替え欄を出さない（日本語の原文のまま）
+     ・記事が更新されて、翻訳が古い場合は、その旨の注意書きを出す
+     ========================================================================= */
+  var LANG_LABELS = { ja:'日本語', easy:'やさしい日本語', en:'English' };
+  var _trCache = {};
+  function textHash_(str){
+    var h = 5381;
+    for(var i=0;i<str.length;i++){ h = ((h<<5) + h + str.charCodeAt(i)) | 0; }
+    return String(h >>> 0);
+  }
+  function articleHash_(a){ return textHash_((a.title||'')+'\n'+(a.body||'')); }
+
+  async function initArticleTranslation(a){
+    var el = document.getElementById('lang-switch');
+    if(!el || a.accessPassword || a.unlisted) return;
+    var docs = _trCache[a.id];
+    if(!docs){
+      var db = window._db, ops = window._firestoreOp;
+      if(!db || !ops) return;
+      docs = {};
+      await Promise.all(['en','easy'].map(async function(l){
+        try{
+          var snap = await ops.getDoc(ops.doc(db,'translations',a.id+'__'+l));
+          if(snap.exists()){ var d = snap.data(); if(d.title && d.body) docs[l] = d; }
+        }catch(e){ /* 翻訳が読めなくても、日本語の記事は普通に読める */ }
+      }));
+      _trCache[a.id] = docs;
+    }
+    var el2 = document.getElementById('lang-switch');
+    if(!el2 || el2.dataset.aid !== a.id) return; /* 読み込み中に、別の記事へ移動していた */
+    var langs = ['ja'].concat(['easy','en'].filter(function(l){ return docs[l]; }));
+    if(langs.length < 2){ el2.innerHTML = ''; return; }
+    el2.innerHTML = '<div class="lang-switch">'+langs.map(function(l){
+        return '<button type="button" class="lang-btn" data-lang="'+l+'" onclick="setArticleLang(\''+a.id+'\',\''+l+'\')">'+LANG_LABELS[l]+'</button>';
+      }).join('')+'</div><div class="lang-note" id="lang-note"></div>';
+    var pref = 'ja';
+    try{ pref = localStorage.getItem('ankatsu_lang') || 'ja'; }catch(e){}
+    setArticleLang(a.id, langs.indexOf(pref) >= 0 ? pref : 'ja', true);
+  }
+
+  function setArticleLang(id, lang, silent){
+    var a = allArticles.find(function(x){ return x.id === id; });
+    var t = document.getElementById('article-title-el'), b = document.getElementById('article-body-el'), note = document.getElementById('lang-note');
+    if(!a || !t || !b) return;
+    var docs = _trCache[id] || {};
+    if(!silent){ try{ localStorage.setItem('ankatsu_lang', lang); }catch(e){} }
+    document.querySelectorAll('.lang-btn').forEach(function(btn){ btn.classList.toggle('active', btn.dataset.lang === lang); });
+    if(lang === 'ja' || !docs[lang]){
+      t.textContent = articleDisplayTitle(a);
+      b.innerHTML = a.body || '<p>本文がありません。</p>';
+      t.removeAttribute('lang'); b.removeAttribute('lang');
+      if(note) note.textContent = '';
+      return;
+    }
+    var d = docs[lang];
+    t.textContent = d.title;
+    b.innerHTML = d.body;
+    var lc = (lang === 'en') ? 'en' : 'ja';
+    t.setAttribute('lang', lc); b.setAttribute('lang', lc);
+    var stale = d.sourceHash !== articleHash_(a);
+    if(note) note.textContent = '🌐 AIによる翻訳です。内容は、日本語の原文を優先します。'+(stale ? '（この翻訳は、記事を更新する前の内容です）' : '');
   }
 
   /* ---- お問い合わせフォーム：GAS自動返信 ---- */
