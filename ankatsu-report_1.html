@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>アンカツ＋ 掲載報告書ジェネレーター</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Noto+Serif+JP:wght@700;900&display=swap" rel="stylesheet">
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  const app = initializeApp({
+    apiKey: "AIzaSyC4HUWd4c5_fdgA-k34i1uthozfqYcRn9A",
+    authDomain: "ankatsu-d4816.firebaseapp.com",
+    projectId: "ankatsu-d4816",
+    storageBucket: "ankatsu-d4816.firebasestorage.app",
+    messagingSenderId: "1005813876395",
+    appId: "1:1005813876395:web:29153748d2a99c6584d9ee"
+  });
+  window._db = getFirestore(app);
+  window._fs = { collection, getDocs };
+  document.dispatchEvent(new Event("firebase-ready"));
+</script>
+<style>
+:root{--ink:#26231f;--sub:#6e675e;--line:#ddd6ca;--bg:#f2efe8;--green:#2d6a4f;--green-d:#1f4d39;--tint:#e3f1e8}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Noto Sans JP',sans-serif;color:var(--ink);background:var(--bg);line-height:1.7}
+.app{display:grid;grid-template-columns:400px 1fr;min-height:100vh}
+
+.form{background:#fff;border-right:1px solid var(--line);padding:22px 20px 40px;overflow-y:auto;height:100vh;position:sticky;top:0}
+.form h1{font:900 17px 'Noto Serif JP',serif;margin:0 0 4px}
+.form .lead{font-size:12px;color:var(--sub);margin:0 0 18px}
+.group{margin-bottom:22px}
+.group h2{font-size:12px;font-weight:700;color:var(--green-d);margin:0 0 8px;padding-bottom:5px;border-bottom:2px solid var(--tint)}
+label{display:block;font-size:12px;font-weight:500;margin:10px 0 3px}
+label small{color:var(--sub);font-weight:400}
+input,select,textarea{width:100%;font:inherit;font-size:13.5px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--green);outline-offset:1px}
+textarea{min-height:84px;resize:vertical}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn{width:100%;margin-top:6px;padding:12px;border:none;border-radius:10px;background:var(--green);color:#fff;font:700 14px inherit;cursor:pointer}
+.btn:hover{background:var(--green-d)}
+.btn.sub{background:var(--tint);color:var(--green-d);padding:9px;font-size:13px}
+.btn.sub:hover{background:#d2e8da}
+#status{font-size:12px;color:var(--sub);margin-top:6px}
+.item{border:1px solid var(--line);border-radius:10px;padding:4px 12px 12px;margin-bottom:10px;background:#fcfbf8}
+.item .ih{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:12px;font-weight:700}
+.item .del{border:none;background:none;color:#b0453a;font-size:12px;cursor:pointer;padding:2px 4px}
+.hint{font-size:11px;color:var(--sub);margin:6px 0 0}
+
+.preview{padding:28px 20px;display:flex;justify-content:center;overflow-x:auto}
+.sheet{width:210mm;min-height:297mm;background:#fff;padding:18mm 17mm;box-shadow:0 4px 24px rgba(0,0,0,.12);flex-shrink:0}
+.sheet h1{font:900 24px 'Noto Serif JP',serif;margin:0;letter-spacing:.04em}
+.sheet .head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid var(--green);padding-bottom:10px;margin-bottom:6px}
+.sheet .brand{font-size:11px;color:var(--sub);text-align:right}
+.sheet .type{display:inline-block;font-size:11px;font-weight:700;color:var(--green-d);background:var(--tint);padding:2px 10px;border-radius:12px;margin:12px 0 0}
+.sheet .to{font-size:15px;font-weight:700;margin:8px 0 2px}
+.sheet .lede{font-size:12px;color:var(--sub);margin:0 0 6px}
+.sheet h3{font-size:12.5px;margin:20px 0 8px;padding-left:9px;border-left:4px solid var(--green)}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+th{width:27%;background:#f7f5f0;font-weight:500;color:var(--sub)}
+table.list th{width:auto;text-align:left}
+td.r,th.r{text-align:right;white-space:nowrap}
+.art{display:flex;gap:14px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line);break-inside:avoid}
+.art:last-child{border-bottom:none}
+.art img{width:132px;height:88px;object-fit:cover;border-radius:6px;flex-shrink:0;background:#eee}
+.art .t{font-weight:700;font-size:13.5px;margin:0 0 2px}
+.art .m{font-size:11.5px;color:var(--sub);margin:0}
+.art .u{font-size:10.5px;color:var(--green-d);word-break:break-all}
+.art .pvl{font-size:12.5px;margin:4px 0 0}
+.art .pvl b{font:900 18px 'Noto Serif JP',serif;color:var(--green-d)}
+.total{display:flex;align-items:baseline;gap:6px;margin:4px 0}
+.total .n{font:900 40px 'Noto Serif JP',serif;color:var(--green-d);line-height:1}
+.total .u{font-size:13px;color:var(--sub)}
+.bar{height:9px;background:#ece8df;border-radius:6px;overflow:hidden;margin:6px 0 3px}
+.bar i{display:block;height:100%;background:var(--green)}
+.note{font-size:11px;color:var(--sub);margin:4px 0 0}
+.comment{font-size:12.5px;white-space:pre-wrap;border:1px solid var(--line);border-radius:6px;padding:10px 12px;min-height:50px}
+.empty{color:#b3aca1}
+.foot{margin-top:22px;font-size:10.5px;color:var(--sub);border-top:1px solid var(--line);padding-top:8px}
+
+@media (max-width:980px){.app{grid-template-columns:1fr}.form{height:auto;position:static;border-right:none}}
+@media print{
+  @page{size:A4;margin:0}
+  body{background:#fff}
+  .form{display:none}
+  .app{display:block}
+  .preview{padding:0;display:block}
+  .sheet{box-shadow:none;width:auto;min-height:auto}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="form">
+    <h1>掲載報告書をつくる</h1>
+    <p class="lead">記事は複数選べます。閲覧数は記事ごとに「いつ時点の速報値か」を入力します。</p>
+
+    <div class="group">
+      <h2>① 報告の種類</h2>
+      <label for="type">種類</label>
+      <select id="type">
+        <option value="pr">企業PR記事</option>
+        <option value="request">依頼記事（こちらからの依頼）</option>
+        <option value="activity">取り組み紹介記事</option>
+        <option value="other">その他</option>
+      </select>
+      <label for="company">宛先 <small>（企業・団体名。なければ空欄）</small></label>
+      <input id="company" placeholder="例：株式会社〇〇 御中">
+      <label for="plan">案件名・テーマ</label>
+      <input id="plan" placeholder="例：城下町の空き家活用の取り組み">
+    </div>
+
+    <div class="group">
+      <h2>② 掲載記事</h2>
+      <div id="items"></div>
+      <button class="btn sub" id="addItem" type="button">＋ 記事を追加</button>
+      <div class="hint" id="status"></div>
+    </div>
+
+    <div class="group">
+      <h2>③ 担当者・報告日</h2>
+      <div class="row">
+        <div><label for="staff">アンカツ担当者名</label><input id="staff"></div>
+        <div><label for="writer">取材・執筆者</label><input id="writer"></div>
+      </div>
+      <label for="reportDate">報告日</label>
+      <input type="date" id="reportDate">
+    </div>
+
+    <div class="group">
+      <h2>④ 全体の数値・反応</h2>
+      <div class="row">
+        <div><label for="goal">目標PV（合計）<small>任意</small></label><input type="number" id="goal" min="0"></div>
+        <div><label for="mapView">MAP表示数 <small>任意</small></label><input type="number" id="mapView" min="0"></div>
+      </div>
+      <label for="sns">SNS投稿・反応 <small>任意</small></label>
+      <input id="sns" placeholder="例：Instagram投稿済み／いいね120">
+      <label for="comment">所感・今後のご提案</label>
+      <textarea id="comment"></textarea>
+    </div>
+
+    <button class="btn" onclick="window.print()">PDFで保存・印刷する</button>
+  </aside>
+
+  <main class="preview"><section class="sheet" id="sheet"></section></main>
+</div>
+
+<script>
+const ANKATSU_PLUS_URL = 'index.html';              /* アンカツ＋の公開URLに合わせる */
+const AUTHOR_KEYS = ['author','authorName','writer','editor']; /* 記事の担当者フィールド名の候補 */
+
+const TYPES = {
+  pr:       { label:'企業PR記事',     lede:'このたびは企業PR記事をご依頼いただき、ありがとうございます。掲載内容と現時点の閲覧状況をご報告します。' },
+  request:  { label:'依頼記事',       lede:'ご依頼いただいた記事の掲載内容と、現時点の閲覧状況をご報告します。' },
+  activity: { label:'取り組み紹介記事', lede:'取り組みを紹介した記事の掲載内容と、現時点の閲覧状況をご報告します。' },
+  other:    { label:'掲載報告',       lede:'掲載内容と、現時点の閲覧状況をご報告します。' }
+};
+
+let articles = [];
+let items = [];   /* { articleId, publishAt, url, pv, uu, asOf } */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad = n => String(n).padStart(2,'0');
+const toDate = ts => { try{ const d = (ts && ts.toDate) ? ts.toDate() : new Date(ts); return isNaN(d) ? null : d; }catch(e){ return null; } };
+const toLocalInput = d => d ? `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}` : '';
+const fmtDT = v => { if(!v) return ''; const d = new Date(v); return isNaN(d) ? '' : `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const fmtD = v => { if(!v) return ''; const d = new Date(v); return isNaN(d) ? '' : `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`; };
+const num = v => (v === '' || v == null) ? null : Number(v);
+const fmtN = n => n == null ? '' : n.toLocaleString('ja-JP');
+const val = id => $(id).value.trim();
+const art = id => articles.find(a => a.id === id) || null;
+const newItem = () => ({ articleId:'', publishAt:'', url:'', pv:'', uu:'', asOf: toLocalInput(new Date()) });
+
+/* ---------- 記事フォーム（追加・削除時のみ再生成） ---------- */
+function renderItems(){
+  const opts = '<option value="">— 記事を選択 —</option>' +
+    articles.map(a => `<option value="${esc(a.id)}">${esc(fmtD(toDate(a.createdAt)))}｜${esc(a.title)}</option>`).join('');
+  $('items').innerHTML = items.map((it,i) => `
+    <div class="item" data-i="${i}">
+      <div class="ih"><span>記事 ${i+1}</span>${items.length>1 ? `<button class="del" type="button" data-del="${i}">削除</button>` : ''}</div>
+      <label>記事</label>
+      <select data-k="articleId">${opts.replace(`value="${esc(it.articleId)}"`, `value="${esc(it.articleId)}" selected`)}</select>
+      <div class="row">
+        <div><label>掲載日時</label><input type="datetime-local" data-k="publishAt" value="${esc(it.publishAt)}"></div>
+        <div><label>閲覧数（PV）</label><input type="number" min="0" data-k="pv" value="${esc(it.pv)}"></div>
+      </div>
+      <div class="row">
+        <div><label>速報値の時点</label><input type="datetime-local" data-k="asOf" value="${esc(it.asOf)}"></div>
+        <div><label>訪問者数 <small>任意</small></label><input type="number" min="0" data-k="uu" value="${esc(it.uu)}"></div>
+      </div>
+      <label>記事URL <small>（修正可）</small></label>
+      <input type="url" data-k="url" value="${esc(it.url)}" placeholder="https://…">
+    </div>`).join('');
+}
+
+$('items').addEventListener('input', e => {
+  const k = e.target.dataset.k, box = e.target.closest('.item');
+  if(!k || !box) return;
+  const it = items[+box.dataset.i];
+  it[k] = e.target.value;
+  if(k === 'articleId'){
+    const a = art(it.articleId);
+    if(a){
+      it.publishAt = toLocalInput(toDate(a.createdAt));
+      it.url = new URL(ANKATSU_PLUS_URL + '#article/' + encodeURIComponent(a.id), location.href).href;
+      const au = AUTHOR_KEYS.map(x => a[x]).find(Boolean);
+      if(au && !val('writer')) $('writer').value = au;
+      box.querySelector('[data-k="publishAt"]').value = it.publishAt;
+      box.querySelector('[data-k="url"]').value = it.url;
+    }
+  }
+  render();
+});
+$('items').addEventListener('click', e => {
+  const d = e.target.dataset.del;
+  if(d == null) return;
+  items.splice(+d, 1); renderItems(); render();
+});
+$('addItem').addEventListener('click', () => { items.push(newItem()); renderItems(); render(); });
+
+/* ---------- プレビュー ---------- */
+function render(){
+  const T = TYPES[$('type').value];
+  const goal = num($('goal').value), mv = num($('mapView').value);
+  const filled = items.filter(it => it.articleId);
+  const withPv = filled.filter(it => it.pv !== '');
+  const total = withPv.reduce((s,it) => s + Number(it.pv), 0);
+  const asOfSet = [...new Set(withPv.map(it => fmtDT(it.asOf)).filter(Boolean))];
+  const rate = (withPv.length && goal) ? Math.round(total / goal * 100) : null;
+
+  const artBlocks = filled.length ? filled.map(it => {
+    const a = art(it.articleId);
+    return `<div class="art">
+      ${a.thumbnail ? `<img src="${esc(a.thumbnail)}" alt="">` : ''}
+      <div>
+        <p class="t">${esc(a.title)}</p>
+        <p class="m">${a.category ? esc(a.category) + '／' : ''}掲載：${esc(fmtDT(it.publishAt)) || '未設定'}</p>
+        <div class="u">${esc(it.url)}</div>
+        ${it.pv !== '' ? `<p class="pvl"><b>${fmtN(Number(it.pv))}</b> PV <span class="m">（${esc(fmtDT(it.asOf)) || '時点未設定'} 時点）</span></p>` : ''}
+      </div></div>`;
+  }).join('') : '<span class="empty">記事が選択されていません</span>';
+
+  const listRows = withPv.map(it => `<tr><td>${esc(art(it.articleId).title)}</td><td class="r">${esc(fmtDT(it.asOf)) || '—'}</td><td class="r">${fmtN(Number(it.pv))}</td></tr>`).join('');
+  const uuTotal = filled.filter(it => it.uu !== '').reduce((s,it) => s + Number(it.uu), 0);
+  const hasUu = filled.some(it => it.uu !== '');
+
+  const info = [
+    ['種類', T.label],
+    val('plan') && ['案件・テーマ', esc(val('plan'))],
+    ['アンカツ担当者', val('staff') ? esc(val('staff')) : '<span class="empty">未入力</span>'],
+    val('writer') && ['取材・執筆', esc(val('writer'))]
+  ].filter(Boolean).map(([k,v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join('');
+
+  $('sheet').innerHTML = `
+    <div class="head"><h1>掲載報告書</h1><div class="brand">アンカツ＋<br>報告日：${esc(fmtD(val('reportDate')))}</div></div>
+    <span class="type">${T.label}</span>
+    ${val('company') ? `<p class="to">${esc(val('company'))}</p>` : ''}
+    <p class="lede">${T.lede}</p>
+
+    <h3>掲載記事（${filled.length}本）</h3>
+    ${artBlocks}
+
+    <h3>掲載概要</h3>
+    <table>${info}</table>
+
+    <h3>閲覧状況（速報値）</h3>
+    ${withPv.length ? `
+      <div class="total"><span class="n">${fmtN(total)}</span><span class="u">PV${withPv.length>1 ? '（合計）' : ''}</span></div>
+      ${rate != null ? `<div class="bar"><i style="width:${Math.min(100,rate)}%"></i></div><p class="note">目標 ${fmtN(goal)} PV に対して ${rate}%</p>` : ''}
+      ${withPv.length > 1 ? `<table class="list" style="margin-top:10px"><tr><th>記事</th><th class="r">速報値の時点</th><th class="r">PV</th></tr>${listRows}</table>` : ''}
+      <table style="margin-top:10px">
+        ${withPv.length === 1 ? `<tr><th>速報値の時点</th><td>${esc(asOfSet[0] || '未設定')}</td></tr>` : ''}
+        ${hasUu ? `<tr><th>訪問者数</th><td>${fmtN(uuTotal)} 人</td></tr>` : ''}
+        ${mv != null ? `<tr><th>アンカツMAPでの表示</th><td>${fmtN(mv)} 回</td></tr>` : ''}
+        ${val('sns') ? `<tr><th>SNS</th><td>${esc(val('sns'))}</td></tr>` : ''}
+      </table>
+      <p class="note">※ 数値は各時点の速報値です。今後の閲覧により変動します。${asOfSet.length > 1 ? '記事ごとに集計時点が異なります。' : ''}</p>
+    ` : '<span class="empty">閲覧数が未入力です</span>'}
+
+    <h3>所感・今後のご提案</h3>
+    <div class="comment">${val('comment') ? esc(val('comment')) : '<span class="empty">（未入力）</span>'}</div>
+    <div class="foot">アンカツ＋ 運営事務局</div>`;
+}
+
+async function loadArticles(){
+  try{
+    const snap = await window._fs.getDocs(window._fs.collection(window._db, 'articles'));
+    articles = snap.docs.map(d => Object.assign({ id:d.id }, d.data()))
+      .sort((x,y) => (toDate(y.createdAt)||0) - (toDate(x.createdAt)||0));
+    $('status').textContent = `${articles.length}件の記事を読み込みました`;
+  }catch(e){
+    console.error(e);
+    $('status').textContent = '記事を読み込めませんでした。通信状況とFirestoreのルールを確認してください。';
+  }
+  renderItems(); render();
+}
+
+document.querySelectorAll('.form > .group input:not([data-k]), .form > .group textarea, #type').forEach(el => {
+  el.addEventListener('input', render);
+});
+$('reportDate').value = new Date().toISOString().slice(0,10);
+items = [newItem()];
+renderItems(); render();
+if(window._db) loadArticles(); else document.addEventListener('firebase-ready', loadArticles, { once:true });
+</script>
+</body>
+</html>
