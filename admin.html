@@ -390,6 +390,7 @@
       <button class="sb-btn"     data-v="delivery">📅 定期配信</button>
       <button class="sb-btn"     data-v="newsletter">📧 メールマガジン</button>
       <button class="sb-btn"     data-v="backup">💾 バックアップ</button>
+      <button class="sb-btn"     data-v="translate">🌐 翻訳</button>
       <button class="sb-btn"     data-v="sitefeatures">📣 サイト機能設定</button>
       <button class="sb-btn"     data-v="specialpages">🎌 特設ページ</button>
       <button class="sb-btn"     data-v="analytics">📊 記事アナリティクス</button>
@@ -661,6 +662,10 @@
                   <label for="f-newsletter">📧 公開時にメールマガジンを配信する（自由配信のみ。ストック・予備は枠の公開日の「まとめメール」で配信）</label>
                 </div>
                 <div class="fhint">この記事のカテゴリを希望している登録者にお知らせメールが届きます。限定公開にした記事では自動的にOFFになり、配信されません。</div>
+                <div class="crow" style="margin-top:.5rem">
+                  <input id="f-translate" type="checkbox" checked />
+                  <label for="f-translate">🌐 English・やさしい日本語の翻訳を、AIで自動で作る（保存後、しばらくして付きます。限定公開は対象外）</label>
+                </div>
               </div>
 
               <div class="frow full">
@@ -1112,6 +1117,31 @@
           </div>
           <div id="bk-detail"></div>
           <div id="bk-log" style="margin-top:1rem;max-height:240px;overflow-y:auto;font-size:.82rem;line-height:1.9;background:var(--bg);border-radius:6px;padding:.6rem .9rem;display:none"></div>
+        </div>
+      </div>
+
+      <!-- 翻訳 -->
+      <div id="v-translate" class="view">
+        <div class="bpanel">
+          <h3>🌐 記事の翻訳（English・やさしい日本語）</h3>
+          <p style="font-size:.83rem;color:var(--muted);line-height:1.8;margin-bottom:.8rem">記事を保存すると、翻訳の依頼が「待機中」になり、GASが10分おきに順番に翻訳します。AIが混み合っている時は、自動で待ってやり直します（記事の公開には影響しません）。「⚠️古い」は、記事を直したあと、翻訳がまだ追いついていない状態です。</p>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.8rem">
+            <button class="btn btn-o btn-sm" onclick="renderTranslateView()">↺ 更新</button>
+            <button class="btn btn-g btn-sm" onclick="trQueueMissing()">📥 翻訳がまだ無い記事を、まとめて依頼する</button>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="tbl">
+              <thead><tr><th>記事</th><th>English</th><th>やさしい日本語</th><th style="width:110px">操作</th></tr></thead>
+              <tbody id="tr-tbody"></tbody>
+            </table>
+            <div id="tr-empty" class="etbl" style="display:none">翻訳の依頼はまだありません。記事を保存するか、上のボタンで依頼できます。</div>
+          </div>
+        </div>
+        <div class="bpanel">
+          <h3>📖 用語集（地名・固有名詞の訳し方）</h3>
+          <p style="font-size:.83rem;color:var(--muted);line-height:1.8;margin-bottom:.6rem">1行に1つ、<b>日本語 = English = やさしい日本語</b> の形で書きます（やさしい日本語は省略可。省略するとそのまま使います）。翻訳のたびに、AIへ渡されます。</p>
+          <textarea id="tr-glossary" class="finput" style="min-height:140px;resize:vertical;font-family:inherit" placeholder="洲本 = Sumoto = 洲本&#10;淡路島 = Awaji Island = 淡路島&#10;城下町 = castle town = 昔のお城のまち"></textarea>
+          <div style="margin-top:.7rem"><button class="btn btn-g btn-sm" onclick="trSaveGlossary()">💾 用語集を保存</button></div>
         </div>
       </div>
 
@@ -1798,7 +1828,7 @@ var VTITLES = {
   series:'📚 連載・特集',
   authors:'✍️ 執筆者紹介',
   spots:'🗺️ 地図スポット',
-  breaking:'📡 速報バー設定', delivery:'📅 定期配信', tips:'📮 情報提供', backup:'💾 バックアップ', newsletter:'📧 メールマガジン', json:'📦 JSON入出力',
+  breaking:'📡 速報バー設定', delivery:'📅 定期配信', tips:'📮 情報提供', backup:'💾 バックアップ', translate:'🌐 翻訳', newsletter:'📧 メールマガジン', json:'📦 JSON入出力',
   sitefeatures:'📣 サイト機能設定', feedbacklist:'💬 記事フィードバック', analytics:'📊 記事アナリティクス',
   specialpages:'🎌 特設ページ', aichat:'🤖 AIアシスタント'
 };
@@ -1870,6 +1900,7 @@ async function goView(key) {
   if (key==='contacts')  renderContacts();
   if (key==='tips')      renderTips();
   if (key==='backup')    renderBackupView();
+  if (key==='translate') renderTranslateView();
   if (key==='submissions') renderSubmissions();
   if (key==='accounts')  {
     document.getElementById('account-detail-panel').style.display = 'none';
@@ -2872,6 +2903,7 @@ async function approveSubmission(id, mode) {
   try {
     d.createdAt = window._ts();
     var ref = await window._addDoc('articles', d);
+    await queueTranslations(ref.id, d, null, true);
     await window._updateDoc('submissions', id, {
       status: 'approved',
       approvedAt: window._ts(),
@@ -3742,6 +3774,7 @@ async function pubArticle() {
       var goingLive = !!(prevArt && (prevArt.deliveryMode==='stock' || prevArt.deliveryMode==='reserve') && d.deliveryMode==='free' && !scheduleOn);
       if (goingLive) d.createdAt = window._ts();
       await window._updateDoc('articles', editingId, d);
+      await queueTranslations(editingId, d, prevArt);
       toast(goingLive ? '記事を公開しました ✅' : (scheduleOn ? '予約日時を更新しました ⏰' : '記事を更新しました ✅'));
       if (goingLive) sendNewsletterForArticle(Object.assign({ id: editingId }, d));
     } else {
@@ -3750,6 +3783,7 @@ async function pubArticle() {
         d.authorUid = window._auth.currentUser.uid; // 自分の記事だけ編集・削除できるようにするための所有者マーク
       }
       var newArtRef = await window._addDoc('articles', d);
+      await queueTranslations(newArtRef.id, d, null);
       toast((d.deliveryMode==='stock'||d.deliveryMode==='reserve') ? 'ストックに保存しました 📦（「📅 定期配信」で枠に入れると公開されます）' : (scheduleOn ? '予約投稿を設定しました ⏰' : '記事を公開しました ✅'));
       if (editingDraftId) { delDraft(editingDraftId); editingDraftId = null; } // 下書きから公開した場合は元の下書きを消す
       if (scheduleOn) {
@@ -3933,6 +3967,115 @@ async function bkExecute(folderName, cols, mode, docId) {
     L('❌ ' + escapeHtml(String(e.message || e)));
     toast('復元に失敗しました', 'error');
   } finally { bkRunning = false; }
+}
+
+// ============================================================
+// 記事の翻訳（English・やさしい日本語）。翻訳そのものはGAS（10分おき・Gemini）が行い、ここでは依頼と状態の確認を行う
+// translations/{記事ID}__{en|easy}  status: pending（待機中）/ working / done / failed
+// ============================================================
+var trDocs = [];
+var TR_LANGS = [['en','English'], ['easy','やさしい日本語']];
+var TR_STATUS = { pending:'⏳ 待機中', working:'⚙️ 作成中', done:'✅ 完了', failed:'❌ 失敗' };
+
+// 記事の内容の「指紋」（GAS・index.html と同じ計算。翻訳が古くなったか調べるのに使う）
+function textHash_(str) {
+  var h = 5381;
+  for (var i = 0; i < str.length; i++) { h = ((h << 5) + h + str.charCodeAt(i)) | 0; }
+  return String(h >>> 0);
+}
+
+// 記事を保存した時に呼ぶ。翻訳の依頼（待機中）を作る。内容が変わっていない保存は、依頼しない
+async function queueTranslations(articleId, d, prev, force) {
+  try {
+    if (!articleId || !d || d.unlisted) return;
+    if (!force) { var cb = document.getElementById('f-translate'); if (cb && !cb.checked) return; }
+    if (prev && (prev.title||'') === (d.title||'') && (prev.body||'') === (d.body||'')) return;
+    for (var i = 0; i < TR_LANGS.length; i++) {
+      var id = articleId + '__' + TR_LANGS[i][0];
+      var base = { articleId: articleId, lang: TR_LANGS[i][0], status: 'pending', attempts: 0, lastError: '', requestedAt: window._ts(), updatedAt: window._ts() };
+      var ex = await window._getDoc('translations', id);
+      if (ex.exists()) await window._updateDoc('translations', id, base); // 古い翻訳は、新しいのが出来るまで残す
+      else await window._setDoc('translations', id, base);
+    }
+  } catch (e) { console.error('queueTranslations:', e); toast('翻訳の依頼に失敗しました（記事の保存は完了しています）', 'warn'); }
+}
+
+async function loadTranslations() {
+  try {
+    var snap = await window._getAll('translations');
+    trDocs = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+  } catch (e) { console.error('loadTranslations:', e); trDocs = []; }
+}
+
+async function renderTranslateView() {
+  var tbody = document.getElementById('tr-tbody');
+  tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--muted)">読み込み中…</td></tr>';
+  await Promise.all([loadArticles(), loadTranslations()]);
+  try { var g = await window._getDoc('settings', 'translationGlossary'); document.getElementById('tr-glossary').value = g.exists() ? (g.data().text || '') : ''; } catch (e) {}
+
+  var byArticle = {};
+  trDocs.forEach(function (t) { (byArticle[t.articleId] = byArticle[t.articleId] || {})[t.lang] = t; });
+  var rows = Object.keys(byArticle).map(function (aid) {
+    var a = articles.find(function (x) { return x.id === aid; });
+    var notDone = TR_LANGS.some(function (l) { var t = byArticle[aid][l[0]]; return !t || t.status !== 'done'; });
+    return { aid: aid, a: a, docs: byArticle[aid], notDone: notDone };
+  }).sort(function (x, y) { return (y.notDone ? 1 : 0) - (x.notDone ? 1 : 0); });
+
+  document.getElementById('tr-empty').style.display = rows.length ? 'none' : 'block';
+  tbody.innerHTML = rows.map(function (r) {
+    var cur = r.a ? textHash_((r.a.title||'') + '\n' + (r.a.body||'')) : '';
+    var cell = function (lang) {
+      var t = r.docs[lang];
+      if (!t) return '<span style="color:var(--light)">依頼なし</span>';
+      var stale = t.status === 'done' && r.a && t.sourceHash !== cur;
+      return TR_STATUS[t.status] + (stale ? ' <span class="tag tag-y">⚠️古い</span>' : '')
+        + (t.lastError && t.status !== 'done' ? '<div style="font-size:.7rem;color:var(--red);max-width:220px;word-break:break-all">' + escapeHtml(String(t.lastError).slice(0, 80)) + '（' + (t.attempts||0) + '回目）</div>' : '');
+    };
+    return '<tr><td style="font-weight:600;font-size:.83rem">' + escapeHtml(r.a ? r.a.title : '（削除された記事）') + '</td>'
+      + '<td style="font-size:.8rem">' + cell('en') + '</td><td style="font-size:.8rem">' + cell('easy') + '</td>'
+      + '<td>' + (r.a ? '<button class="btn btn-o btn-sm" onclick="trRetry(\'' + r.aid + '\')">🔄 再翻訳</button>' : '') + '</td></tr>';
+  }).join('');
+}
+
+async function trRetry(articleId) {
+  try {
+    for (var i = 0; i < TR_LANGS.length; i++) {
+      var id = articleId + '__' + TR_LANGS[i][0];
+      var base = { articleId: articleId, lang: TR_LANGS[i][0], status: 'pending', attempts: 0, lastError: '', requestedAt: window._ts(), updatedAt: window._ts() };
+      var ex = await window._getDoc('translations', id);
+      if (ex.exists()) await window._updateDoc('translations', id, base); else await window._setDoc('translations', id, base);
+    }
+    toast('再翻訳を依頼しました（10分以内に、順番に処理されます）');
+    renderTranslateView();
+  } catch (e) { toast('依頼に失敗: ' + e.message, 'error'); }
+}
+
+// 翻訳がまだ無い記事（限定公開以外）を、まとめて依頼する
+async function trQueueMissing() {
+  await Promise.all([loadArticles(), loadTranslations()]);
+  var have = {};
+  trDocs.forEach(function (t) { have[t.id] = true; });
+  var jobs = [];
+  articles.forEach(function (a) {
+    if (a.unlisted || !a.title) return;
+    TR_LANGS.forEach(function (l) { if (!have[a.id + '__' + l[0]]) jobs.push({ a: a, lang: l[0] }); });
+  });
+  if (!jobs.length) { toast('依頼していない記事は、ありません'); return; }
+  if (!confirm(jobs.length + '件の翻訳を依頼します（記事 ' + Math.ceil(jobs.length / TR_LANGS.length) + '本ぶん）。AIの処理は、10分ごとに少しずつ進みます。よろしいですか？')) return;
+  try {
+    for (var i = 0; i < jobs.length; i++) {
+      await window._setDoc('translations', jobs[i].a.id + '__' + jobs[i].lang, { articleId: jobs[i].a.id, lang: jobs[i].lang, status: 'pending', attempts: 0, lastError: '', requestedAt: window._ts(), updatedAt: window._ts() });
+    }
+    toast(jobs.length + '件を依頼しました ✅');
+    renderTranslateView();
+  } catch (e) { toast('依頼に失敗: ' + e.message, 'error'); }
+}
+
+async function trSaveGlossary() {
+  try {
+    await window._setDoc('settings', 'translationGlossary', { text: document.getElementById('tr-glossary').value });
+    toast('用語集を保存しました ✅（次の翻訳から使われます）');
+  } catch (e) { toast('保存失敗: ' + e.message, 'error'); }
 }
 
 // ============================================================
@@ -6470,6 +6613,7 @@ function confirmAiChatArticle(draft, doPost, wrapEl) {
       return window._addDoc('articles', newData);
     })
     .then(function (ref) {
+      queueTranslations(ref.id, newData, null, true);
       var articleUrl = location.origin + location.pathname.replace('admin.html', 'index.html') + '#article/' + encodeURIComponent(newData.slug);
       resultEl.style.color = 'var(--green)';
       resultEl.innerHTML = '✅ ストックに保存しました' + (newData.thumbnail ? '（アイキャッチ画像つき）' : '') + '　「📅 定期配信」で枠に入れると公開されます';
