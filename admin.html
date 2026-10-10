@@ -425,6 +425,10 @@
       <!-- ダッシュボード -->
       <div id="v-dashboard" class="view on">
         <div id="dash-admin-content">
+          <div class="panel" id="today-board">
+            <div class="phead"><span class="ptitle">📌 今日やること</span><button class="btn btn-o btn-sm" onclick="refreshTodayData()">↺ 更新</button></div>
+            <div id="today-board-body" style="padding:1rem 1.25rem"></div>
+          </div>
           <div class="stats">
             <div class="scard"><div class="slabel">総記事数</div><div class="sval" id="s-total">—</div><div class="ssub">公開中</div></div>
             <div class="scard"><div class="slabel">注目記事</div><div class="sval" id="s-feat">—</div><div class="ssub">トップ掲載</div></div>
@@ -1895,7 +1899,7 @@ async function goView(key) {
     var isAdmin = _role === 'admin';
     document.getElementById('dash-admin-content').style.display = isAdmin ? 'block' : 'none';
     document.getElementById('dash-contributor-content').style.display = isAdmin ? 'none' : 'block';
-    if (isAdmin) renderDash(); else renderContributorDashboard();
+    if (isAdmin) { renderDash(); refreshTodayData(); } else renderContributorDashboard();
   }
   if (key==='contacts')  renderContacts();
   if (key==='tips')      renderTips();
@@ -2021,7 +2025,7 @@ function fmtDate(ts) {
 }
 
 async function loadAll() {
-  await Promise.all([loadArticles(), loadContacts(), loadTips(), loadSubmissions(), loadSeries(), loadSpots(), loadAuthors(), loadAccounts()]);
+  await Promise.all([loadArticles(), loadContacts(), loadTips(), loadSubmissions(), loadSeries(), loadSpots(), loadAuthors(), loadAccounts(), loadDelivery(), loadPlans(), loadTranslations()]);
   populateArticleSelectForSpot();
   populateAuthorDatalist();
   renderDash();
@@ -2442,7 +2446,76 @@ function isArticleScheduled(a){
   }catch(e){ return false; }
 }
 
+// ============================================================
+// 「今日やること」（ダッシュボード）：要対応のこと・予備の残り・今日と明日（と次の配信日）の枠を、1画面にまとめる
+// ============================================================
+async function refreshTodayData() {
+  await Promise.all([loadArticles(), loadTips(), loadTranslations(), loadDelivery(), loadPlans(), loadContacts(), loadSubmissions(), loadAccounts()]);
+  renderTodayBoard();
+}
+
+function todayDateLabel_(key) {
+  var d = new Date(key + 'T00:00:00');
+  return (d.getMonth() + 1) + '/' + d.getDate() + '（' + DLV_WD[d.getDay()] + '）';
+}
+
+function todaySlotCard_(label, key) {
+  var r = resolveDay(key);
+  var head = '<div style="font-weight:700;font-size:.85rem;margin-bottom:.4rem">' + label + ' <span style="color:var(--light);font-weight:400">' + todayDateLabel_(key) + '</span>'
+    + (r.active ? ' <span style="color:var(--light);font-weight:400;font-size:.75rem">公開 ' + r.time + '</span>' : '') + '</div>';
+  var body = '';
+  if (r.paused) body = '<div style="color:var(--muted);font-size:.82rem">休止日' + (r.label ? '（' + escapeHtml(r.label) + '）' : '') + '</div>';
+  else if (!r.active) body = '<div style="color:var(--muted);font-size:.82rem">配信なし</div>';
+  else {
+    var list = dlvSlotsOf(key), plans = dlvPlansOf(key);
+    for (var n = 0; n < Math.max(r.perDay, list.length); n++) {
+      var a = list[n], pl = plans[n - list.length];
+      if (a) body += '<div style="font-size:.82rem;padding:.2rem 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">✅ ' + (a.autoFilled ? '🔄 ' : '') + escapeHtml(a.title) + '</div>';
+      else if (pl) body += '<div style="font-size:.82rem;padding:.2rem 0;color:#3b5068;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📝 仮：' + escapeHtml(pl.text) + '</div>';
+      else body += '<div style="font-size:.82rem;padding:.2rem 0;color:var(--red);font-weight:700">🔴 空き</div>';
+    }
+  }
+  return '<div style="border:1px solid var(--border);border-radius:8px;padding:.7rem .9rem;margin-bottom:.6rem;cursor:pointer;background:var(--card)" onclick="goView(\'delivery\')">' + head + body + '</div>';
+}
+
+function renderTodayBoard() {
+  var el = document.getElementById('today-board-body');
+  if (!el) return;
+  var newTips = tips.filter(function (t) { return (t.status || 'new') === 'new'; }).length;
+  var unread = contacts.filter(function (c) { return !c.read; }).length;
+  var subPending = submissions.filter(function (x) { return x.status === 'pending'; }).length;
+  var accPending = accounts.filter(function (x) { return x.status === 'pending' || x.status === 'needs_info'; }).length;
+  var trFailed = trDocs.filter(function (t) { return t.status === 'failed'; }).length;
+  var trWaiting = trDocs.filter(function (t) { return t.status === 'pending' || t.status === 'working'; }).length;
+  var reserve = articles.filter(function (a) { return a.deliveryMode === 'reserve'; }).length;
+
+  var row = function (icon, label, n, go, sub, level, showNum) {
+    var bad = level ? level !== 'ok' : n > 0;
+    var color = level === 'red' ? 'var(--red)' : (level === 'org' ? 'var(--warn)' : (bad ? 'var(--red)' : 'var(--green)'));
+    return '<div style="display:flex;align-items:center;gap:.6rem;padding:.55rem .2rem;border-bottom:1px solid var(--border);cursor:pointer" onclick="goView(\'' + go + '\')">'
+      + '<span style="font-size:1.1rem">' + icon + '</span>'
+      + '<span style="flex:1;font-size:.85rem">' + label + (sub ? '<span style="display:block;font-size:.72rem;color:var(--light)">' + sub + '</span>' : '') + '</span>'
+      + '<span style="font-weight:700;font-size:1.05rem;color:' + color + '">' + (bad || showNum ? n : '✓') + '</span></div>';
+  };
+  var todo = row('📮', '未確認の情報提供', newTips, 'tips')
+    + row('✉️', '未読のお問い合わせ', unread, 'contacts')
+    + row('📨', '投稿申請（未処理）', subPending, 'submissions')
+    + row('🧑‍💼', '投稿者アカウントの申請', accPending, 'accounts')
+    + row('🌐', '失敗した翻訳', trFailed, 'translate', trWaiting ? '待機中 ' + trWaiting + '件（順番に処理されます）' : '')
+    + row('🔄', '予備の残り（本）', reserve, 'delivery', reserve === 0 ? '0本だと、枠が空いても自動で埋められません' : (reserve < 3 ? '少なくなっています。補充してください' : ''), reserve === 0 ? 'red' : (reserve < 3 ? 'org' : 'ok'), true); // 予備は、正常でも本数を表示する
+
+  var today = new Date(), k0 = dKey(today), k1 = dKey(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1));
+  var next = null;
+  for (var i = 2; i <= 21 && !next; i++) { var kk = dKey(new Date(today.getFullYear(), today.getMonth(), today.getDate() + i)); if (resolveDay(kk).active) next = kk; }
+  var slots = todaySlotCard_('今日', k0) + todaySlotCard_('明日', k1) + (next ? todaySlotCard_('次の配信日', next) : '');
+
+  el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem">'
+    + '<div><div class="flabel" style="margin-bottom:.3rem">要対応（タップで移動）</div>' + todo + '</div>'
+    + '<div><div class="flabel" style="margin-bottom:.5rem">配信の枠</div>' + slots + '</div></div>';
+}
+
 function renderDash() {
+  renderTodayBoard();
   document.getElementById('s-total').textContent = articles.length;
   document.getElementById('s-feat').textContent  = articles.filter(function(a){ return a.featured; }).length;
   document.getElementById('s-cat').textContent   = new Set(articles.reduce(function(acc,a){ return acc.concat(articleCategories(a)); },[])).size;
