@@ -1950,7 +1950,7 @@ function initLogin() {
     btn.innerHTML = '<span class="spin"></span> 認証中…';
     window._signIn(e, p)
       .then(function(){ /* onAuthStateChanged が処理 */ })
-      .catch(function(){ err.classList.add('show'); })
+      .catch(function(){ err.textContent='メールアドレスまたはパスワードが正しくありません。'; err.classList.add('show'); })
       .finally(function(){ btn.disabled=false; btn.textContent='ログイン'; });
   }
 
@@ -1993,6 +1993,17 @@ function initAuth() {
       var role = await detectRole(user.uid);
       if (!role) {
         toast('このアカウントには管理画面へのアクセス権がありません', 'error');
+        await window._signOut();
+        return;
+      }
+      // 投稿者・編集部員は、審査が済んで「承認済み」になるまで、ログインできない
+      if ((role === 'contributor' || role === 'editor') && _myAccount && _myAccount.status !== 'approved') {
+        var blockMsg = { pending: '審査中です。承認されると、メールでお知らせします。承認後に、ログインできるようになります。',
+                         needs_info: '編集部から、追加の確認があります。register.html からログインして、質問にお答えください。',
+                         rejected: '今回は、見送りとなりました。' }[_myAccount.status] || 'このアカウントは、まだ利用できません。';
+        var le = document.getElementById('l-error');
+        if (le) { le.textContent = blockMsg; le.classList.add('show'); }
+        _myAccount = null;
         await window._signOut();
         return;
       }
