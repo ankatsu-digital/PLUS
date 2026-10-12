@@ -10,7 +10,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail }
       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getFirestore, doc, getDoc, setDoc, serverTimestamp }
+    import { getFirestore, doc, getDoc, setDoc, updateDoc, serverTimestamp }
       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -41,6 +41,9 @@
       logout: function () { return signOut(auth); },
       reset:  function (email) { return sendPasswordResetEmail(auth, email); },
       account: async function (uid) { const s = await getDoc(doc(db, 'accounts', uid)); return s.exists() ? s.data() : null; },
+      answer: async function (uid, questions) {
+        await updateDoc(doc(db, 'accounts', uid), { questions: questions, status: 'pending', updatedAt: serverTimestamp() });
+      },
       submission: async function (id) { const s = await getDoc(doc(db, 'submissions', id)); return s.exists() ? Object.assign({ id: s.id }, s.data()) : null; }
     };
     document.dispatchEvent(new Event('fb-ready'));
@@ -100,7 +103,7 @@
                    needs_info:['❓ 追加確認中','編集部から確認したいことがあります。管理画面にログインして、質問にお答えください。'],
                    approved:['✅ 承認済み','記事の投稿ができます。'],
                    rejected:['❌ 見送り','今回は、見送りとなりました。'] };
-    var tab = 'signup', busy = false, msg = '';
+    var tab = 'signup', busy = false, msg = '', msgKind = 'err';
     var card = document.getElementById('card');
     function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
     function box(kind, text){ return text ? '<div class="box '+kind+'">'+text+'</div>' : ''; }
@@ -115,16 +118,17 @@
     }
 
     function renderForm(){
+      var kind = msgKind; msgKind = 'err'; /* 色の指定は、1回だけ使う */
       var tabs = '<div class="tabs"><button class="tab'+(tab==='signup'?' on':'')+'" onclick="setTab(\'signup\')">新規登録</button><button class="tab'+(tab==='login'?' on':'')+'" onclick="setTab(\'login\')">ログイン</button></div>';
       if(tab==='login'){
-        card.innerHTML = '<h1>ログイン</h1><div class="lead">登録済みの方は、こちらからお入りください。</div>'+tabs+box('err',msg)
+        card.innerHTML = '<h1>ログイン</h1><div class="lead">登録済みの方は、こちらからお入りください。</div>'+tabs+box(kind,msg)
           +'<div class="field"><label>メールアドレス</label><input type="email" id="l-email" autocomplete="email"></div>'
           +'<div class="field"><label>パスワード</label><input type="password" id="l-pw" autocomplete="current-password"></div>'
           +'<button class="btn btn-p" id="l-btn" onclick="doLogin()">ログイン</button>'
           +'<div style="text-align:center"><button class="link" onclick="doReset()">パスワードを忘れた方</button></div>';
         return;
       }
-      card.innerHTML = '<h1>投稿者アカウントの登録</h1><div class="lead">アンカツ＋に記事を投稿していただくための登録です。編集部で内容を確認したあと、結果をメールでお知らせします。</div>'+tabs+box('err',msg)
+      card.innerHTML = '<h1>投稿者アカウントの登録</h1><div class="lead">アンカツ＋に記事を投稿していただくための登録です。編集部で内容を確認したあと、結果をメールでお知らせします。</div>'+tabs+box(kind,msg)
         +'<div class="field"><label>お名前 <span class="req">*</span></label><input type="text" id="s-name" autocomplete="name"></div>'
         +'<div class="field"><label>メールアドレス <span class="req">*</span></label><input type="email" id="s-email" autocomplete="email"></div>'
         +'<div class="field"><label>パスワード（8文字以上） <span class="req">*</span></label><input type="password" id="s-pw" autocomplete="new-password"></div>'
@@ -149,12 +153,13 @@
           type:'contact_admin_notify', to:ADMIN_NOTIFY_EMAIL, name:p.name, from_email:p.email, category:'【投稿者アカウント申請】',
           body:'所属：'+(p.org||'（なし）')+'\n理由：'+p.reason, submitted_at:new Date().toLocaleString('ja-JP'),
           admin_url:location.origin+location.pathname.replace('register.html','')+'admin.html'})}).catch(function(){});
+        await window._reg.logout(); /* 審査が済むまで、ログインはできない */
         busy = false; renderDone();
       }catch(e){ busy = false; msg = authError(e); renderForm(); restore(p); }
     }
     function restore(p){ ['name','email','org','reason'].forEach(function(k){ var el=document.getElementById('s-'+k); if(el) el.value=p[k]||''; }); }
     function renderDone(){
-      card.innerHTML = '<h1>申請を受け付けました</h1>'+box('ok','ありがとうございます。編集部で内容を確認します。結果は、ご登録のメールアドレスにお知らせします。')
+      card.innerHTML = '<h1>申請を受け付けました</h1>'+box('ok','ありがとうございます。編集部で内容を確認します。結果は、ご登録のメールアドレスにお知らせします。<br>審査が済むまで、ログインはできません。')
         +'<a class="btn btn-p" href="admin.html">ログインして状況を見る</a>';
     }
 
@@ -171,9 +176,7 @@
       catch(e){ alert(authError(e)); }
     }
 
-    async function renderMy(user){
-      var acc = null;
-      try{ acc = await window._reg.account(user.uid); }catch(e){}
+    function renderMy(user, acc){
       var st = acc ? (STATUS[acc.status] || ['-','']) : null;
       card.innerHTML = '<h1>マイページ</h1><div class="lead">'+esc(user.email)+' でログイン中</div>'
         + (acc
@@ -246,14 +249,61 @@
       }).catch(function(e){ rvMessage('エラー', '通信に失敗しました：'+e.message, false); });
     }
 
+
+    /* ---- 追加確認の質問への回答（審査の途中で、編集部から質問が来た人だけが入れる画面） ---- */
+    var _qa = null;
+    function renderQuestions(user, acc){
+      _qa = { uid:user.uid, acc:acc };
+      var qs = (acc.questions||[]).filter(function(q){ return !q.answer; });
+      card.innerHTML = '<h1>編集部からの確認事項</h1><div class="lead">審査のために、次の質問にお答えください。回答すると、あらためて審査されます。</div>'
+        + qs.map(function(q){
+            return '<div class="field"><label>Q. '+esc(q.text)+'</label><textarea id="qa-'+esc(q.id)+'" placeholder="回答を入力してください"></textarea></div>';
+          }).join('')
+        + '<button class="btn btn-p" id="qa-btn" onclick="submitAnswers()">回答を送信する</button>'
+        + '<button class="btn btn-s" onclick="window._reg.logout()">ログアウト</button>';
+    }
+    async function submitAnswers(){
+      var acc = _qa.acc;
+      var updated = (acc.questions||[]).map(function(q){
+        if(q.answer) return q;
+        var ta = document.getElementById('qa-'+q.id);
+        var v = ta ? ta.value.trim() : '';
+        return v ? Object.assign({}, q, { answer:v, answeredAt:new Date().toISOString() }) : q;
+      });
+      if(updated.some(function(q){ return !q.answer; })){ alert('すべての質問にお答えください'); return; }
+      var b = document.getElementById('qa-btn'); b.disabled = true; b.textContent = '送信中…'; busy = true;
+      try{
+        await window._reg.answer(_qa.uid, updated);
+        fetch(CONTACT_GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({
+          type:'contact_admin_notify', to:ADMIN_NOTIFY_EMAIL, name:acc.name||'', from_email:acc.email||'', category:'【追加確認への回答】',
+          body:updated.map(function(q){ return 'Q. '+q.text+'\nA. '+(q.answer||''); }).join('\n\n'), submitted_at:new Date().toLocaleString('ja-JP'),
+          admin_url:location.origin+location.pathname.replace('register.html','')+'admin.html'})}).catch(function(){});
+        await window._reg.logout();
+        busy = false;
+        card.innerHTML = '<h1>回答を送信しました</h1>'+box('ok','ありがとうございます。編集部で、あらためて確認します。結果は、メールでお知らせします。<br>審査が済むまで、ログインはできません。');
+      }catch(e){ busy = false; b.disabled = false; b.textContent = '回答を送信する'; alert('送信に失敗しました：'+((e&&e.message)||e)); }
+    }
+
     /* メールのリンク（?id=…&token=…）で開いた時は「投稿内容の確認」、それ以外は「登録・ログイン」 */
     var _q = new URLSearchParams(location.search);
     var REVIEW_MODE = _q.has('id') || _q.has('token');
     document.addEventListener('fb-ready', function(){
       if(REVIEW_MODE){ initReview(_q.get('id'), _q.get('token')); return; }
-      window._reg.onAuth(function(user){
-        if(busy) return;           /* 申請の保存が終わるまで、画面を切り替えない */
-        if(user) renderMy(user); else renderForm();
+      window._reg.onAuth(async function(user){
+        if(busy) return;           /* 申請・回答の保存が終わるまで、画面を切り替えない */
+        if(!user){ renderForm(); return; }
+        var acc = null;
+        try{ acc = await window._reg.account(user.uid); }catch(e){}
+        if(acc && acc.status !== 'approved'){
+          if(acc.status === 'needs_info'){ renderQuestions(user, acc); return; } /* 質問への回答だけは、ここでできる */
+          tab = 'login';
+          if(acc.status === 'pending'){ msg = '審査中です。編集部で確認しています。承認されると、メールでお知らせします。承認後に、ログインできるようになります。'; msgKind = 'warn'; }
+          else if(acc.status === 'rejected'){ msg = '今回は、見送りとなりました。' + (acc.rejectReason ? '（理由：' + acc.rejectReason + '）' : ''); }
+          else { msg = 'このアカウントは、まだ利用できません。'; }
+          await window._reg.logout();  /* ログアウトすると、ログイン画面に、上のメッセージが出る */
+          return;
+        }
+        renderMy(user, acc);
       });
     });
   </script>
