@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>企業・製品のPR掲載 | アンカツ＋</title>
+  <meta name="description" content="アンカツ＋で、あなたの企業・製品をPRしませんか？ 地域の製品や、ガジェットなど暮らしを豊かにするものを、記事で紹介します。製品提供で、掲載無料（当面）。" />
+  <meta property="og:title" content="アンカツ＋で、あなたの企業・製品をPRしませんか？" />
+  <meta property="og:description" content="製品を提供していただくだけで、記事で紹介します（当面、掲載無料）。" />
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, getDocs, getDoc, doc, addDoc, serverTimestamp }
+      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    const firebaseConfig = {
+      apiKey: "AIzaSyC4HUWd4c5_fdgA-k34i1uthozfqYcRn9A", authDomain: "ankatsu-d4816.firebaseapp.com",
+      projectId: "ankatsu-d4816", storageBucket: "ankatsu-d4816.firebasestorage.app",
+      messagingSenderId: "1005813876395", appId: "1:1005813876395:web:29153748d2a99c6584d9ee"
+    };
+    const db = getFirestore(initializeApp(firebaseConfig));
+    window._promo = {
+      articles: async function () { const s = await getDocs(collection(db, 'articles')); return s.docs.map(d => Object.assign({ id: d.id }, d.data())); },
+      stats: async function () { const s = await getDoc(doc(db, 'settings', 'promoStats')); return s.exists() ? s.data() : null; },
+      inquire: function (data) { return addDoc(collection(db, 'contacts'), Object.assign({ createdAt: serverTimestamp(), read: false }, data)); }
+    };
+    document.dispatchEvent(new Event('promo-ready'));
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Noto+Serif+JP:wght@700;900&display=swap" rel="stylesheet" />
+
+  <style>
+    :root{--navy:#14284b;--blue:#0a64c8;--blue2:#1a8fe3;--ink:#1c2433;--muted:#5b6475;--line:#dfe6ee;--card:#fff;--green:#2d6a4f;--sans:'Noto Sans JP',sans-serif;--serif:'Noto Serif JP',serif}
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth}
+    body{font-family:var(--sans);color:var(--ink);line-height:1.8;background:#f4f8fc;-webkit-text-size-adjust:100%}
+    a{color:inherit;text-decoration:none}
+    img{max-width:100%;display:block}
+    button{font-family:inherit;cursor:pointer;border:none;background:none}
+
+    /* ===== ヘッダー ===== */
+    .topbar{position:absolute;top:0;left:0;right:0;z-index:20;display:flex;justify-content:space-between;align-items:center;padding:1rem 1.5rem;max-width:1280px;margin:0 auto}
+    .brand{font-weight:900;font-size:1.9rem;letter-spacing:.02em;color:var(--navy);line-height:1}
+    .brand span{color:var(--blue2)}
+    .brand small{display:block;font-size:.8rem;font-weight:500;letter-spacing:.04em;color:var(--navy);margin-top:.5rem}
+    .toplink{font-size:.82rem;font-weight:700;color:var(--navy);background:rgba(255,255,255,.75);padding:.45rem .9rem;border-radius:20px}
+
+    /* ===== ヒーロー ===== */
+    .hero{position:relative;overflow:hidden;padding:6.5rem 1.5rem 2.5rem;
+      background:
+        radial-gradient(ellipse 380px 120px at 12% 18%,rgba(255,255,255,.95),transparent 70%),
+        radial-gradient(ellipse 460px 140px at 78% 10%,rgba(255,255,255,.9),transparent 70%),
+        radial-gradient(ellipse 320px 90px at 55% 30%,rgba(255,255,255,.7),transparent 70%),
+        linear-gradient(180deg,#bfe0f7 0%,#d9eefb 38%,#a9d6ee 70%,#7fc0e3 100%)}
+    .hero::after{content:'';position:absolute;left:0;right:0;bottom:0;height:34%;background:
+        radial-gradient(ellipse 60% 100% at 8% 100%,#5aa86a 0,transparent 70%),
+        radial-gradient(ellipse 50% 90% at 96% 100%,#6cb77a 0,transparent 70%);opacity:.55;pointer-events:none}
+    .stage{position:relative;z-index:2;max-width:1280px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) 330px minmax(0,1fr);gap:0 .5rem;align-items:start}
+    .copy h1{font-weight:900;font-size:clamp(1.8rem,3vw,2.7rem);line-height:1.4;color:var(--navy);margin:.5rem 0 1.1rem;letter-spacing:.01em}
+    .copy p{font-size:.95rem;color:#2c3a55;max-width:30em;margin-bottom:.4rem}
+    .copy .for{display:inline-block;margin-top:.7rem;font-size:.82rem;font-weight:700;color:var(--navy);background:rgba(255,255,255,.78);padding:.35rem .9rem;border-radius:20px}
+    .col-l,.col-r{display:flex;flex-direction:column;gap:1rem;padding-top:1rem}
+    .col-l{padding-top:0}
+    .cards-l{display:flex;flex-direction:column;gap:1rem;margin-top:1.4rem;align-items:flex-end}
+    .card-art{display:block;width:100%;max-width:280px;background:var(--card);border-radius:12px;box-shadow:0 10px 26px rgba(20,40,75,.16);overflow:hidden;transition:transform .2s}
+    .card-art:hover{transform:translateY(-4px) rotate(0deg)!important}
+    .cards-l .card-art{margin-right:-52px}
+    .cards-l .card-art:nth-child(1){transform:rotate(-1.2deg)}
+    .cards-l .card-art:nth-child(2){transform:rotate(1deg);margin-right:-30px}
+    .cards-r{display:flex;flex-direction:column;gap:1rem;align-items:flex-start}
+    .cards-r .card-art{margin-left:-52px}
+    .cards-r .card-art:nth-child(1){transform:rotate(1deg)}
+    .cards-r .card-art:nth-child(2){transform:rotate(-1deg);margin-left:-30px}
+    .card-art .th{height:92px;background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;font-size:2rem}
+    .card-art .bd{padding:.6rem .8rem .7rem}
+    .chip{display:inline-block;font-size:.66rem;font-weight:700;color:#fff;padding:.08rem .5rem;border-radius:4px;margin-bottom:.25rem}
+    .card-art .tt{font-size:.8rem;font-weight:700;line-height:1.5;color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.4em}
+    .card-art .dt{font-size:.68rem;color:var(--muted);margin-top:.25rem;display:flex;justify-content:space-between}
+
+    .isle-wrap{position:relative;display:flex;justify-content:center}
+    .isle{width:100%;max-width:300px;height:auto;filter:drop-shadow(0 14px 22px rgba(20,40,75,.28))}
+    .isle-note{position:absolute;bottom:-1.4rem;left:0;right:0;text-align:center;font-size:.64rem;color:rgba(20,40,75,.55)}
+
+    .hand{font-family:var(--serif);font-weight:700;color:var(--navy);font-size:1.15rem;line-height:1.5;align-self:flex-end;transform:rotate(-8deg);margin:0 1rem .2rem;text-align:center;position:relative;padding:0 .8rem}
+    .hand::before,.hand::after{content:'';position:absolute;top:50%;width:26px;height:2px;background:var(--navy);opacity:.6}
+    .hand::before{left:-22px;transform:rotate(-40deg)}.hand::after{right:-22px;transform:rotate(-40deg)}
+
+    /* メディアデータ */
+    .data{background:rgba(255,255,255,.96);border-radius:16px;box-shadow:0 12px 30px rgba(20,40,75,.2);padding:1.1rem 1.2rem;width:100%;max-width:360px;margin-left:auto}
+    .data h3{font-size:1.02rem;font-weight:900;color:var(--navy);display:flex;align-items:center;gap:.5rem}
+    .data h3 i{display:inline-flex;align-items:flex-end;gap:2px;height:16px}
+    .data h3 i b{display:block;width:4px;background:var(--blue2);border-radius:1px}
+    .data .sub{font-size:.72rem;color:var(--muted);margin:.25rem 0 .7rem}
+    .tiles{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
+    .tile{border:1px solid var(--line);border-radius:10px;padding:.5rem .7rem;background:#fbfdff}
+    .tile .k{font-size:.7rem;color:var(--muted)}
+    .tile .v{font-size:1.35rem;font-weight:900;color:var(--navy);line-height:1.25}
+    .top3{margin-top:.6rem;border:1px solid var(--line);border-radius:10px;padding:.55rem .75rem;background:#fbfdff}
+    .top3 .k{font-size:.7rem;color:var(--muted);margin-bottom:.15rem}
+    .top3 ol{padding-left:1.2rem;font-size:.78rem;font-weight:700}
+    .top3 li{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .data .asof{font-size:.64rem;color:var(--muted);margin-top:.5rem}
+
+    /* ===== プラン帯 ===== */
+    .planbar{position:relative;z-index:3;max-width:1280px;margin:1.6rem auto 0;background:rgba(255,255,255,.97);border-radius:16px;box-shadow:0 10px 28px rgba(20,40,75,.16);padding:1.2rem 1.6rem;display:grid;grid-template-columns:1.25fr 1fr 1fr 1fr auto;gap:1rem;align-items:center}
+    .plan-main h2{font-size:1.15rem;font-weight:900;color:var(--navy);display:flex;align-items:center;gap:.5rem}
+    .plan-main p{font-size:.84rem;color:var(--muted);margin:.2rem 0 .5rem}
+    .badge{display:inline-block;white-space:nowrap;background:var(--blue);color:#fff;font-weight:900;font-size:.88rem;padding:.35rem 1rem;border-radius:20px}
+    .badge s{opacity:.6;font-weight:500;margin-right:.3rem}
+    .step{text-align:center;border-left:1px solid var(--line);padding:0 .6rem}
+    .step .ic{font-size:1.7rem;line-height:1.2}
+    .step b{display:block;font-size:.82rem;color:var(--navy);margin-top:.2rem}
+    .step span{font-size:.7rem;color:var(--muted)}
+    .cta{display:inline-block;background:linear-gradient(180deg,#1a8fe3,#0a64c8);color:#fff;font-weight:900;padding:1rem 1.8rem;border-radius:40px;box-shadow:0 8px 20px rgba(10,100,200,.35);white-space:nowrap}
+    .cta:hover{filter:brightness(1.08)}
+
+    /* ===== 本文セクション ===== */
+    section.sec{max-width:960px;margin:0 auto;padding:3.2rem 1.5rem 0}
+    .sec h2{font-family:var(--serif);font-weight:900;font-size:1.5rem;color:var(--navy);margin-bottom:.4rem}
+    .sec .lead{font-size:.9rem;color:var(--muted);margin-bottom:1.3rem}
+    .two{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+    .box{background:#fff;border:1px solid var(--line);border-radius:14px;padding:1.2rem 1.3rem}
+    .box h3{font-size:1rem;font-weight:900;color:var(--navy);margin-bottom:.5rem}
+    .box ul{padding-left:1.2rem;font-size:.88rem}
+    .box li{margin-bottom:.2rem}
+    .box.ng{background:#fbf6f6}
+    .flow{display:grid;grid-template-columns:repeat(5,1fr);gap:.7rem;counter-reset:s}
+    .flow .f{background:#fff;border:1px solid var(--line);border-radius:14px;padding:1rem .8rem;text-align:center;font-size:.8rem;position:relative}
+    .flow .f::before{counter-increment:s;content:counter(s);display:block;width:28px;height:28px;line-height:28px;border-radius:50%;background:var(--blue);color:#fff;font-weight:900;margin:0 auto .5rem}
+    .flow .f b{display:block;color:var(--navy);font-size:.88rem;margin-bottom:.2rem}
+    .promise{background:#fff;border:1px solid var(--line);border-left:5px solid var(--blue);border-radius:10px;padding:1rem 1.3rem;font-size:.88rem}
+    .promise li{margin-bottom:.35rem;margin-left:1.1rem}
+    details{background:#fff;border:1px solid var(--line);border-radius:10px;padding:.8rem 1.1rem;margin-bottom:.5rem}
+    summary{font-weight:700;font-size:.92rem;cursor:pointer;color:var(--navy)}
+    details p{font-size:.86rem;color:var(--muted);margin-top:.5rem}
+
+    /* ===== フォーム ===== */
+    .form{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 8px 24px rgba(20,40,75,.08);padding:1.6rem}
+    .row{margin-bottom:1rem}
+    .row label{display:block;font-size:.8rem;font-weight:700;color:var(--muted);margin-bottom:.3rem}
+    .req{color:#e63946}
+    .row input,.row select,.row textarea{width:100%;padding:.7rem .85rem;border:1.5px solid var(--line);border-radius:8px;font-size:.92rem;font-family:inherit;outline:none;background:#fff;color:var(--ink)}
+    .row textarea{min-height:110px;resize:vertical}
+    .row input:focus,.row select:focus,.row textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px #dbeafe}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 1rem}
+    .submit{width:100%;padding:1rem;border-radius:40px;background:linear-gradient(180deg,#1a8fe3,#0a64c8);color:#fff;font-weight:900;font-size:1rem}
+    .submit:disabled{opacity:.6}
+    .hp{position:absolute;left:-9999px;opacity:0}
+    .done{display:none;background:#e8f6ee;border:1px solid #9fd8b4;color:#1d6b43;font-weight:700;border-radius:12px;padding:1.4rem;text-align:center;line-height:1.9}
+    .note{font-size:.76rem;color:var(--muted);margin-top:.7rem}
+    footer{margin-top:3.5rem;padding:2rem 1.5rem;background:var(--navy);color:rgba(255,255,255,.75);text-align:center;font-size:.8rem}
+    footer a{color:#fff;text-decoration:underline;margin:0 .6rem}
+
+    /* ===== スマホ・タブレット ===== */
+    @media(max-width:1080px){
+      .stage{display:flex;flex-direction:column;gap:1.2rem}
+      .col-l,.col-m,.col-r{display:contents}
+      .copy{order:1}.col-m{order:2}.isle-wrap{order:2;margin:.5rem 0 1.8rem}.cards-l{order:3}.hand{order:4}.cards-r{order:5}.data{order:6}
+      .col-r,.col-l{padding-top:0}
+      .isle{max-width:240px}
+      .cards-l,.cards-r{flex-direction:row;flex-wrap:wrap;align-items:stretch;margin-top:0}
+      .cards-l .card-art,.cards-r .card-art,.cards-l .card-art:nth-child(2),.cards-r .card-art:nth-child(2){margin:0;transform:none;flex:1 1 220px;max-width:none}
+      .hand{align-self:center;transform:rotate(-3deg)}
+      .data{margin:0 auto;max-width:none}
+      .planbar{grid-template-columns:1fr 1fr;padding:1.2rem}
+      .plan-main{grid-column:1/-1}
+      .step{border-left:none;border-top:1px solid var(--line);padding:.8rem .4rem 0}
+      .cta{grid-column:1/-1;text-align:center}
+      .flow{grid-template-columns:1fr 1fr}
+      .two{grid-template-columns:1fr}
+      .grid2{grid-template-columns:1fr}
+    }
+    @media(max-width:520px){.hero{padding-top:5.6rem}.brand{font-size:1.6rem}.brand small{font-size:.68rem}.toplink{font-size:.72rem;padding:.4rem .7rem}.flow{grid-template-columns:1fr}.badge{white-space:normal}}
+  </style>
+</head>
+<body>
+
+<header class="topbar">
+  <a href="index.html" class="brand">アンカツ<span>＋</span><small>淡路島の「知りたい」が見つかるメディア</small></a>
+  <a class="toplink" href="index.html">← メディアを見る</a>
+</header>
+
+<!-- ===================== ヒーロー ===================== -->
+<div class="hero">
+  <div class="stage">
+    <div class="col-l">
+      <div class="copy">
+        <h1>アンカツ＋で、<br>あなたの企業・<wbr>製品を<br>PRしませんか？</h1>
+        <p>アンカツ＋は、淡路島（洲本）の暮らし・イベント・まちの話題など、地域に根ざした情報を発信するWebメディアです。</p>
+        <p>地域の製品や、ガジェットなど暮らしを豊かにするものを、記事を通じて、読者にお届けするお手伝いをします。</p>
+        <span class="for">地域の特産品 ／ ガジェット ／ 暮らしの道具 ／ アウトドア・防災</span>
+      </div>
+      <div class="cards-l" id="cards-l"></div>
+    </div>
+
+    <div class="col-m">
+      <div class="isle-wrap">
+        <!-- 淡路島のきりぬき（手描きの近似の輪郭）。写真は PROMO_IMAGES に、画像URLを入れると入れ替わります -->
+        <svg class="isle" viewBox="0 0 314 740" role="img" aria-label="淡路島のかたちに切り抜いた写真">
+          <defs>
+            <clipPath id="isleClip"><path id="isleShape" d="M50.4,20.0 C58.6,20.1 73.7,43.4 80.7,54.7 C87.6,66.0 84.6,76.4 92.1,87.8 C99.5,99.1 118.8,110.3 125.5,122.7 C132.3,135.2 126.4,149.7 132.5,162.7 C138.5,175.7 155.7,187.8 161.8,200.9 C167.9,214.0 163.8,228.5 169.2,241.3 C174.5,254.2 186.0,267.6 193.8,278.1 C201.5,288.6 208.9,294.4 215.8,304.2 C222.7,314.1 228.4,327.3 235.2,337.0 C241.9,346.7 251.4,354.1 256.0,362.5 C260.6,370.8 258.0,379.1 262.9,387.2 C267.8,395.4 281.3,401.0 285.4,411.2 C289.5,421.4 286.2,435.7 287.6,448.4 C288.9,461.0 293.9,474.2 293.6,487.2 C293.4,500.1 287.5,511.1 286.0,526.2 C284.5,541.3 287.7,563.9 284.6,577.8 C281.4,591.7 273.1,595.4 267.4,609.9 C261.6,624.4 258.1,651.9 250.1,664.9 C242.2,677.8 230.9,678.5 219.8,687.6 C208.6,696.7 197.8,714.1 183.3,719.5 C168.8,724.9 146.2,720.2 132.6,720.0 C119.0,719.8 110.7,724.9 101.8,718.6 C93.0,712.3 80.5,695.4 79.7,682.2 C78.8,669.1 94.6,653.4 96.7,639.6 C98.8,625.8 91.3,614.4 92.1,599.5 C92.9,584.5 101.3,565.8 101.6,550.1 C101.9,534.4 95.5,520.6 94.1,505.2 C92.8,489.7 95.6,472.8 93.7,457.4 C91.9,442.1 86.5,427.6 83.1,413.1 C79.8,398.6 75.0,386.4 73.7,370.6 C72.3,354.8 77.5,334.2 74.8,318.1 C72.0,302.0 60.1,289.9 57.2,273.9 C54.3,257.8 61.3,237.9 57.4,221.7 C53.6,205.4 38.5,191.4 34.0,176.3 C29.6,161.1 33.1,146.4 30.8,131.0 C28.5,115.6 19.9,96.5 20.0,83.7 C20.1,70.9 26.2,64.8 31.3,54.2 C36.4,43.6 42.1,19.9 50.4,20.0Z"/></clipPath>
+            <linearGradient id="g0" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8ccbf3"/><stop offset="1" stop-color="#d4ecfb"/></linearGradient>
+            <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6cc07f"/><stop offset="1" stop-color="#2f8a57"/></linearGradient>
+            <linearGradient id="g2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#46b2e2"/><stop offset="1" stop-color="#1d6fa8"/></linearGradient>
+            <linearGradient id="g3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffc16f"/><stop offset="1" stop-color="#ef6a8c"/></linearGradient>
+            <linearGradient id="g4" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe46a"/><stop offset="1" stop-color="#9bd35a"/></linearGradient>
+            <linearGradient id="g5" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#78c776"/><stop offset="1" stop-color="#2f7d46"/></linearGradient>
+          </defs>
+          <g clip-path="url(#isleClip)" id="isleTiles"></g>
+          <path d="M50.4,20.0 C58.6,20.1 73.7,43.4 80.7,54.7 C87.6,66.0 84.6,76.4 92.1,87.8 C99.5,99.1 118.8,110.3 125.5,122.7 C132.3,135.2 126.4,149.7 132.5,162.7 C138.5,175.7 155.7,187.8 161.8,200.9 C167.9,214.0 163.8,228.5 169.2,241.3 C174.5,254.2 186.0,267.6 193.8,278.1 C201.5,288.6 208.9,294.4 215.8,304.2 C222.7,314.1 228.4,327.3 235.2,337.0 C241.9,346.7 251.4,354.1 256.0,362.5 C260.6,370.8 258.0,379.1 262.9,387.2 C267.8,395.4 281.3,401.0 285.4,411.2 C289.5,421.4 286.2,435.7 287.6,448.4 C288.9,461.0 293.9,474.2 293.6,487.2 C293.4,500.1 287.5,511.1 286.0,526.2 C284.5,541.3 287.7,563.9 284.6,577.8 C281.4,591.7 273.1,595.4 267.4,609.9 C261.6,624.4 258.1,651.9 250.1,664.9 C242.2,677.8 230.9,678.5 219.8,687.6 C208.6,696.7 197.8,714.1 183.3,719.5 C168.8,724.9 146.2,720.2 132.6,720.0 C119.0,719.8 110.7,724.9 101.8,718.6 C93.0,712.3 80.5,695.4 79.7,682.2 C78.8,669.1 94.6,653.4 96.7,639.6 C98.8,625.8 91.3,614.4 92.1,599.5 C92.9,584.5 101.3,565.8 101.6,550.1 C101.9,534.4 95.5,520.6 94.1,505.2 C92.8,489.7 95.6,472.8 93.7,457.4 C91.9,442.1 86.5,427.6 83.1,413.1 C79.8,398.6 75.0,386.4 73.7,370.6 C72.3,354.8 77.5,334.2 74.8,318.1 C72.0,302.0 60.1,289.9 57.2,273.9 C54.3,257.8 61.3,237.9 57.4,221.7 C53.6,205.4 38.5,191.4 34.0,176.3 C29.6,161.1 33.1,146.4 30.8,131.0 C28.5,115.6 19.9,96.5 20.0,83.7 C20.1,70.9 26.2,64.8 31.3,54.2 C36.4,43.6 42.1,19.9 50.4,20.0Z" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round"/>
+        </svg>
+        <div class="isle-note">※ 淡路島のかたちは、イメージです</div>
+      </div>
+    </div>
+
+    <div class="col-r">
+      <div class="hand">淡路島の<br>「今」を届ける</div>
+      <div class="cards-r" id="cards-r"></div>
+      <div class="data" id="data" style="display:none"></div>
+    </div>
+  </div>
+
+  <div class="planbar" id="plan">
+    <div class="plan-main">
+      <h2>📦 製品紹介プラン</h2>
+      <p>製品を提供していただくだけで、記事で紹介します。</p>
+      <span class="badge"><s>1記事 1,000円</s>当面のあいだ、掲載無料</span>
+    </div>
+    <div class="step"><div class="ic">🎁</div><b>製品の無償提供</b><span>（送料・返却は要相談）</span></div>
+    <div class="step"><div class="ic">📝</div><b>製品紹介記事の制作・公開</b><span>（特徴・使い心地・活用方法など）</span></div>
+    <div class="step"><div class="ic">💴</div><b>追加料金なし</b><span>（基本プラン）</span></div>
+    <a class="cta" href="#contact">お問い合わせはこちら →</a>
+  </div>
+</div>
+
+<!-- ===================== 対象 ===================== -->
+<section class="sec">
+  <h2>こんな製品を、お待ちしています</h2>
+  <p class="lead">地域の製品に加えて、ガジェットなど、暮らしを豊かにするものを、広く紹介していきます。</p>
+  <div class="two">
+    <div class="box">
+      <h3>✅ 紹介したいもの</h3>
+      <ul>
+        <li>淡路島・兵庫県の特産品、食品、お土産</li>
+        <li>ガジェット、家電、スマホまわりの便利グッズ</li>
+        <li>暮らしの道具、キッチン・収納・生活雑貨</li>
+        <li>アウトドア用品、防災用品</li>
+        <li>地元の作り手による、クラフト・雑貨</li>
+        <li>実際に使って・食べて、感想を書けるもの</li>
+      </ul>
+    </div>
+    <div class="box ng">
+      <h3>🚫 お受けできないもの</h3>
+      <ul>
+        <li>医薬品、医療機器、医薬部外品</li>
+        <li>効果・効能を断定する健康食品・サプリ</li>
+        <li>お酒・たばこ（扱いは、ご相談ください）</li>
+        <li>ギャンブル、アダルト、投資・勧誘</li>
+        <li>政治・宗教、人を傷つける内容のもの</li>
+        <li>そのほか、編集部が不適切と判断したもの</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 流れ ===================== -->
+<section class="sec">
+  <h2>掲載までの流れ</h2>
+  <p class="lead">お申し込みから公開まで、すべて無料です（当面のあいだ）。</p>
+  <div class="flow">
+    <div class="f"><b>ご相談</b>下のフォームから、製品の情報をお送りください</div>
+    <div class="f"><b>編集部で確認</b>掲載できるか・時期を、メールでご連絡します</div>
+    <div class="f"><b>製品のお届け</b>編集部あてに、お送りください</div>
+    <div class="f"><b>取材・記事制作</b>実際に使って、記事にします</div>
+    <div class="f"><b>公開・ご連絡</b>記事のURLを、お知らせします</div>
+  </div>
+</section>
+
+<!-- ===================== お約束 ===================== -->
+<section class="sec">
+  <h2>記事づくりの、お約束</h2>
+  <p class="lead">読者の信頼があってこそのメディアです。次のルールで、記事をつくります。</p>
+  <ul class="promise">
+    <li><b>「PR」の表示をします。</b>製品の提供を受けて書いた記事には、そのことが分かる表示を、必ず付けます。</li>
+    <li><b>良い点も、気になった点も、率直に書きます。</b>評価の内容は、編集部が決めます。事実の誤りは、ご指摘をいただければ、直します。</li>
+    <li><b>掲載をお約束するものではありません。</b>製品や、時期によっては、お断りしたり、お待ちいただいたりすることがあります。</li>
+    <li><b>お預かりした製品は、原則として返却しません。</b>返却をご希望の場合は、お申し込みの時にご相談ください。</li>
+    <li><b>「掲載無料」は、当面のあいだのプランです。</b>内容は、予告なく変更することがあります。</li>
+  </ul>
+</section>
+
+<!-- ===================== FAQ ===================== -->
+<section class="sec">
+  <h2>よくあるご質問</h2>
+  <details><summary>本当に、費用はかからないのですか？</summary><p>現在は、製品をご提供いただく形で、掲載料はいただいていません（送料はご負担ください）。将来、有料のプランをご用意する場合も、事前にお知らせします。</p></details>
+  <details><summary>個人や、小さな作り手でも申し込めますか？</summary><p>もちろん大丈夫です。法人・個人を問いません。</p></details>
+  <details><summary>食べ物や、賞味期限のあるものも送れますか？</summary><p>お受けできます。賞味期限・保存方法を、フォームにご記入ください。生鮮品は、事前にご相談ください。</p></details>
+  <details><summary>記事は、どこで読まれますか？</summary><p>アンカツ＋のサイトに掲載します。内容によって、メールマガジンやSNSでも、紹介することがあります。</p></details>
+  <details><summary>記事の内容を、事前に確認できますか？</summary><p>事実関係（製品名・価格・仕様など）の確認は、公開前にお願いすることがあります。評価や感想の部分は、編集部が責任を持って決めます。</p></details>
+  <details><summary>いつ掲載されますか？</summary><p>製品が届いてから、1〜2か月ほどが目安です。取材や、ほかの記事の予定によって、前後します。</p></details>
+</section>
+
+<!-- ===================== フォーム ===================== -->
+<section class="sec" id="contact">
+  <h2>お問い合わせ・掲載のご相談</h2>
+  <p class="lead">まずは、お気軽にお送りください。内容を確認して、メールでご連絡します。</p>
+  <form class="form" id="form" onsubmit="return false">
+    <div class="grid2">
+      <div class="row"><label>会社名・団体名・屋号 <span class="req">*</span></label><input id="f-company" type="text" maxlength="100"></div>
+      <div class="row"><label>ご担当者のお名前 <span class="req">*</span></label><input id="f-name" type="text" maxlength="60"></div>
+      <div class="row"><label>メールアドレス <span class="req">*</span></label><input id="f-email" type="email" maxlength="100"></div>
+      <div class="row"><label>電話番号（任意）</label><input id="f-tel" type="text" maxlength="30"></div>
+    </div>
+    <div class="grid2">
+      <div class="row"><label>製品・サービスの名前 <span class="req">*</span></label><input id="f-product" type="text" maxlength="100"></div>
+      <div class="row"><label>製品の種類</label>
+        <select id="f-type"><option>地域の特産品・食品</option><option>ガジェット・家電</option><option>暮らしの道具・雑貨</option><option>アウトドア・防災用品</option><option>そのほか</option></select></div>
+    </div>
+    <div class="row"><label>製品のページ・SNSなどのURL（任意）</label><input id="f-url" type="text" maxlength="300" placeholder="https://"></div>
+    <div class="row"><label>ご提供いただける数・状態、賞味期限など（任意）</label><input id="f-stock" type="text" maxlength="200" placeholder="例：新品1点、賞味期限は2026年12月まで"></div>
+    <div class="row"><label>製品の特徴・ご相談内容 <span class="req">*</span></label><textarea id="f-msg" maxlength="3000" placeholder="どんな製品か、どんな人に届けたいか、気になっていることなど"></textarea></div>
+    <input type="text" class="hp" id="f-web" tabindex="-1" autocomplete="off" aria-hidden="true">
+    <button class="submit" id="f-btn" onclick="sendInquiry()">この内容で送信する →</button>
+    <p class="note">お預かりした個人情報は、ご連絡と記事制作の目的にだけ使います。詳しくは<a href="index.html#page/privacy" style="text-decoration:underline">プライバシーポリシー</a>をご覧ください。</p>
+  </form>
+  <div class="done" id="done">✅ お問い合わせを、ありがとうございます。<br>内容を確認して、メールでご連絡します。しばらくお待ちください。</div>
+</section>
+
+<footer>
+  <div>© アンカツ城下町洲本「生涯活躍のまち」の特区にしたい会　／　兵庫県洲本市</div>
+  <div style="margin-top:.6rem"><a href="index.html">アンカツ＋トップ</a><a href="index.html#page/about">発行団体について</a><a href="index.html#page/privacy">プライバシーポリシー</a></div>
+</footer>
+
+<script>
+  /* ====== 設定 ====== */
+  /* 淡路島のきりぬきに入れる写真（上から順に6枚まで）。URLを入れると、色の帯が写真に入れ替わります。
+     例：['https://res.cloudinary.com/.../akashi.jpg', 'https://.../onion.jpg', ...]  */
+  var PROMO_IMAGES = [];
+  var CONTACT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyK9Q9uV7HZieT8CdjBc08Y6x7kx_d_e1DGPSrLk3ISAiZB0Mqm7g1OVGC1fZgEEi6kXQ/exec';
+  var ADMIN_NOTIFY_EMAIL = 'oruto1157oruto2@gmail.com,kvsrbe1236@yahoo.ne.jp,ankatsu.sumoto@gmail.com';
+  var SITE_ARTICLE_BASE = 'index.html#article/';
+
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  var CAT = {'まちの話題':['#2d6a4f','🏘️'],'イベント':['#1a73e8','🎉'],'空き家活用':['#FF9800','🏠'],'商店街':['#e64a4a','🛍️'],'文化':['#8e5cd9','🎨'],'インタビュー':['#0891b2','🎙️'],'学校・子育て':['#ec4899','📚'],'移住・定住':['#10b981','🌱'],'防災':['#f59e0b','🚨'],'お知らせ':['#0ea5e9','📢']};
+
+  /* ====== 島の中の写真（または色の帯） ====== */
+  (function drawIsle(){
+    var g = document.getElementById('isleTiles'), VB = document.querySelector('.isle').viewBox.baseVal;
+    var H = VB.height, W = VB.width, n = 6, bh = H / n, out = '';
+    for(var i=0;i<n;i++){
+      var y = (i*bh).toFixed(1), h = (bh+1).toFixed(1), img = PROMO_IMAGES[i];
+      out += img
+        ? '<image href="'+esc(img)+'" x="0" y="'+y+'" width="'+W+'" height="'+h+'" preserveAspectRatio="xMidYMid slice"/>'
+        : '<rect x="0" y="'+y+'" width="'+W+'" height="'+h+'" fill="url(#g'+i+')"/>';
+    }
+    if(!PROMO_IMAGES.length){ /* 写真が無い間の、ささやかな飾り */
+      out += '<circle cx="200" cy="'+(bh*3+52)+'" r="22" fill="#fff6b0" opacity=".9"/>'
+          +  '<path d="M0,'+(bh*2+40)+' q40,-14 80,0 t80,0 t80,0 t80,0" stroke="#fff" stroke-width="2.5" fill="none" opacity=".55"/>'
+          +  '<path d="M0,'+(bh*2+80)+' q40,-14 80,0 t80,0 t80,0 t80,0" stroke="#fff" stroke-width="2" fill="none" opacity=".4"/>'
+          +  '<ellipse cx="120" cy="'+(bh*0+50)+'" rx="46" ry="12" fill="#fff" opacity=".7"/>'
+          +  '<ellipse cx="160" cy="'+(bh*1-22)+'" rx="60" ry="16" fill="#2f8a57" opacity=".5"/>';
+    }
+    for(var j=1;j<n;j++) out += '<rect x="0" y="'+(j*bh-1.5).toFixed(1)+'" width="'+W+'" height="3" fill="#fff"/>';
+    g.innerHTML = out;
+  })();
+
+  /* ====== 浮かぶ記事カード（最新の記事） ====== */
+  function artDate(a){ try{ var d=(a.createdAt&&a.createdAt.toDate)?a.createdAt.toDate():new Date(a.createdAt); return isNaN(d)?null:d; }catch(e){ return null; } }
+  function cardHtml(a){
+    var cats = (Array.isArray(a.categories)&&a.categories.length)?a.categories:(a.category?[a.category]:[]), c = cats[0]||'', def = CAT[c]||['#2d6a4f','📰'];
+    var d = artDate(a), ds = d ? d.getFullYear()+'.'+(d.getMonth()+1)+'.'+d.getDate() : '';
+    var th = a.thumbnail ? '<div class="th" style="background-image:url(\''+esc(a.thumbnail)+'\')"></div>' : '<div class="th" style="background:linear-gradient(135deg,'+def[0]+'33,'+def[0]+'88)">'+def[1]+'</div>';
+    return '<a class="card-art" href="'+SITE_ARTICLE_BASE+encodeURIComponent(a.slug||a.id)+'">'+th+'<div class="bd">'
+      +(c?'<span class="chip" style="background:'+def[0]+'">'+esc(c)+'</span>':'')+'<div class="tt">'+esc(a.title)+'</div><div class="dt"><span>'+ds+'</span><span>→</span></div></div></a>';
+  }
+  function showCards(list){
+    document.getElementById('cards-l').innerHTML = list.slice(0,2).map(cardHtml).join('');
+    document.getElementById('cards-r').innerHTML = list.slice(2,4).map(cardHtml).join('');
+  }
+  var SAMPLE = [
+    {title:'洲本の商店街に、新しいお店がオープン',category:'商店街',slug:'',id:''},
+    {title:'今週末のイベント情報まとめ',category:'イベント',slug:'',id:''},
+    {title:'淡路島の旬を味わう、おすすめグルメ',category:'まちの話題',slug:'',id:''},
+    {title:'暮らしを便利にする、最新ガジェットを試してみた',category:'お知らせ',slug:'',id:''}];
+  showCards(SAMPLE); /* 読み込み前の仮表示 */
+
+  /* ====== メディアデータ（GASが毎朝更新する settings/promoStats） ====== */
+  function fmt(n){ return (typeof n==='number'&&isFinite(n)) ? Math.round(n).toLocaleString('ja-JP') : null; }
+  function renderStats(s){
+    var el = document.getElementById('data');
+    if(!s){ el.style.display='none'; return; }
+    var hide = String(s.hideKeys||'').split(/[,\s]+/).filter(Boolean);
+    var defs = [['yesterdayPV','昨日のPV','前日実績'],['last30PV','直近30日のPV','月間閲覧実績'],['totalPV','累計PV','サイト全体'],['subscribers','メルマガ読者数','登録者']];
+    var tiles = defs.filter(function(d){ return hide.indexOf(d[0])<0 && fmt(s[d[0]])!==null; })
+      .map(function(d){ return '<div class="tile"><div class="k">'+d[1]+'</div><div class="v">'+fmt(s[d[0]])+'</div></div>'; }).join('');
+    var top = []; try{ top = JSON.parse(s.topJson||'[]'); }catch(e){}
+    var top3 = (hide.indexOf('top')<0 && top.length)
+      ? '<div class="top3"><div class="k">人気記事 TOP3</div><ol>'+top.map(function(t){ return '<li><a href="'+SITE_ARTICLE_BASE+encodeURIComponent(t.slug||t.id)+'">'+esc(t.title)+'</a></li>'; }).join('')+'</ol></div>' : '';
+    if(!tiles && !top3){ el.style.display='none'; return; }
+    el.innerHTML = '<h3><i><b style="height:7px"></b><b style="height:11px"></b><b style="height:16px"></b></i>アンカツ＋ メディアデータ</h3>'
+      +'<div class="sub">地域の皆さまに、読まれているメディアです。</div>'
+      +(tiles?'<div class="tiles">'+tiles+'</div>':'')+top3
+      +(s.asOf?'<div class="asof">'+esc(s.asOf)+' 時点の実績</div>':'');
+    el.style.display='block';
+  }
+
+  document.addEventListener('promo-ready', function(){
+    window._promo.stats().then(renderStats).catch(function(){});
+    window._promo.articles().then(function(all){
+      var now = new Date();
+      var list = all.filter(function(a){
+        if(a.unlisted || a.deliveryMode==='stock' || a.deliveryMode==='reserve' || !a.title) return false;
+        var d = artDate(a); return !d || d <= now;
+      }).sort(function(x,y){ var a=artDate(x),b=artDate(y); return (b?b:0)-(a?a:0); });
+      if(list.length >= 2) showCards(list.slice(0,4));
+    }).catch(function(){});
+  });
+
+  /* ====== お問い合わせ ====== */
+  function v(id){ return document.getElementById(id).value.trim(); }
+  function sendGas(payload){ fetch(CONTACT_GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)}).catch(function(){}); }
+  async function sendInquiry(){
+    if(v('f-web')){ finish(); return; } /* 自動投稿ボット対策 */
+    var d = { company:v('f-company'), name:v('f-name'), email:v('f-email'), tel:v('f-tel'), product:v('f-product'), type:v('f-type'), url:v('f-url'), stock:v('f-stock'), msg:v('f-msg') };
+    if(!d.company||!d.name||!d.email||!d.product||!d.msg){ alert('必須の項目（*）を、すべて入力してください'); return; }
+    if(d.email.indexOf('@')<0){ alert('メールアドレスを正しく入力してください'); return; }
+    var last = parseInt(localStorage.getItem('ankatsu_promo_last')||'0',10);
+    if(Date.now()-last < 60000){ alert('続けて送信できません。1分ほど空けてからお試しください'); return; }
+    var btn = document.getElementById('f-btn'); btn.disabled = true; btn.textContent = '送信中…';
+    var body = ['【PR掲載のご相談】','会社名・屋号：'+d.company,'電話：'+(d.tel||'（なし）'),'製品名：'+d.product,'種類：'+d.type,'URL：'+(d.url||'（なし）'),'提供数・状態：'+(d.stock||'（なし）'),'','▼ご相談内容','',d.msg].join('\n');
+    try{
+      await window._promo.inquire({ name:d.name+'（'+d.company+'）', email:d.email, type:'【PR】製品掲載のご相談', message:body });
+      localStorage.setItem('ankatsu_promo_last', String(Date.now()));
+      var when = new Date().toLocaleString('ja-JP');
+      sendGas({ type:'contact_received', to:d.email, name:d.name, category:'PR掲載のご相談', body:body });
+      sendGas({ type:'contact_admin_notify', to:ADMIN_NOTIFY_EMAIL, name:d.name+'（'+d.company+'）', from_email:d.email, category:'【PR掲載のご相談】', body:body, submitted_at:when,
+                admin_url: location.origin + location.pathname.replace('promo.html','') + 'admin.html' });
+      finish();
+    }catch(e){ console.error(e); btn.disabled=false; btn.textContent='この内容で送信する →'; alert('送信に失敗しました。しばらくしてから、もう一度お試しください。'); }
+  }
+  function finish(){ document.getElementById('form').style.display='none'; document.getElementById('done').style.display='block'; document.getElementById('done').scrollIntoView({behavior:'smooth',block:'center'}); }
+</script>
+</body>
+</html>
