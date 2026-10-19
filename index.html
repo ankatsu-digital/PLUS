@@ -830,6 +830,13 @@
     .lang-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
     .lang-note{font-size:.76rem;color:var(--text-light);margin-bottom:.75rem;line-height:1.7}
 
+    /* PR（製品の提供を受けて制作した記事）の表示 */
+    .news-cat-tag.is-pr,.feature-cat-tag.is-pr{background:#475569;color:#fff}
+    .article-cat-badge-item.is-pr{color:#475569}
+    .article-cat-badge-item.is-pr::before{background:#475569}
+    .pr-notice{max-width:760px;margin:0 auto 1rem;background:#f1f5f9;border:1px solid #cbd5e1;border-left:5px solid #475569;border-radius:6px;padding:.75rem 1rem;font-size:.84rem;line-height:1.8;color:#334155}
+    .pr-notice a{text-decoration:underline;color:#334155;font-weight:700}
+
     /* お気に入りイベント */
     #favorites-view{display:none}
     #favorites-view.visible{display:block}
@@ -1011,6 +1018,9 @@
     <span class="nav-link" data-cat="文化">文化</span>
     <span class="nav-link" data-cat="インタビュー">インタビュー</span>
     <span class="nav-link" data-cat="防災">防災</span>
+    <span class="nav-link" data-cat="暮らしのもの">暮らしのもの</span>
+    <span class="nav-link" data-cat="グルメ・特産品">グルメ・特産品</span>
+    <span class="nav-link" data-cat="PR">PR</span>
     <span class="nav-link" data-cat="series">連載・特集</span>
     <span class="nav-link" data-cat="calendar">イベントカレンダー</span>
         <span class="nav-link" data-cat="favorites">♡ お気に入り</span>
@@ -1040,6 +1050,9 @@
       <button class="cat-btn" data-cat="学校・子育て">学校・子育て</button>
       <button class="cat-btn" data-cat="移住・定住">移住・定住</button>
       <button class="cat-btn" data-cat="お知らせ">お知らせ</button>
+      <button class="cat-btn" data-cat="暮らしのもの">🧺 暮らしのもの</button>
+      <button class="cat-btn" data-cat="グルメ・特産品">🧅 グルメ・特産品</button>
+      <button class="cat-btn" data-cat="PR">📢 PR</button>
       <button class="cat-btn" data-cat="防災">🚨 防災</button>
       <button class="cat-btn" data-cat="series">📚 連載・特集</button>
       <button class="cat-btn" data-cat="calendar">📅 イベントカレンダー</button>
@@ -1192,6 +1205,9 @@
           <a data-cat-foot="インタビュー">インタビュー</a>
           <a data-cat-foot="移住・定住">移住・定住</a>
           <a data-cat-foot="防災">防災</a>
+          <a data-cat-foot="暮らしのもの">暮らしのもの</a>
+          <a data-cat-foot="グルメ・特産品">グルメ・特産品</a>
+          <a data-cat-foot="PR">PR</a>
         </div>
       </div>
       <div>
@@ -1201,7 +1217,7 @@
           <a data-page="tokku">「生涯活躍のまち」特区</a>
           <a data-page="privacy">プライバシーポリシー</a>
           <a data-page="tip">📮 情報提供（写真・イベント・事件事故）</a>
-          <a href="promo.html">📢 企業・製品のPR掲載（製品提供で無料）</a>
+          <a data-page="pr">📢 PR記事について（製品提供でのご相談）</a>
           <a data-page="contact">お問い合わせ</a>
           <a onclick="openNewsletterManagePage()">📬 メールマガジンの登録・設定変更</a>
           <a href="admin.html">管理ページ</a>
@@ -1220,8 +1236,8 @@
   var allSeries = [];
   var currentView = 'top';
 
-  var CAT_EMOJI = {'まちの話題':'🏘️','イベント':'🎉','空き家活用':'🏠','商店街':'🛍️','文化':'🎨','インタビュー':'🎙️','学校・子育て':'📚','移住・定住':'🌱','お知らせ':'📢','防災':'🚨'};
-  var ALL_CATEGORIES = ['まちの話題','イベント','空き家活用','商店街','文化','インタビュー','学校・子育て','移住・定住','防災','お知らせ'];
+  var CAT_EMOJI = {'暮らしのもの':'🧺','グルメ・特産品':'🧅','PR':'📢','まちの話題':'🏘️','イベント':'🎉','空き家活用':'🏠','商店街':'🛍️','文化':'🎨','インタビュー':'🎙️','学校・子育て':'📚','移住・定住':'🌱','お知らせ':'📢','防災':'🚨'};
+  var ALL_CATEGORIES = ['まちの話題','イベント','空き家活用','商店街','文化','インタビュー','学校・子育て','移住・定住','防災','お知らせ','暮らしのもの','グルメ・特産品','PR'];
 
   /* ---- 記事の複数カテゴリ対応ヘルパー ----
      新しい記事は categories:['商店街','インタビュー'] のような配列を持つ。
@@ -1250,10 +1266,11 @@
     return l ? '<span class="delivery-badge'+(l==='本日の配信'?' today':'')+'">'+l+'</span>' : '';
   }
   function catTagsHtml(a,cls){
-    var cats=articleCats(a);
+    var cats=articleCats(a).slice();
+    if(cats.indexOf('PR')>0){ cats.splice(cats.indexOf('PR'),1); cats.unshift('PR'); } /* PRは、いつも先頭に */
     var badge=(cls==='article-cat-badge-item')?'':deliveryBadgeHtml(a);
     if(!cats.length) return badge+'<span class="'+cls+'">記事</span>';
-    return badge+cats.map(function(c){return '<span class="'+cls+'">'+c+'</span>';}).join('');
+    return badge+cats.map(function(c){return '<span class="'+cls+(c==='PR'?' is-pr':'')+'">'+c+'</span>';}).join('');
   }
 
   /* =========================================================================
@@ -2068,6 +2085,7 @@
       +seriesBadge
       +'<div class="article-cat-badge">'+catTagsHtml(a,'article-cat-badge-item')+'</div>'
       +(deliveryBadgeLabel(a)?'<div style="margin-bottom:.6rem">'+deliveryBadgeHtml(a)+'</div>':'')
+      +(articleCats(a).indexOf('PR')>=0?'<div class="pr-notice">📢 <b>PR</b>：この記事は、製品・サービスの提供を受けて制作しています。感想・評価は、編集部の率直な意見です。<a href="#page/pr" onclick="event.preventDefault();showStaticPage(\'pr\');history.pushState({view:\'static\',page:\'pr\'},\'\',\'#page/pr\')">PR記事について</a></div>':'')
       +'<div id="lang-switch" data-aid="'+a.id+'"></div>'
       +'<h1 class="article-title" id="article-title-el">'+articleDisplayTitle(a)+'</h1>'
       +statusRow
@@ -2554,7 +2572,8 @@
     tokku:{title:'「生涯活躍のまち」特区',lead:'洲本市が目指す特区構想について',body:'<h2>特区構想とは</h2><p>「生涯活躍のまち」特区は、高齢者をはじめすべての世代が健康で活躍し続けられるまちづくりを推進する国家戦略特区の構想です。</p><h2>洲本市での取り組み</h2><ul><li>空き家バンクの整備と移住者サポート</li><li>生涯学習・就労支援プログラム</li><li>高齢者・若者・移住者の交流拠点づくり</li><li>商店街の活性化と新規出店支援</li></ul>'},
     privacy:{title:'プライバシーポリシー',lead:'個人情報の取り扱いについて',body:'<h2>個人情報の収集</h2><p>本サイトでは、お問い合わせフォームにてお名前・メールアドレス等をお預かりする場合があります。</p><h2>利用目的</h2><ul><li>お問い合わせへの回答・連絡</li><li>本サイトの改善・運営のための分析</li></ul><h2>第三者への提供</h2><p>法令に基づく場合を除き、個人情報を第三者に提供することはありません。</p>'},
     contact:{title:'お問い合わせ',lead:'ご意見・ご感想・取材のご依頼など、お気軽にどうぞ',body:''},
-    tip:{title:'情報提供',lead:'イベント情報・まちの話題・写真・事件事故など、気づいたことを教えてください',body:''}
+    tip:{title:'情報提供',lead:'イベント情報・まちの話題・写真・事件事故など、気づいたことを教えてください',body:''},
+    pr:{title:'PR記事について',lead:'製品・サービスの提供を受けて書く記事の、ルールです',body:'<h2>PR記事とは</h2><p>企業や作り手から、製品・サービスのご提供を受けて、編集部が使ってみた感想などを書く記事です。カテゴリ「PR」が付き、記事の上に、PRであることを示す表示が出ます。</p><h2>記事づくりのお約束</h2><ul><li>提供を受けた記事には、PRの表示を、必ず付けます。</li><li>良い点も、気になった点も、率直に書きます。評価の内容は、編集部が決めます。</li><li>事実の誤りは、ご指摘をいただければ、直します。</li><li>掲載をお約束するものではありません。製品や時期によっては、お断りすることがあります。</li><li>お預かりした製品は、原則として返却しません。返却をご希望の場合は、事前にご相談ください。</li></ul><h2>ご相談について</h2><p>地域の特産品、ガジェット、暮らしの道具など、暮らしを豊かにする製品を、紹介したいと考えています。現在は、製品をご提供いただく形で、掲載料はいただいていません（当面のあいだ。内容は変更することがあります）。</p><p>医薬品、効果・効能を断定する健康食品、ギャンブル、アダルトなどは、お受けできません。</p><p>ご相談は、お問い合わせから、種別「PR・製品の掲載のご相談」を選んでお送りください。</p>'}
   };
 
   function showStaticPage(key){
@@ -2574,7 +2593,7 @@
     return '<form class="contact-form" id="contact-form" onsubmit="return false">'
       +'<div class="contact-row"><label class="contact-label">お名前 <span class="req">*</span></label><input id="c-name" type="text" class="contact-input" placeholder="山田 太郎" /></div>'
       +'<div class="contact-row"><label class="contact-label">メールアドレス <span class="req">*</span></label><input id="c-email" type="email" class="contact-input" placeholder="example@email.com" /></div>'
-      +'<div class="contact-row"><label class="contact-label">種別</label><select id="c-type" class="contact-select"><option value="一般">一般的なお問い合わせ</option><option value="取材">取材・掲載依頼</option><option value="移住">移住・空き家について</option><option value="特区">特区構想について</option><option value="その他">その他</option></select></div>'
+      +'<div class="contact-row"><label class="contact-label">種別</label><select id="c-type" class="contact-select"><option value="一般">一般的なお問い合わせ</option><option value="取材">取材・掲載依頼</option><option value="移住">移住・空き家について</option><option value="特区">特区構想について</option><option value="PR掲載">PR・製品の掲載のご相談</option><option value="その他">その他</option></select></div>'
       +'<div class="contact-row"><label class="contact-label">メッセージ <span class="req">*</span></label><textarea id="c-msg" class="contact-textarea" placeholder="お問い合わせ内容をご記入ください"></textarea></div>'
       +'<button type="button" class="contact-submit" id="c-submit" onclick="submitContact()">送信する →</button>'
       +'</form>'
