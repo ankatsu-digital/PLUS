@@ -400,7 +400,6 @@
       <div class="sb-sec" style="margin-top:.5rem">サイト</div>
       <a class="sb-btn" href="index.html" target="_blank">🌐 サイトを開く</a>
       <a class="sb-btn" href="ankatsu-map.html" target="_blank">🗺️ アンカツMAPを開く</a>
-      <a class="sb-btn" href="promo.html" target="_blank">📢 PR募集ページを開く</a>
       <a class="sb-btn" href="register.html" target="_blank">🧑‍💼 投稿者アカウント登録ページ</a>
     </div>
     <div class="sb-foot">
@@ -520,8 +519,11 @@
                   <label><input type="checkbox" class="f-cat-check" value="移住・定住"> 移住・定住</label>
                   <label><input type="checkbox" class="f-cat-check" value="防災"> 防災</label>
                   <label><input type="checkbox" class="f-cat-check" value="お知らせ"> お知らせ</label>
+                  <label><input type="checkbox" class="f-cat-check" value="暮らしのもの"> 暮らしのもの</label>
+                  <label><input type="checkbox" class="f-cat-check" value="グルメ・特産品"> グルメ・特産品</label>
+                  <label><input type="checkbox" class="f-cat-check" value="PR"> 📢 PR（提供を受けた記事）</label>
                 </div>
-                <span class="fhint">例：商店街の店主へのインタビュー記事なら「商店街」と「インタビュー」の両方にチェック</span>
+                <span class="fhint">例：商店街の店主へのインタビュー記事なら「商店街」と「インタビュー」の両方にチェック。製品の提供を受けた記事は、「PR」＋「暮らしのもの」または「グルメ・特産品」にチェック（記事の上に、PRの表示が自動で付きます）</span>
               </div>
 
               <div class="frow">
@@ -4837,7 +4839,7 @@ function renderNewsletterAdmin() {
 
   var catWrap = document.getElementById('nl-send-cat-checks');
   catWrap.innerHTML = '<label><input type="checkbox" id="nl-send-cat-all" checked onchange="onNlSendAllChange()"> すべての登録者</label>'
-    + ['まちの話題','イベント','空き家活用','商店街','文化','インタビュー','学校・子育て','移住・定住','防災','お知らせ'].map(function(c){
+    + ['まちの話題','イベント','空き家活用','商店街','文化','インタビュー','学校・子育て','移住・定住','防災','お知らせ','暮らしのもの','グルメ・特産品','PR'].map(function(c){
         return '<label><input type="checkbox" class="nl-send-cat-check" value="'+c+'" onchange="onNlSendCatChange()"> '+c+'</label>';
       }).join('');
 
@@ -6900,7 +6902,10 @@ var EYECATCH_CATS = {
   '学校・子育て': { color: '#ec4899', dark: '#be185d', pattern: 'asanoha' },
   '移住・定住':   { color: '#10b981', dark: '#047857', pattern: 'ichimatsu' },
   '防災':         { color: '#f59e0b', dark: '#b45309', pattern: 'yabane' },
-  'お知らせ':     { color: '#0ea5e9', dark: '#0369a1', pattern: 'sayagata' }
+  'お知らせ':     { color: '#0ea5e9', dark: '#0369a1', pattern: 'sayagata' },
+  '暮らしのもの': { color: '#0d9488', dark: '#0f766e', pattern: 'kagome' },
+  'グルメ・特産品': { color: '#ea580c', dark: '#c2410c', pattern: 'ichimatsu' },
+  'PR':           { color: '#475569', dark: '#334155', pattern: 'koushi' }
 };
 var EYECATCH_DEFAULT_CAT = { color: '#2d6a4f', dark: '#1f4d39', pattern: 'koushi' };
 
