@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<meta charset="utf-8">
 <!--
   淡路島 警報発表中バナー（アンカツ＋用）
   タップで「淡路島 気象警報・注意報 詳細」ポップアップを表示。
@@ -390,7 +391,7 @@
     #menu-toggle.open .burger-line:nth-child(1){transform:translateY(7px) rotate(45deg)}
     #menu-toggle.open .burger-line:nth-child(2){opacity:0}
     #menu-toggle.open .burger-line:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
-    .site-logo{display:flex;flex-direction:column;line-height:1;flex:1;min-width:0;cursor:pointer}
+    .site-logo{display:flex;flex-direction:column;line-height:1;flex:0 0 auto;min-width:0;margin-right:.25rem;cursor:pointer}
     .logo-main{font-family:var(--serif);font-size:clamp(1.2rem,3vw,1.6rem);font-weight:900;color:var(--accent);letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .logo-sub{font-size:.6rem;color:var(--text-muted);letter-spacing:.2em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     #main-nav{display:flex;align-items:center;gap:.25rem;flex-shrink:1;min-width:0;overflow-x:auto;scrollbar-width:none}
@@ -421,6 +422,42 @@
     .breaking-inner{position:absolute;top:0;left:0;display:flex;align-items:center;height:100%;gap:3rem;white-space:nowrap;will-change:transform}
 
     .breaking-sep{color:rgba(255,255,255,.4)}
+
+    /* ===== 防災モード ===== */
+    #disaster-mode{display:none;background:var(--bg-card);border-top:4px solid var(--danger);border-bottom:1px solid var(--border)}
+    #disaster-mode.on{display:block}
+    .dm-wrap{max-width:1200px;margin:0 auto;padding:1.1rem 1.5rem 1.25rem}
+    .dm-head{display:flex;align-items:center;gap:.55rem;flex-wrap:wrap;margin-bottom:.55rem}
+    .dm-title{font-family:var(--serif);font-size:clamp(1.1rem,2.6vw,1.45rem);font-weight:900;color:var(--danger);letter-spacing:.04em}
+    .dm-chip{font-size:.7rem;font-weight:700;letter-spacing:.06em;padding:.15rem .55rem;border-radius:999px;background:var(--accent-pale);color:var(--accent);border:1px solid var(--border);white-space:nowrap}
+    .dm-chip.manual{background:#fff4d6;color:#8a6100;border-color:#f0d38a}
+    [data-theme="dark"] .dm-chip.manual{background:#3a2e12;color:#f0d38a;border-color:#5c4a1e}
+    .dm-updated{margin-left:auto;font-size:.72rem;color:var(--text-light)}
+    .dm-msg{font-size:.95rem;line-height:1.8;margin-bottom:.55rem;white-space:pre-wrap}
+    .dm-reasons{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.2rem}
+    .dm-reason{font-size:.72rem;background:var(--bg-sub);border:1px solid var(--border);border-radius:4px;padding:.12rem .5rem;color:var(--text-muted)}
+    .dm-sec-title{font-family:var(--serif);font-size:.95rem;font-weight:700;margin:1.15rem 0 .55rem;display:flex;align-items:center;gap:.45rem}
+    .dm-sec-title::before{content:'';width:3px;height:15px;background:var(--danger);border-radius:2px;display:inline-block}
+    .dm-count{font-family:var(--sans);font-size:.72rem;font-weight:500;color:var(--text-light)}
+    .dm-shelters{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:.55rem}
+    .dm-shelter{background:var(--bg-sub);border:1px solid var(--border);border-left:3px solid var(--danger);border-radius:var(--radius);padding:.6rem .8rem}
+    .dm-shelter-name{font-size:.86rem;font-weight:700;line-height:1.45}
+    .dm-shelter-addr{font-size:.75rem;color:var(--text-muted);margin-top:.15rem}
+    .dm-shelter-meta{font-size:.72rem;color:var(--text-light);margin-top:.35rem;display:flex;gap:.55rem;flex-wrap:wrap;align-items:center}
+    .dm-open-badge{font-size:.68rem;font-weight:700;color:#fff;background:var(--danger);border-radius:3px;padding:.08rem .4rem;letter-spacing:.06em}
+    .dm-empty{font-size:.85rem;color:var(--text-muted);background:var(--bg-sub);border:1px dashed var(--border);border-radius:var(--radius);padding:.75rem .9rem;line-height:1.7}
+    .dm-links{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:.5rem}
+    .dm-link{display:flex;align-items:center;gap:.5rem;background:var(--bg-sub);border:1px solid var(--border);border-radius:var(--radius);padding:.55rem .8rem;font-size:.82rem;font-weight:600;transition:background var(--tr),border-color var(--tr)}
+    .dm-link:hover{background:var(--accent-pale);border-color:var(--accent)}
+    .dm-link-arrow{margin-left:auto;color:var(--text-light);font-size:.8rem}
+    .dm-all{margin-top:.7rem}
+    .dm-all summary{cursor:pointer;font-size:.78rem;color:var(--accent);font-weight:600}
+    .dm-all-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:.28rem;margin-top:.6rem}
+    .dm-all-item{font-size:.76rem;color:var(--text-muted);line-height:1.5}
+    .dm-header-badge{display:none;font-size:.62rem;font-weight:700;letter-spacing:.1em;color:#fff;background:var(--danger);padding:.2rem .5rem;border-radius:3px;flex-shrink:0;animation:dmPulse 2.6s ease-in-out infinite}
+    .dm-header-badge.on{display:inline-block}
+    @keyframes dmPulse{0%,100%{opacity:1}50%{opacity:.5}}
+    @media(max-width:640px){.dm-wrap{padding:.9rem 1rem 1.1rem}.dm-shelters,.dm-links{grid-template-columns:1fr}.dm-sec-title{margin-top:.95rem}}
 
     /* カテゴリ帯 */
     #category-bar{background:var(--bg-card);border-bottom:2px solid var(--accent);overflow-x:auto;scrollbar-width:none}
@@ -1005,6 +1042,7 @@
         <span>🔍</span>
         <input id="search-input" type="search" placeholder="記事を検索..." />
       </div>
+      <span id="dm-header-badge" class="dm-header-badge">防災モード</span>
       <button id="dark-toggle" aria-label="ダークモード切替"></button>
     </div>
   </header>
@@ -1037,6 +1075,30 @@
       <div class="breaking-inner" id="breaking-inner"></div>
     </div>
   </div>
+
+  <!-- 防災モード（siteConfig/disaster と気象庁データで自動切替） -->
+  <section id="disaster-mode" aria-label="防災モード">
+    <div class="dm-wrap">
+      <div class="dm-head">
+        <div class="dm-title">🚨 防災モード</div>
+        <span class="dm-chip" id="dm-source">自動判定</span>
+        <span class="dm-updated" id="dm-updated"></span>
+      </div>
+      <p class="dm-msg" id="dm-msg"></p>
+      <div class="dm-reasons" id="dm-reasons"></div>
+      <div class="dm-sec-title">避難所の開設状況 <span class="dm-count" id="dm-shelter-count"></span></div>
+      <div id="dm-shelters" class="dm-shelters"></div>
+      <div class="dm-all" id="dm-all-wrap" style="display:none">
+        <details>
+          <summary>洲本市の避難場所一覧（全<span id="dm-all-count"></span>か所）</summary>
+          <div class="dm-all-list" id="dm-all-list"></div>
+        </details>
+      </div>
+      <div class="dm-sec-title">災害時の情報リンク</div>
+      <div class="dm-links" id="dm-links"></div>
+      <div style="font-size:.7rem;color:var(--text-light);margin-top:.9rem;line-height:1.75">避難所の開設状況は、洲本市の発表をもとに更新しています。状況により変わりますので、市の公式情報もあわせてご確認ください。</div>
+    </div>
+  </section>
 
   <div id="category-bar">
     <div class="cat-list">
@@ -3452,5 +3514,434 @@
   });
   </script>
   <script src="tsunami-widget.js"></script>
+
+  <script type="module">
+  /* =========================================================================
+     防災モード
+     - admin の「防災モード」パネルが書く siteConfig/disaster を購読する
+     - manualMode が 'auto' のときだけ、気象庁の公開JSONから自動判定する
+       （警報以上＝レベル3以上／兵庫県または洲本市で震度5弱以上・直近24時間）
+     - 判定は5分キャッシュ。通信に失敗したら直前の判定を維持し、勝手に解除しない
+     - 手動設定（'on' / 'off'）は自動判定より常に優先する
+     ========================================================================= */
+  import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  var FB_CONFIG = {
+    apiKey:            "AIzaSyC4HUWd4c5_fdgA-k34i1uthozfqYcRn9A",
+    authDomain:        "ankatsu-d4816.firebaseapp.com",
+    projectId:         "ankatsu-d4816",
+    storageBucket:     "ankatsu-d4816.firebasestorage.app",
+    messagingSenderId: "1005813876395",
+    appId:             "1:1005813876395:web:29153748d2a99c6584d9ee",
+    measurementId:     "G-TJWJXQZSBL"
+  };
+
+  var AREA_SUMOTO = '2820500';   // 気象庁 2次細分区域（洲本市）※ area.json で確認
+  var PREF_HYOGO  = '28';        // 兵庫県
+  var WARN_URL    = 'https://www.jma.go.jp/bosai/warning/data/r8/280000.json'; // 兵庫県の警報・注意報（r8=2026年5月の体系整理後）
+  var QUAKE_URL   = 'https://www.jma.go.jp/bosai/quake/data/list.json';
+  var CACHE_MS    = 5 * 60 * 1000;
+  var CACHE_KEY   = 'ankatsu_disaster_jma_v1';
+  var FETCH_TIMEOUT_MS = 15000;
+
+  /* 警報コード → 名称（レベル3以上のみ）。2026年5月の体系整理後のコード表。
+     出典: 気象庁「気象警報・注意報の種類」/ 気象警報・注意報時系列情報(R06)解説資料 */
+  var WARN_LEVEL3 = {
+    '03':'大雨警報',   '43':'大雨危険警報',   '33':'大雨特別警報',
+    '09':'土砂災害警報','49':'土砂災害危険警報','39':'土砂災害特別警報',
+    '04':'氾濫警報',   '44':'氾濫危険警報',   '34':'氾濫特別警報',
+    '08':'高潮警報',   '48':'高潮危険警報',   '38':'高潮特別警報',
+    '06':'大雪警報',   '36':'大雪特別警報',
+    '05':'暴風警報',   '35':'暴風特別警報',
+    '02':'暴風雪警報', '32':'暴風雪特別警報',
+    '07':'波浪警報',   '37':'波浪特別警報'
+  };
+  var SHINDO5 = { '5-':1, '5+':1, '6-':1, '6+':1, '7':1 };
+  var SHINDO_LABEL = { '5-':'5弱', '5+':'5強', '6-':'6弱', '6+':'6強', '7':'7' };
+  var SHINDO_RANK  = { '5-':1, '5+':2, '6-':3, '6+':4, '7':5 };
+
+  /* 避難場所のフォールバック（Firestore が読めない時の表示用）
+     出典: 洲本市オープンデータ「洲本市指定緊急避難場所一覧」（CC BY 4.0 / 2026-11-07取得）
+     [名称, 住所(洲本市を省略), 緯度, 経度, 想定収容人数, 指定避難所(1=兼ねる)] */
+  var DM_SHELTERS = [
+["洲本市総合福祉会館（やまて会館）","山手2-2-26",34.339851,134.897995,200,1],
+["洲本第二小学校","山手2-1-51",34.340633,134.899078,1000,1],
+["三熊山・曲田山（高台）","山手・小路谷",34.337492,134.903097,10000,0],
+["消防団内町分団地域拠点施設","海岸通2-5-13",34.343040,134.898453,100,1],
+["洲本市文化体育館","塩屋1-1-17",34.343765,134.893951,4000,1],
+["健康福祉館（みなと元気館）","港2-26",34.344837,134.895340,200,1],
+["洲本市役所本庁舎","本町3-4-10",34.342358,134.895508,2400,0],
+["小路谷公会堂敷地内（高台）","小路谷117-2",34.329948,134.909357,300,0],
+["洲本中央公民館","山手3-3-2",34.339863,134.893753,400,1],
+["防災公園","塩屋1-439-1",34.344361,134.889919,300,0],
+["外町コミュニティ消防センター","栄町4-3-23",34.342819,134.887436,100,1],
+["洲本第一小学校","宇山1-1-37",34.345779,134.887283,600,1],
+["洲浜中学校","塩屋2-5-2",34.346062,134.889511,1000,1],
+["デイサービスセンターうしお","炬口2-9-2",34.350517,134.891312,100,1],
+["検査場跡地（高台）","宇山2-3-4付近",34.350390,134.888222,300,0],
+["秋葉神社（高台）","炬口2-5-25",34.352024,134.891456,300,0],
+["潮コミュニティ消防センター","炬口1-3-60",34.349407,134.894501,100,1],
+["洲本第三小学校","物部1-1-49",34.338718,134.888916,1000,1],
+["青雲中学校","物部3-10-1",34.339252,134.878952,1000,1],
+["物部コミュニティ消防センター","上物部2-3-11",34.333237,134.886505,100,1],
+["千草公民館","千草甲221-7",34.325123,134.887543,100,1],
+["千草コミュニティ消防センター","千草甲39",34.326725,134.888077,100,1],
+["大野小学校","大野318",34.323982,134.855377,1000,1],
+["大野公民館","大野1404",34.330730,134.852692,100,1],
+["大野コミュニティ消防センター","大野123-6",34.318432,134.853867,100,1],
+["大野陽だまり館","新村80",34.317986,134.854568,60,1],
+["市民交流センター","宇原1788-1",34.334866,134.875015,1000,1],
+["加茂小学校","下内膳470",34.347706,134.857452,400,1],
+["加茂コミュニティ消防センター","下内膳8-1",34.346260,134.860565,60,1],
+["人権文化センター","桑間169",34.342224,134.869843,100,1],
+["中川原小学校","中川原町中川原988",34.374546,134.871857,200,1],
+["旧中川原中学校","中川原町中川原222-2",34.370632,134.871521,200,1],
+["中川原公民館","中川原町中川原907",34.374546,134.871857,100,1],
+["安乎小学校","安乎町平安浦445",34.393646,134.880981,200,1],
+["安乎中学校","安乎町北谷1169-2",34.393528,134.877563,200,1],
+["安乎公民館","安乎町中田11-2",34.391342,134.876907,100,1],
+["納会館","納716",34.338081,134.844681,100,1],
+["鮎屋多目的集会所","鮎屋693",34.309219,134.839722,100,1],
+["由良小学校","由良3-3-43",34.291248,134.944672,600,1],
+["由良４丁目どんでん山周辺避難路（高台）","由良4-13付近",34.297186,134.941335,200,0],
+["由良中学校","由良町由良2355-1",34.288681,134.947525,600,1],
+["由良支所","由良2-7-22",34.291328,134.946060,60,0],
+["由良多目的広場（高台）","由良1-7",34.287866,134.944317,300,0],
+["由良公民館","由良1-6-10",34.286606,134.944489,100,1],
+["由良コミュニティ消防センター","由良1-21-33",34.289280,134.947098,100,1],
+["上灘出張所","相川組198",34.253319,134.899933,100,1],
+["畑田集会所","畑田組8-3",34.251236,134.876511,60,1],
+["安養寺","中津川組246",34.266651,134.911911,40,1],
+["都志小学校","五色町都志万歳919",34.409225,134.781265,400,1],
+["健康村トレーニングセンター","五色町都志大日707",34.400253,134.789093,400,1],
+["高田屋嘉兵衛公園（浜千鳥）","五色町都志1087",34.416180,134.789124,200,1],
+["五色健康福祉総合センター","五色町都志大日707",34.400253,134.789093,200,1],
+["防災センター都志会館","五色町都志282",34.416180,134.789124,80,1],
+["五色文化ホール（五色庁舎３階）","五色町都志203",34.416180,134.789124,700,1],
+["鮎原小学校","五色町鮎原南谷559",34.401230,134.818115,300,1],
+["消防団鮎原分団地域拠点施設","五色町鮎原南谷360-2",34.401230,134.818115,80,1],
+["定住・交流促進センター（鮎愛館）","五色町鮎原南谷65",34.401230,134.818115,300,1],
+["中山間総合活性化センター","五色町鮎原宇谷352",34.386051,134.814194,260,1],
+["五色中学校","五色町広石北125",34.386589,134.792389,600,1],
+["広石小学校","五色町広石下961",34.372505,134.787689,240,1],
+["五色地域福祉センター（みやまホール）","五色町広石中90-5",34.368984,134.810165,160,1],
+["消防団広石分団地域拠点施設","五色町広石中91-1",34.368984,134.810165,60,1],
+["鳥飼小学校","五色町鳥飼中309",34.379326,134.764420,300,1],
+["防災センター鳥飼会館","五色町鳥飼浦1918-1",34.367016,134.755753,160,1],
+["五色台運動公園アスパ五色体育館","五色町鳥飼浦2613",34.367016,134.755753,1600,1],
+["堺小学校","五色町上堺25-1",34.356655,134.799957,200,1],
+["消防団堺分団地域拠点施設","五色町上堺119-1",34.356655,134.799957,60,1]
+];
+
+  /* 災害時の固定リンク（Firestore に links が無い時の初期値）
+     ※ すべて 2026-11-07 に HTTP 200 を確認 */
+  var DM_LINKS = [
+    ['給水・断水（洲本市 上下水道）','https://www.city.sumoto.lg.jp/life/1/4/21/'],
+    ['停電情報（関西電力送配電）','https://www.kansai-td.co.jp/teiden-info/'],
+    ['道路規制（兵庫県道路情報）','https://road.civil.pref.hyogo.lg.jp/'],
+    ['気象警報（気象庁 兵庫県）','https://www.jma.go.jp/bosai/warning/#area_type=offices&area_code=280000'],
+    ['洲本市 防災（危機管理課）','https://www.city.sumoto.lg.jp/soshiki/11/'],
+    ['洲本市の避難所一覧','https://www.city.sumoto.lg.jp/soshiki/11/1793.html'],
+    ['洲本市の予報（気象庁）','https://www.jma.go.jp/bosai/forecast/#area_type=class20s&area_code=2820500'],
+    ['危険度分布（キキクル）','https://www.jma.go.jp/bosai/risk/#lat=34.3428&lon=134.8956&z=12']
+  ];
+
+  var cfg = null;        // siteConfig/disaster の内容
+  var autoState = readCache();  // { checkedAt, warnings:[], quakes:[], reasons:[], stale:bool }
+
+  function readCache() {
+    try {
+      var raw = localStorage.getItem(CACHE_KEY);
+      if (!raw) return null;
+      var v = JSON.parse(raw);
+      if (!v || !v.checkedAt) return null;
+      return v;
+    } catch (e) { return null; }
+  }
+  function saveCache(v) {
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify(v)); } catch (e) { /* 容量・プライベートモードは無視 */ }
+  }
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function toDate(v) {
+    if (!v) return null;
+    if (typeof v.toDate === 'function') { try { return v.toDate(); } catch (e) { return null; } }
+    var d = new Date(v);
+    return isNaN(d) ? null : d;
+  }
+
+  function fmtDateTime(d) {
+    if (!d) return '';
+    try {
+      return d.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    } catch (e) { return ''; }
+  }
+  function fmtShort(d) {
+    if (!d) return '';
+    try {
+      return d.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    } catch (e) { return ''; }
+  }
+
+  function fetchJson(url) {
+    var opts = { cache: 'no-store', headers: { 'Accept': 'application/json' } };
+    if (typeof AbortController === 'function') {
+      var ac = new AbortController();
+      opts.signal = ac.signal;
+      setTimeout(function () { try { ac.abort(); } catch (e) {} }, FETCH_TIMEOUT_MS);
+    }
+    return fetch(url, opts).then(function (res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + url);
+      return res.json();
+    });
+  }
+
+  /* 兵庫県の警報JSONから、洲本市に「警報以上」が出ているものを抜き出す。
+     r8形式：電文(dataTypeCode)ごとの最新レポートが、その時点の全区域の状態を持つ */
+  function extractWarnings(reports) {
+    if (!Array.isArray(reports)) return [];
+    var byType = {}, labels = [];
+    reports.forEach(function (r) {
+      if (!r || !r.warning) return;
+      var t = r.dataTypeCode || '_';
+      if (!byType[t] || new Date(r.reportDatetime) > new Date(byType[t].reportDatetime)) byType[t] = r;
+    });
+    Object.keys(byType).forEach(function (t) {
+      var items = (byType[t].warning.class20Items || []);
+      items.forEach(function (item) {
+        if (item.areaCode !== AREA_SUMOTO) return;
+        (item.kinds || []).forEach(function (k) {
+          if (!k || !k.code) return;
+          var st = k.status || '';
+          if (st === '解除' || st === '発表警報・注意報はなし') return;
+          if (st.indexOf('から注意報') >= 0) return; // 格下げ＝警報以上ではない
+          var name = WARN_LEVEL3[k.code];
+          if (name && labels.indexOf(name) < 0) labels.push(name);
+        });
+      });
+    });
+    return labels;
+  }
+
+  /* 直近24時間で、兵庫県または洲本市に震度5弱以上を観測した地震 */
+  function extractQuakes(list) {
+    if (!Array.isArray(list)) return [];
+    var since = Date.now() - 24 * 3600 * 1000, out = [];
+    list.forEach(function (e) {
+      if (!e) return;
+      var t = toDate(e.rdt || e.at);
+      if (!t || t.getTime() < since) return;
+      var hit = false, best = '';
+      (e.int || []).forEach(function (i) {
+        if (i.code === PREF_HYOGO && SHINDO5[i.maxi]) {
+          hit = true;
+          if ((SHINDO_RANK[i.maxi] || 0) > (SHINDO_RANK[best] || 0)) best = i.maxi;
+        }
+        (i.city || []).forEach(function (c) {
+          if (c.code === AREA_SUMOTO && SHINDO5[c.maxi]) {
+            hit = true;
+            if ((SHINDO_RANK[c.maxi] || 0) > (SHINDO_RANK[best] || 0)) best = c.maxi;
+          }
+        });
+      });
+      if (hit) {
+        out.push('地震：' + (e.anm || '震源不明') + '（最大震度' + (SHINDO_LABEL[best] || '5弱以上') + '・' + fmtShort(t) + '）');
+      }
+    });
+    return out;
+  }
+
+  function refreshAuto(force) {
+    var fresh = autoState && autoState.checkedAt && (Date.now() - Date.parse(autoState.checkedAt) < CACHE_MS);
+    if (!force && fresh) { render(); return Promise.resolve(); }
+    return Promise.all([fetchJson(WARN_URL), fetchJson(QUAKE_URL)]).then(function (res) {
+      var w = extractWarnings(res[0]);
+      var q = extractQuakes(res[1]);
+      autoState = {
+        checkedAt: new Date().toISOString(),
+        warnings: w,
+        quakes: q,
+        reasons: w.concat(q),
+        stale: false
+      };
+      saveCache(autoState);
+      render();
+    }).catch(function (e) {
+      console.error('[防災モード] 気象庁データを取得できませんでした。直前の判定を維持します:', e);
+      if (autoState) autoState = Object.assign({}, autoState, { stale: true });
+      render();
+    });
+  }
+
+  function shelterRow(s) {
+    // Firestore の shelters（オブジェクト）と、同梱フォールバック（配列）の両方を受ける
+    if (Array.isArray(s)) {
+      return { name: s[0], address: s[1] ? ('洲本市' + s[1]) : '', lat: s[2], lng: s[3], capacity: s[4], isShelter: !!s[5], status: 'unknown', note: '' };
+    }
+    return {
+      name: s.name || '', address: s.address || '', lat: s.lat, lng: s.lng,
+      capacity: s.capacity, isShelter: s.isDesignatedShelter !== false,
+      status: s.status || 'unknown', note: s.note || ''
+    };
+  }
+
+  function shelterList() {
+    if (cfg && Array.isArray(cfg.shelters) && cfg.shelters.length) return cfg.shelters.map(shelterRow);
+    return DM_SHELTERS.map(shelterRow);
+  }
+
+  function linkList() {
+    if (cfg && Array.isArray(cfg.links) && cfg.links.length) {
+      return cfg.links.filter(function (l) { return l && l.url; }).map(function (l) { return [l.label || l.url, l.url]; });
+    }
+    return DM_LINKS;
+  }
+
+  function resolveState() {
+    var manual = (cfg && cfg.manualMode) || 'auto';
+    if (manual === 'on')  return { active: true,  manual: true,  label: '手動（強制オン）' };
+    if (manual === 'off') return { active: false, manual: true,  label: '手動（停止中）' };
+    var on = !!(autoState && autoState.reasons && autoState.reasons.length);
+    return { active: on, manual: false, label: '自動判定' + (autoState && autoState.stale ? '（前回の判定を継続）' : '') };
+  }
+
+  function defaultMessage(state) {
+    var w = (autoState && autoState.warnings) || [];
+    var q = (autoState && autoState.quakes) || [];
+    if (state.manual) return '防災モードを発動しています。避難所の開設状況と、市の最新情報をご確認ください。';
+    var parts = [];
+    if (w.length) parts.push('洲本市に' + w.join('・') + 'が発表されています。');
+    if (q.length) parts.push('洲本市・兵庫県で震度5弱以上の地震がありました。');
+    if (!parts.length) parts.push('最新の気象・避難情報をご確認ください。');
+    return parts.join('') + '今後の情報に注意し、危険を感じたら早めに避難してください。';
+  }
+
+  function render() {
+    var section = document.getElementById('disaster-mode');
+    if (!section) return;
+    var badge = document.getElementById('dm-header-badge');
+    var state = resolveState();
+
+    section.classList.toggle('on', state.active);
+    if (badge) badge.classList.toggle('on', state.active);
+    if (!state.active) return;
+
+    var msgEl = document.getElementById('dm-msg');
+    var msg = (cfg && typeof cfg.message === 'string') ? cfg.message.trim() : '';
+    msgEl.textContent = msg || defaultMessage(state);
+
+    var srcEl = document.getElementById('dm-source');
+    if (srcEl) {
+      srcEl.textContent = state.label;
+      srcEl.className = 'dm-chip' + (state.manual ? ' manual' : '');
+    }
+
+    var updEl = document.getElementById('dm-updated');
+    if (updEl) {
+      var updated = toDate(cfg && cfg.updatedAt) || toDate(autoState && autoState.checkedAt);
+      updEl.textContent = updated ? ('最終更新 ' + fmtDateTime(updated)) : '';
+    }
+
+    // 判定材料（手動発動でも参考として出す）
+    var rEl = document.getElementById('dm-reasons');
+    if (rEl) {
+      var reasons = (autoState && autoState.reasons) || [];
+      rEl.innerHTML = reasons.map(function (r) { return '<span class="dm-reason">' + esc(r) + '</span>'; }).join('');
+    }
+
+    var all = shelterList();
+    var open = all.filter(function (s) { return s.status === 'open'; });
+
+    var cntEl = document.getElementById('dm-shelter-count');
+    if (cntEl) cntEl.textContent = open.length ? ('開設中 ' + open.length + 'か所') : '';
+
+    var shEl = document.getElementById('dm-shelters');
+    if (shEl) {
+      if (open.length) {
+        shEl.innerHTML = open.map(function (s) {
+          var bits = [];
+          if (s.capacity) bits.push('収容 約' + Number(s.capacity).toLocaleString('ja-JP') + '人');
+          if (s.note) bits.push(esc(s.note));
+          return '<div class="dm-shelter">'
+            + '<div class="dm-shelter-name">' + esc(s.name) + '</div>'
+            + (s.address ? '<div class="dm-shelter-addr">' + esc(s.address) + '</div>' : '')
+            + '<div class="dm-shelter-meta"><span class="dm-open-badge">開設中</span>' + bits.map(function (b) { return '<span>' + b + '</span>'; }).join('') + '</div>'
+            + '</div>';
+        }).join('');
+      } else {
+        shEl.innerHTML = '<div class="dm-empty">避難所の開設状況は、まだ公表されていません。'
+          + '<a href="https://www.city.sumoto.lg.jp/soshiki/11/1793.html" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700;text-decoration:underline">洲本市の避難所一覧</a>'
+          + 'もあわせてご確認ください。</div>';
+      }
+    }
+
+    var allWrap = document.getElementById('dm-all-wrap');
+    var allCnt = document.getElementById('dm-all-count');
+    var allList = document.getElementById('dm-all-list');
+    if (allWrap && allCnt && allList) {
+      allWrap.style.display = all.length ? 'block' : 'none';
+      allCnt.textContent = String(all.length);
+      allList.innerHTML = all.slice().sort(function (a, b) { return String(a.name).localeCompare(String(b.name), 'ja'); }).map(function (s) {
+        return '<div class="dm-all-item">・' + esc(s.name) + (s.address ? '（' + esc(s.address) + '）' : '')
+          + (s.status === 'open' ? ' <span style="color:var(--danger);font-weight:700">開設中</span>' : '')
+          + '</div>';
+      }).join('');
+    }
+
+    var lnEl = document.getElementById('dm-links');
+    if (lnEl) {
+      lnEl.innerHTML = linkList().map(function (l) {
+        return '<a class="dm-link" href="' + esc(l[1]) + '" target="_blank" rel="noopener">'
+          + '<span>' + esc(l[0]) + '</span><span class="dm-link-arrow">↗</span></a>';
+      }).join('');
+    }
+  }
+
+  function init() {
+    var app, db;
+    try {
+      app = getApps().length ? getApp() : initializeApp(FB_CONFIG);
+      db = getFirestore(app);
+    } catch (e) {
+      console.error('[防災モード] Firestore の初期化に失敗しました:', e);
+      render();
+      return;
+    }
+
+    onSnapshot(doc(db, 'siteConfig', 'disaster'), function (snap) {
+      cfg = snap.exists() ? snap.data() : {};
+      render();
+    }, function (err) {
+      // 権限エラー等でも画面は落とさない（同梱データで表示を続ける）
+      console.error('[防災モード] siteConfig/disaster を購読できません:', err);
+      cfg = cfg || {};
+      render();
+    });
+
+    // ローカル確認用：window.__DM_TEST_CFG__ があれば、それを設定として描画する（本番では未定義）
+    if (window.__DM_TEST_CFG__) { cfg = window.__DM_TEST_CFG__; render(); }
+
+    // 自動判定（キャッシュが古い時だけ取りに行く）
+    refreshAuto(false);
+    setInterval(function () { refreshAuto(false); }, CACHE_MS);
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) refreshAuto(false);
+    });
+
+    render();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+  </script>
 </body>
 </html>
