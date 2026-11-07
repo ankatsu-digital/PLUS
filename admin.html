@@ -387,6 +387,7 @@
       <button class="sb-btn"     data-v="authors">✍️ 執筆者紹介</button>
       <button class="sb-btn"     data-v="spots">🗺️ 地図スポット</button>
       <button class="sb-btn"     data-v="breaking">📡 速報バー設定</button>
+      <button class="sb-btn"     data-v="disaster">🚨 防災モード</button>
       <button class="sb-btn"     data-v="delivery">📅 定期配信</button>
       <button class="sb-btn"     data-v="newsletter">📧 メールマガジン</button>
       <button class="sb-btn"     data-v="backup">💾 バックアップ</button>
@@ -1635,6 +1636,69 @@
         </div>
       </div>
 
+
+      <!-- 防災モード -->
+      <div id="v-disaster" class="view">
+        <div class="bpanel">
+          <h3>🚨 防災モード（発動中の表示）</h3>
+          <p style="font-size:.83rem;color:var(--muted);line-height:1.8;margin-bottom:1rem">
+            発動すると、トップページの速報バーの下に防災モードのブロックが出ます（通常時は非表示）。
+            「自動」は気象庁の公開データで判定し、<b>洲本市に大雨・暴風・暴風雪・大雪・洪水（氾濫）・高潮などの警報以上</b>が出たとき、
+            または<b>兵庫県／洲本市で震度5弱以上</b>を観測した地震が直近24時間にあるときに発動します。
+            通信できないときは直前の状態を保ち、勝手に解除しません。<b>手動の「強制オン／強制オフ」は自動判定より優先されます。</b>
+          </p>
+
+          <div class="flabel" style="margin-bottom:.45rem">モード</div>
+          <div id="dm-mode-group" style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem">
+            <button class="btn btn-g dm-mode-btn" data-mode="auto" onclick="setDmMode('auto')">🤖 自動（気象庁データで判定）</button>
+            <button class="btn btn-o dm-mode-btn" data-mode="on" onclick="setDmMode('on')">🔴 強制オン（いま発動する）</button>
+            <button class="btn btn-o dm-mode-btn" data-mode="off" onclick="setDmMode('off')">⚪ 強制オフ（自動でも出さない）</button>
+          </div>
+          <div id="dm-mode-note" class="fhint" style="margin-bottom:.9rem"></div>
+          <div id="dm-auto-status" style="font-size:.82rem;line-height:1.8;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.7rem .95rem;margin-bottom:1.1rem"></div>
+
+          <div class="frow" style="margin-bottom:1rem">
+            <label class="flabel">お知らせ文（空欄なら状況に応じた自動の文面）</label>
+            <textarea id="dm-message" class="finput" style="min-height:92px;resize:vertical;font-family:inherit" placeholder="例：洲本市に大雨警報が発表されました。山沿いにお住まいの方は、早めに避難を開始してください。"></textarea>
+          </div>
+
+          <div style="display:flex;gap:.65rem;flex-wrap:wrap;align-items:center">
+            <button class="btn btn-g" id="dm-save-btn" onclick="saveDisasterConfig()">💾 保存して反映</button>
+            <button class="btn btn-o" onclick="loadDisasterAdmin(true)">↺ 読み直す</button>
+            <span style="font-size:.75rem;color:var(--light)" id="dm-updated-at"></span>
+          </div>
+        </div>
+
+        <div class="bpanel">
+          <h3>🏫 避難所の開設状況</h3>
+          <p style="font-size:.83rem;color:var(--muted);line-height:1.8;margin-bottom:.7rem">
+            「開設中」にした避難所だけがトップページに並びます。まだ開設を発表していないときは、すべて「未公表」のままで構いません。
+            保存済みの一覧が無いときは、下のボタンで洲本市の公開データ（67か所）を読み込んでください。
+          </p>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.75rem">
+            <input id="dm-shelter-filter" type="search" class="finput" placeholder="避難所名・住所で絞り込み" style="max-width:240px" oninput="renderDmShelters()" />
+            <button class="btn btn-o btn-sm" type="button" onclick="dmShelterSeed()">📋 市の公開データ（67か所）を読み込む</button>
+            <button class="btn btn-o btn-sm" type="button" onclick="dmShelterAdd()">＋ 避難所を追加</button>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="tbl">
+              <thead><tr><th style="width:30%">避難所</th><th style="width:26%">住所</th><th style="width:110px">開設状況</th><th>メモ（任意）</th><th style="width:40px"></th></tr></thead>
+              <tbody id="dm-shelter-tbody"></tbody>
+            </table>
+            <div id="dm-shelter-empty" class="etbl" style="display:none">避難所がまだ登録されていません。「市の公開データ（67か所）を読み込む」を押すと、洲本市の指定緊急避難場所が入ります。</div>
+          </div>
+        </div>
+
+        <div class="bpanel">
+          <h3>🔗 災害時の情報リンク</h3>
+          <p style="font-size:.83rem;color:var(--muted);line-height:1.8;margin-bottom:.7rem">
+            トップページの防災ブロックに並ぶリンクです。空欄の行は保存されません。並び順はここでの順番どおりです。
+          </p>
+          <div id="dm-link-rows" style="display:flex;flex-direction:column;gap:.5rem"></div>
+          <button class="btn btn-o btn-sm" type="button" style="margin-top:.6rem" onclick="dmLinkAdd()">＋ リンクを追加</button>
+        </div>
+      </div>
+
     </div><!-- /body -->
   </div><!-- /main -->
 </div><!-- /pg-admin -->
@@ -1774,8 +1838,46 @@ var ADMIN_API_SECRET = 'aK9x!mQ2vR7pL4wZ8nB1sT6yU3dF0hJ5'; // ← GASのスク�
 var NEWSLETTER_GAS_URL = 'https://script.google.com/macros/s/AKfycbwFQ0o49WGzQzg01saJcoG_KB0PiveNZvjDoaUv7oyd_-_JQ117bFnWzKs5tUwLqX_nuw/exec'; // メールマガジン専用GASのウェブアプリURL
 var NEWSLETTER_API_SECRET = 'uchioru0122ankatsu'; // ← メールマガジン用GASの NEWSLETTER_API_SECRET と必ず同じ値にする
 
+/* GAS への POST 用ヘルパー。
+   GAS はコールドスタートや混雑時に応答が返らないことがあり、
+   そのまま fetch を待つと画面が「処理中…」のまま固まる。
+   必ず時間で打ち切って、ユーザーに再試行できる状態を返す。 */
+function gasFetch(url, payload, timeoutMs) {
+  timeoutMs = timeoutMs || 25000;
+  var opts = {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload || {})
+  };
+  if (typeof AbortController === 'function') {
+    var ac = new AbortController();
+    opts.signal = ac.signal;
+    var timer = setTimeout(function () { try { ac.abort(); } catch (e) {} }, timeoutMs);
+    return fetch(url, opts).finally(function () { clearTimeout(timer); });
+  }
+  return fetch(url, opts);
+}
+
+/* GAS のURLが「差し替え前のまま」「空」のときに、原因が分かる形で知らせる */
+function isGasUrlSet(u) {
+  return typeof u === 'string'
+    && /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(u)
+    && u.indexOf('XXXX') < 0; // 差し替え前のプレースホルダー
+}
+function checkGasConfig() {
+  var problems = [];
+  if (!isGasUrlSet(SUBMIT_GAS_URL)) problems.push('メール送信・AI系（SUBMIT_GAS_URL）');
+  if (!isGasUrlSet(NEWSLETTER_GAS_URL)) problems.push('メールマガジン・バックアップ系（NEWSLETTER_GAS_URL）');
+  if (!ADMIN_API_SECRET || ADMIN_API_SECRET.indexOf('CHANGE_THIS') >= 0) problems.push('ADMIN_API_SECRET');
+  if (!problems.length) return;
+  console.warn('[admin] GASの設定が未完了です:', problems.join(' / '));
+  setTimeout(function () {
+    toast('GASの設定が未完了です：' + problems.join(' / ') + '（admin.html冒頭の定数を確認してください）', 'error');
+  }, 1200);
+}
+
 function sendResultMail(type, payload) {
-  if (!SUBMIT_GAS_URL || SUBMIT_GAS_URL.indexOf('XXXX') >= 0) return;
+  if (!isGasUrlSet(SUBMIT_GAS_URL)) { console.warn('SUBMIT_GAS_URL が未設定のため、結果メールを送っていません'); return; }
   fetch(SUBMIT_GAS_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -1806,7 +1908,9 @@ function toast(msg, type) {
   var el = document.createElement('div');
   el.style.cssText = 'background:'+(type==='error'?'#e63946':type==='warn'?'#f4a261':'#1a3d2b')+';color:#fff;padding:.65rem 1.1rem;border-radius:8px;font-size:.83rem;font-weight:500;box-shadow:0 4px 16px rgba(0,0,0,.2);display:flex;align-items:center;gap:.5rem;animation:sp .25s ease;max-width:300px';
   el.textContent = (type==='error'?'❌':type==='warn'?'⚠️':'✅') + ' ' + msg;
-  document.getElementById('toasts').appendChild(el);
+  var box = document.getElementById('toasts');
+  while (box.children.length >= 4) box.removeChild(box.firstElementChild); // 大量発生時に画面を埋め尽くさない
+  box.appendChild(el);
   setTimeout(function(){ el.remove(); }, 4000);
 }
 
@@ -1837,6 +1941,7 @@ var VTITLES = {
   spots:'🗺️ 地図スポット',
   breaking:'📡 速報バー設定', delivery:'📅 定期配信', tips:'📮 情報提供', backup:'💾 バックアップ', translate:'🌐 翻訳', newsletter:'📧 メールマガジン', json:'📦 JSON入出力',
   sitefeatures:'📣 サイト機能設定', feedbacklist:'💬 記事フィードバック', analytics:'📊 記事アナリティクス',
+  disaster:'🚨 防災モード',
   specialpages:'🎌 特設ページ', aichat:'🤖 AIアシスタント'
 };
 
@@ -1924,6 +2029,7 @@ async function goView(key) {
   }
   if (key==='spots')     { closeSpotForm(); await loadSpots(); renderSpotsAdminList(); }
   if (key==='breaking')  loadBreaking();
+  if (key==='disaster')  loadDisasterAdmin();
   if (key==='delivery')  { await Promise.all([loadArticles(), loadDelivery(), loadPlans()]); renderDelivery(); }
   if (key==='newsletter') { await loadNewsletterData(); renderNewsletterAdmin(); }
   if (key==='sitefeatures') loadSiteFeatureSettings();
@@ -1973,19 +2079,41 @@ function initLogin() {
 var _role = null;
 var _myAccount = null;  // 投稿者/編集部員ロールの場合、自分のaccountsドキュメント
 
+/* 通信断・オフライン・タイムアウトを「権限なし」と取り違えないための判定。
+   これを取り違えると、回線が一瞬不安定になっただけで管理者が強制ログアウトされる。 */
+function isTransientAuthError(e) {
+  var code = (e && (e.code || e.name)) || '';
+  var msg  = (e && e.message) || '';
+  var hay  = String(code) + ' ' + String(msg);
+  return /unavailable|network-request-failed|deadline-exceeded|internal|resource-exhausted|aborted|timeout/i.test(hay)
+      || /network|offline|Failed to get document|ERR_NETWORK|Load failed/i.test(hay);
+}
+
 async function detectRole(uid) {
+  var adminErr = null;
   try {
     var adminSnap = await window._getDoc('admins', uid);
     if (adminSnap.exists()) return 'admin';
-  } catch (e) { /* 管理者でなければ読めないのでエラーは無視 */ }
+  } catch (e) {
+    // 管理者でない場合もここは権限エラーになるので、原因を保持しつつ先へ進む
+    adminErr = e;
+    if (!/permission-denied/i.test(String(e && (e.code || e.message)))) {
+      console.warn('detectRole (admins):', e);
+    }
+  }
   try {
     var accSnap = await window._getDoc('accounts', uid);
     if (accSnap.exists()) {
       _myAccount = Object.assign({ id: uid }, accSnap.data());
       return _myAccount.role === 'editor' ? 'editor' : 'contributor';
     }
-  } catch (e) { console.error('detectRole (accounts):', e); }
-  return null;
+    return null; // どちらにも記録がない＝（通信は正常で）権限なし
+  } catch (e) {
+    console.error('detectRole (accounts):', e);
+    // 通信エラーで判定できなかっただけなら、「権限なし」として扱わず呼び出し元へ返す
+    if (isTransientAuthError(e) || (adminErr && isTransientAuthError(adminErr))) throw e;
+    return null; // permission-denied などは権限なし
+  }
 }
 
 var ROLE_LABEL = { admin:'管理者', editor:'編集部員', contributor:'投稿者' };
@@ -1993,7 +2121,17 @@ var ROLE_LABEL = { admin:'管理者', editor:'編集部員', contributor:'投稿
 function initAuth() {
   window._onAuth(async function (user) {
     if (user) {
-      var role = await detectRole(user.uid);
+      var role = null, roleErr = null;
+      try { role = await detectRole(user.uid); } catch (e) { roleErr = e; }
+      if (roleErr) {
+        // 通信が不安定なだけで「権限なし」と判断しない（ログインは維持し、再試行してもらう）
+        var le0 = document.getElementById('l-error');
+        if (le0) {
+          le0.textContent = '通信が不安定なため、権限を確認できませんでした。通信が回復してから、もう一度お試しください。';
+          le0.classList.add('show');
+        }
+        return;
+      }
       if (!role) {
         toast('このアカウントには管理画面へのアクセス権がありません', 'error');
         await window._signOut();
@@ -2034,15 +2172,36 @@ function initAuth() {
 // データ取得
 // ============================================================
 function fmtDate(ts) {
-  try { var d=(ts&&ts.toDate)?ts.toDate():new Date(ts); return d.toLocaleDateString('ja-JP',{year:'numeric',month:'2-digit',day:'2-digit'}); }
+  // 端末のタイムゾーンに関係なく日本時間で表示する（海外・時計ずれの端末で日付が1日ずれるのを防ぐ）
+  try { var d=(ts&&ts.toDate)?ts.toDate():new Date(ts); return d.toLocaleDateString('ja-JP',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}); }
   catch(e){ return '—'; }
 }
 
 async function loadAll() {
-  await Promise.all([loadArticles(), loadContacts(), loadTips(), loadSubmissions(), loadSeries(), loadSpots(), loadAuthors(), loadAccounts(), loadDelivery(), loadPlans(), loadTranslations()]);
-  populateArticleSelectForSpot();
-  populateAuthorDatalist();
-  renderDash();
+  // 1つでも失敗すると残りが表示されない／ダッシュボードが「読み込み中」のまま固まる、
+  // という状態を避けるため、個別に待って必ず描画まで進める。
+  var loaders = [
+    ['記事', loadArticles], ['お問い合わせ', loadContacts], ['情報提供', loadTips],
+    ['投稿申請', loadSubmissions], ['連載・特集', loadSeries], ['地図スポット', loadSpots],
+    ['執筆者', loadAuthors], ['アカウント', loadAccounts], ['定期配信', loadDelivery],
+    ['配信予定', loadPlans], ['翻訳', loadTranslations]
+  ];
+  var results = await Promise.allSettled(loaders.map(function (l) {
+    return Promise.resolve().then(function () { return l[1](); });
+  }));
+  var failed = [];
+  results.forEach(function (r, i) {
+    if (r.status === 'rejected') {
+      failed.push(loaders[i][0]);
+      console.error('loadAll:', loaders[i][0], r.reason);
+    }
+  });
+  try { populateArticleSelectForSpot(); } catch (e) { console.error('populateArticleSelectForSpot:', e); }
+  try { populateAuthorDatalist(); } catch (e) { console.error('populateAuthorDatalist:', e); }
+  try { renderDash(); } catch (e) { console.error('renderDash:', e); }
+  if (failed.length) {
+    toast('一部のデータを読み込めませんでした（' + failed.join('・') + '）。ページを再読み込みすると直ることがあります', 'warn');
+  }
 }
 
 async function loadArticles() {
@@ -3001,7 +3160,7 @@ async function approveSubmission(id, mode) {
     });
     toast('承認して公開しました ✅');
 
-    sendNewsletterForArticle(Object.assign({ id: ref.id }, d));
+    sendNewsletterForArticleSafe(Object.assign({ id: ref.id }, d));
 
     sendResultMail(mode === 'asis' ? 'published_asis' : 'published_edited', {
       to: curSub.authorEmail,
@@ -3091,6 +3250,9 @@ var PERMISSION_DEFS = [
   ]},
   { group: '📡 速報バー', keys: [
     { key: 'breaking.edit', label: '設定を編集できる' }
+  ]},
+  { group: '🚨 防災モード', keys: [
+    { key: 'disaster.edit', label: '発動の切替・避難所の開設状況を編集できる' }
   ]}
 ];
 // 管理画面のどのページ(key)を、どの権限があれば開けるか
@@ -3099,7 +3261,8 @@ var VIEW_PERMISSION_MAP = {
   spots:    'spots.edit',
   series:   'series.edit',
   articles: 'articles.edit',
-  breaking: 'breaking.edit'
+  breaking: 'breaking.edit',
+  disaster: 'disaster.edit'
 };
 
 function permissionsPanelHtml(current) {
@@ -3413,11 +3576,7 @@ async function submitPwChange() {
   var btn = document.getElementById('pwc-send-btn');
   btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 変更中…';
   try {
-    var res = await fetch(SUBMIT_GAS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ type: 'admin_set_password', secret: ADMIN_API_SECRET, uid: uid, newPassword: pw })
-    });
+    var res = await gasFetch(SUBMIT_GAS_URL, { type: 'admin_set_password', secret: ADMIN_API_SECRET, uid: uid, newPassword: pw }, 30000);
     var json;
     try { json = await res.json(); } catch (e) { throw new Error('サーバーからの応答を読み取れませんでした（GASのデプロイ設定をご確認ください）'); }
     if (!json || !json.ok) throw new Error((json && json.error) || 'パスワード変更に失敗しました');
@@ -3427,7 +3586,8 @@ async function submitPwChange() {
     toast('パスワードを変更しました ✅');
   } catch (e) {
     console.error(e);
-    toast('パスワード変更に失敗しました: ' + e.message, 'error');
+    var why = (e && e.name === 'AbortError') ? 'サーバーの応答がありませんでした（時間切れ）。少し待ってやり直してください' : e.message;
+    toast('パスワード変更に失敗しました: ' + why, 'error');
   } finally {
     btn.disabled = false; btn.textContent = '🔑 変更する';
   }
@@ -3607,9 +3767,22 @@ function deleteQBankQuestion(idx) {
 // ============================================================
 // 記事フォームの値取得
 // ============================================================
+/* 端末のタイムゾーンに関係なく「日本時間」で datetime-local を扱う。
+   new Date('2026-11-13T08:00') は端末のローカル時刻として解釈されるため、
+   海外設定・時計ずれの端末では公開時刻がずれる。入力は常にJSTとして解釈する。 */
+var JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 function toDatetimeLocal(d){
+  if (!d || isNaN(d)) return '';
+  var t = new Date(d.getTime() + JST_OFFSET_MS); // getUTC* で日本時間の値になる
   var pad=function(n){return (n<10?'0':'')+n;};
-  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
+  return t.getUTCFullYear()+'-'+pad(t.getUTCMonth()+1)+'-'+pad(t.getUTCDate())+'T'+pad(t.getUTCHours())+':'+pad(t.getUTCMinutes());
+}
+function parseJstLocal(v){
+  if (!v) return null;
+  var m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(String(v));
+  if (!m) return null;
+  var d = new Date(Date.UTC(+m[1], +m[2]-1, +m[3], +m[4]-9, +m[5]));
+  return isNaN(d) ? null : d;
 }
 
 function toggleScheduleField(){
@@ -3846,8 +4019,8 @@ async function pubArticle() {
   var publishAtVal = document.getElementById('f-publish-at').value;
   if (scheduleOn) {
     if (!publishAtVal) { toast('公開日時を指定してください','warn'); return; }
-    var publishDate = new Date(publishAtVal);
-    if (isNaN(publishDate)) { toast('公開日時が正しくありません','warn'); return; }
+    var publishDate = parseJstLocal(publishAtVal);
+    if (!publishDate) { toast('公開日時が正しくありません','warn'); return; }
     d.createdAt = publishDate.toISOString();
   }
   d.updatedAt = window._ts(); // 週次まとめメール（今週「投稿または更新」された記事の判定）に使う
@@ -3863,7 +4036,7 @@ async function pubArticle() {
       await window._updateDoc('articles', editingId, d);
       await queueTranslations(editingId, d, prevArt);
       toast(goingLive ? '記事を公開しました ✅' : (scheduleOn ? '予約日時を更新しました ⏰' : '記事を更新しました ✅'));
-      if (goingLive) sendNewsletterForArticle(Object.assign({ id: editingId }, d));
+      if (goingLive) sendNewsletterForArticleSafe(Object.assign({ id: editingId }, d));
     } else {
       if (!scheduleOn) d.createdAt = window._ts();
       if (_role === 'contributor' && window._auth && window._auth.currentUser) {
@@ -3876,7 +4049,7 @@ async function pubArticle() {
       if (scheduleOn) {
         if (!d.unlisted && d.sendNewsletter) toast('予約投稿のため、公開時刻になったら記事一覧の📧ボタンからメールマガジンを配信してください', 'warn');
       } else {
-        sendNewsletterForArticle(Object.assign({ id: newArtRef.id }, d));
+        sendNewsletterForArticleSafe(Object.assign({ id: newArtRef.id }, d));
       }
     }
     await loadArticles();
@@ -3939,8 +4112,9 @@ var BK_LABEL = { articles:'📰 記事', series:'📚 連載・特集', authors:
   nhkNews:'📺 NHKニュース', kumamonDecor:'🐻 くまモン装飾', pageViews:'📊 アクセスログ', deliveryPlans:'📝 仮の配信予定' };
 
 async function bkCall(payload) {
-  var res = await fetch(NEWSLETTER_GAS_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(Object.assign({ secret: NEWSLETTER_API_SECRET }, payload)) });
-  return res.json();
+  // バックアップは転送量が多く時間がかかるため、長め（120秒）の上限を設ける
+  var res = await gasFetch(NEWSLETTER_GAS_URL, Object.assign({ secret: NEWSLETTER_API_SECRET }, payload), 120000);
+  return await res.json();
 }
 
 async function renderBackupView() {
@@ -4908,12 +5082,27 @@ function matchNewsletterSubscribers(targetCats) {
 }
 
 function sendNewsletterGas(payload) {
-  if (!NEWSLETTER_GAS_URL || NEWSLETTER_GAS_URL.indexOf('XXXX') >= 0) { console.warn('NEWSLETTER_GAS_URLが未設定です（admin.html冒頭の定数を書き換えてください）'); return Promise.resolve({ok:false}); }
-  return fetch(NEWSLETTER_GAS_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(Object.assign({ secret: NEWSLETTER_API_SECRET }, payload))
-  }).then(function(r){ return r.json(); }).catch(function(e){ console.error('newsletter send error:', e); return { ok:false, error:String(e) }; });
+  if (!isGasUrlSet(NEWSLETTER_GAS_URL)) { console.warn('NEWSLETTER_GAS_URLが未設定です（admin.html冒頭の定数を書き換えてください）'); return Promise.resolve({ok:false, error:'NEWSLETTER_GAS_URL 未設定'}); }
+  return gasFetch(NEWSLETTER_GAS_URL, Object.assign({ secret: NEWSLETTER_API_SECRET }, payload), 60000)
+    .then(function(r){ return r.json(); })
+    .catch(function(e){
+      console.error('newsletter send error:', e);
+      return { ok:false, error: (e && e.name === 'AbortError') ? 'サーバーの応答がありませんでした（時間切れ）' : String(e) };
+    });
+}
+
+/* 記事保存の流れから呼ぶ用のラッパー。
+   sendNewsletterForArticle は await されない箇所があり、失敗すると
+   「未処理のPromise拒否」になって画面に何も出ないまま消えていた。 */
+function sendNewsletterForArticleSafe(articleData) {
+  try {
+    Promise.resolve(sendNewsletterForArticle(articleData)).catch(function (e) {
+      console.error('sendNewsletterForArticle:', e);
+      toast('メールマガジンの自動配信に失敗しました（記事の保存は完了しています）', 'warn');
+    });
+  } catch (e) {
+    console.error('sendNewsletterForArticle:', e);
+  }
 }
 
 // 記事公開時のメールマガジン配信。新規公開・投稿申請の承認・AIアシスタント経由の投稿から呼ばれる。
@@ -4943,7 +5132,7 @@ function sendNewsletterManualForArticle(id) {
   if (!a) return;
   if (a.unlisted) { toast('限定公開の記事は配信できません', 'warn'); return; }
   if (!confirm('「'+a.title+'」についてメールマガジンを配信します。よろしいですか？')) return;
-  sendNewsletterForArticle(Object.assign({}, a, { sendNewsletter: true }));
+  sendNewsletterForArticleSafe(Object.assign({}, a, { sendNewsletter: true }));
 }
 
 // ---- メールマガジン手動配信：ブロックエディタ ----
@@ -5191,10 +5380,379 @@ async function saveBreaking() {
   var items = [];
   document.querySelectorAll('#b-items .birow input').forEach(function(inp){ var v=inp.value.trim(); if(v) items.push(v); });
   if (!items.length) { toast('テキストを1件以上入力してください','warn'); return; }
+  if (saveBreaking._busy) return; // 連打で二重保存しない
+  saveBreaking._busy = true;
+  var btns = document.querySelectorAll('#v-breaking .btn');
+  btns.forEach(function(b){ b.disabled = true; });
   try {
     await window._setDoc('settings','breaking',{breakingVisible:breakingOn,breakingLabel:label,breakingItems:items});
     toast('速報バー設定を保存しました ✅');
   } catch(e){ toast('保存失敗: '+e.message,'error'); }
+  finally {
+    saveBreaking._busy = false;
+    btns.forEach(function(b){ b.disabled = false; });
+  }
+}
+
+// ============================================================
+// 防災モード（siteConfig/disaster）
+// index.html はこのドキュメントを購読して、発動中だけ防災ブロックを出す。
+// 判定ロジックは index.html と同じ（気象庁の公開JSON・5分キャッシュ）。
+// ============================================================
+var DM_WARN_URL     = 'https://www.jma.go.jp/bosai/warning/data/r8/280000.json'; // 兵庫県（r8=2026年5月の体系整理後）
+var DM_QUAKE_URL    = 'https://www.jma.go.jp/bosai/quake/data/list.json';
+var DM_AREA_SUMOTO  = '2820500'; // 気象庁 2次細分区域（洲本市）
+var DM_PREF_HYOGO   = '28';
+var DM_FETCH_TIMEOUT = 20000;
+
+var DM_WARN_LEVEL3 = {
+  '03':'大雨警報', '43':'大雨危険警報', '33':'大雨特別警報',
+  '09':'土砂災害警報','49':'土砂災害危険警報','39':'土砂災害特別警報',
+  '04':'氾濫警報', '44':'氾濫危険警報', '34':'氾濫特別警報',
+  '08':'高潮警報', '48':'高潮危険警報', '38':'高潮特別警報',
+  '06':'大雪警報', '36':'大雪特別警報',
+  '05':'暴風警報', '35':'暴風特別警報',
+  '02':'暴風雪警報','32':'暴風雪特別警報',
+  '07':'波浪警報', '37':'波浪特別警報'
+};
+var DM_SHINDO5     = { '5-':1, '5+':1, '6-':1, '6+':1, '7':1 };
+var DM_SHINDO_LABEL= { '5-':'5弱', '5+':'5強', '6-':'6弱', '6+':'6強', '7':'7' };
+var DM_SHINDO_RANK = { '5-':1, '5+':2, '6-':3, '6+':4, '7':5 };
+
+// 災害時の固定リンク初期値（すべて 2026-11-07 に HTTP 200 を確認）
+var DM_DEFAULT_LINKS = [
+  { label:'給水・断水（洲本市 上下水道）',      url:'https://www.city.sumoto.lg.jp/life/1/4/21/' },
+  { label:'停電情報（関西電力送配電）',          url:'https://www.kansai-td.co.jp/teiden-info/' },
+  { label:'道路規制（兵庫県道路情報）',          url:'https://road.civil.pref.hyogo.lg.jp/' },
+  { label:'気象警報（気象庁 兵庫県）',            url:'https://www.jma.go.jp/bosai/warning/#area_type=offices&area_code=280000' },
+  { label:'洲本市 防災（危機管理課）',            url:'https://www.city.sumoto.lg.jp/soshiki/11/' },
+  { label:'洲本市の避難所一覧',                    url:'https://www.city.sumoto.lg.jp/soshiki/11/1793.html' },
+  { label:'洲本市の予報（気象庁）',                url:'https://www.jma.go.jp/bosai/forecast/#area_type=class20s&area_code=2820500' },
+  { label:'危険度分布（キキクル）',                url:'https://www.jma.go.jp/bosai/risk/#lat=34.3428&lon=134.8956&z=12' }
+];
+
+// 洲本市オープンデータ「洲本市指定緊急避難場所一覧」（CC BY 4.0 / 2026-11-07取得）
+// [名称, 住所(洲本市を省略), 緯度, 経度, 想定収容人数, 指定避難所(1=兼ねる)]
+var DM_SEED_SHELTERS = [
+["洲本市総合福祉会館（やまて会館）","山手2-2-26",34.339851,134.897995,200,1],
+["洲本第二小学校","山手2-1-51",34.340633,134.899078,1000,1],
+["三熊山・曲田山（高台）","山手・小路谷",34.337492,134.903097,10000,0],
+["消防団内町分団地域拠点施設","海岸通2-5-13",34.343040,134.898453,100,1],
+["洲本市文化体育館","塩屋1-1-17",34.343765,134.893951,4000,1],
+["健康福祉館（みなと元気館）","港2-26",34.344837,134.895340,200,1],
+["洲本市役所本庁舎","本町3-4-10",34.342358,134.895508,2400,0],
+["小路谷公会堂敷地内（高台）","小路谷117-2",34.329948,134.909357,300,0],
+["洲本中央公民館","山手3-3-2",34.339863,134.893753,400,1],
+["防災公園","塩屋1-439-1",34.344361,134.889919,300,0],
+["外町コミュニティ消防センター","栄町4-3-23",34.342819,134.887436,100,1],
+["洲本第一小学校","宇山1-1-37",34.345779,134.887283,600,1],
+["洲浜中学校","塩屋2-5-2",34.346062,134.889511,1000,1],
+["デイサービスセンターうしお","炬口2-9-2",34.350517,134.891312,100,1],
+["検査場跡地（高台）","宇山2-3-4付近",34.350390,134.888222,300,0],
+["秋葉神社（高台）","炬口2-5-25",34.352024,134.891456,300,0],
+["潮コミュニティ消防センター","炬口1-3-60",34.349407,134.894501,100,1],
+["洲本第三小学校","物部1-1-49",34.338718,134.888916,1000,1],
+["青雲中学校","物部3-10-1",34.339252,134.878952,1000,1],
+["物部コミュニティ消防センター","上物部2-3-11",34.333237,134.886505,100,1],
+["千草公民館","千草甲221-7",34.325123,134.887543,100,1],
+["千草コミュニティ消防センター","千草甲39",34.326725,134.888077,100,1],
+["大野小学校","大野318",34.323982,134.855377,1000,1],
+["大野公民館","大野1404",34.330730,134.852692,100,1],
+["大野コミュニティ消防センター","大野123-6",34.318432,134.853867,100,1],
+["大野陽だまり館","新村80",34.317986,134.854568,60,1],
+["市民交流センター","宇原1788-1",34.334866,134.875015,1000,1],
+["加茂小学校","下内膳470",34.347706,134.857452,400,1],
+["加茂コミュニティ消防センター","下内膳8-1",34.346260,134.860565,60,1],
+["人権文化センター","桑間169",34.342224,134.869843,100,1],
+["中川原小学校","中川原町中川原988",34.374546,134.871857,200,1],
+["旧中川原中学校","中川原町中川原222-2",34.370632,134.871521,200,1],
+["中川原公民館","中川原町中川原907",34.374546,134.871857,100,1],
+["安乎小学校","安乎町平安浦445",34.393646,134.880981,200,1],
+["安乎中学校","安乎町北谷1169-2",34.393528,134.877563,200,1],
+["安乎公民館","安乎町中田11-2",34.391342,134.876907,100,1],
+["納会館","納716",34.338081,134.844681,100,1],
+["鮎屋多目的集会所","鮎屋693",34.309219,134.839722,100,1],
+["由良小学校","由良3-3-43",34.291248,134.944672,600,1],
+["由良４丁目どんでん山周辺避難路（高台）","由良4-13付近",34.297186,134.941335,200,0],
+["由良中学校","由良町由良2355-1",34.288681,134.947525,600,1],
+["由良支所","由良2-7-22",34.291328,134.946060,60,0],
+["由良多目的広場（高台）","由良1-7",34.287866,134.944317,300,0],
+["由良公民館","由良1-6-10",34.286606,134.944489,100,1],
+["由良コミュニティ消防センター","由良1-21-33",34.289280,134.947098,100,1],
+["上灘出張所","相川組198",34.253319,134.899933,100,1],
+["畑田集会所","畑田組8-3",34.251236,134.876511,60,1],
+["安養寺","中津川組246",34.266651,134.911911,40,1],
+["都志小学校","五色町都志万歳919",34.409225,134.781265,400,1],
+["健康村トレーニングセンター","五色町都志大日707",34.400253,134.789093,400,1],
+["高田屋嘉兵衛公園（浜千鳥）","五色町都志1087",34.416180,134.789124,200,1],
+["五色健康福祉総合センター","五色町都志大日707",34.400253,134.789093,200,1],
+["防災センター都志会館","五色町都志282",34.416180,134.789124,80,1],
+["五色文化ホール（五色庁舎３階）","五色町都志203",34.416180,134.789124,700,1],
+["鮎原小学校","五色町鮎原南谷559",34.401230,134.818115,300,1],
+["消防団鮎原分団地域拠点施設","五色町鮎原南谷360-2",34.401230,134.818115,80,1],
+["定住・交流促進センター（鮎愛館）","五色町鮎原南谷65",34.401230,134.818115,300,1],
+["中山間総合活性化センター","五色町鮎原宇谷352",34.386051,134.814194,260,1],
+["五色中学校","五色町広石北125",34.386589,134.792389,600,1],
+["広石小学校","五色町広石下961",34.372505,134.787689,240,1],
+["五色地域福祉センター（みやまホール）","五色町広石中90-5",34.368984,134.810165,160,1],
+["消防団広石分団地域拠点施設","五色町広石中91-1",34.368984,134.810165,60,1],
+["鳥飼小学校","五色町鳥飼中309",34.379326,134.764420,300,1],
+["防災センター鳥飼会館","五色町鳥飼浦1918-1",34.367016,134.755753,160,1],
+["五色台運動公園アスパ五色体育館","五色町鳥飼浦2613",34.367016,134.755753,1600,1],
+["堺小学校","五色町上堺25-1",34.356655,134.799957,200,1],
+["消防団堺分団地域拠点施設","五色町上堺119-1",34.356655,134.799957,60,1]
+];
+
+var dmMode = 'auto';
+var dmShelters = [];   // [{name,address,status,note}]
+// リンクは初期値を入れておく（Firestore が読めない時も、そのまま編集・保存できる）
+var dmLinks = DM_DEFAULT_LINKS.map(function (l) { return { label: l.label, url: l.url }; });
+var dmJmaCache = null; // {at, reasons}
+var dmBusy = false;
+
+function dmFetchJson(url) {
+  var opts = { cache: 'no-store', headers: { 'Accept': 'application/json' } };
+  if (typeof AbortController === 'function') {
+    var ac = new AbortController();
+    opts.signal = ac.signal;
+    setTimeout(function () { try { ac.abort(); } catch (e) {} }, DM_FETCH_TIMEOUT);
+  }
+  return fetch(url, opts).then(function (res) {
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.json();
+  });
+}
+
+function dmExtractWarnings(reports) {
+  if (!Array.isArray(reports)) return [];
+  var byType = {}, labels = [];
+  reports.forEach(function (r) {
+    if (!r || !r.warning) return;
+    var t = r.dataTypeCode || '_';
+    if (!byType[t] || new Date(r.reportDatetime) > new Date(byType[t].reportDatetime)) byType[t] = r;
+  });
+  Object.keys(byType).forEach(function (t) {
+    (byType[t].warning.class20Items || []).forEach(function (item) {
+      if (item.areaCode !== DM_AREA_SUMOTO) return;
+      (item.kinds || []).forEach(function (k) {
+        if (!k || !k.code) return;
+        var st = k.status || '';
+        if (st === '解除' || st === '発表警報・注意報はなし' || st.indexOf('から注意報') >= 0) return;
+        var name = DM_WARN_LEVEL3[k.code];
+        if (name && labels.indexOf(name) < 0) labels.push(name);
+      });
+    });
+  });
+  return labels;
+}
+
+function dmExtractQuakes(list) {
+  if (!Array.isArray(list)) return [];
+  var since = Date.now() - 24 * 3600 * 1000, out = [];
+  list.forEach(function (e) {
+    if (!e) return;
+    var t = new Date(e.rdt || e.at || 0);
+    if (isNaN(t) || t.getTime() < since) return;
+    var hit = false, best = '';
+    (e.int || []).forEach(function (i) {
+      if (i.code === DM_PREF_HYOGO && DM_SHINDO5[i.maxi]) {
+        hit = true;
+        if ((DM_SHINDO_RANK[i.maxi] || 0) > (DM_SHINDO_RANK[best] || 0)) best = i.maxi;
+      }
+      (i.city || []).forEach(function (c) {
+        if (c.code === DM_AREA_SUMOTO && DM_SHINDO5[c.maxi]) {
+          hit = true;
+          if ((DM_SHINDO_RANK[c.maxi] || 0) > (DM_SHINDO_RANK[best] || 0)) best = c.maxi;
+        }
+      });
+    });
+    if (hit) {
+      out.push('地震：' + (e.anm || '震源不明') + '（最大震度' + (DM_SHINDO_LABEL[best] || '5弱以上') + '）');
+    }
+  });
+  return out;
+}
+
+async function dmCheckJma(force) {
+  if (!force && dmJmaCache && (Date.now() - dmJmaCache.at < 5 * 60 * 1000)) { renderDmAutoStatus(); return; }
+  var box = document.getElementById('dm-auto-status');
+  if (box) box.innerHTML = '気象庁のデータを確認しています…';
+  try {
+    var res = await Promise.all([dmFetchJson(DM_WARN_URL), dmFetchJson(DM_QUAKE_URL)]);
+    var reasons = dmExtractWarnings(res[0]).concat(dmExtractQuakes(res[1]));
+    dmJmaCache = { at: Date.now(), reasons: reasons, ok: true };
+  } catch (e) {
+    console.error('dmCheckJma:', e);
+    dmJmaCache = { at: Date.now(), reasons: (dmJmaCache && dmJmaCache.reasons) || [], ok: false };
+  }
+  renderDmAutoStatus();
+}
+
+function renderDmAutoStatus() {
+  var box = document.getElementById('dm-auto-status');
+  if (!box) return;
+  var c = dmJmaCache;
+  if (!c) { box.textContent = '気象庁のデータを確認していません。'; return; }
+  var at = new Date(c.at).toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' });
+  var head = c.ok
+    ? (c.reasons.length ? '<b style="color:var(--red)">いまの自動判定：発動条件あり</b>' : '<b style="color:var(--green)">いまの自動判定：発動条件なし</b>')
+    : '<b style="color:var(--warn)">気象庁のデータを取得できませんでした</b>（index 側は直前の判定を維持します）';
+  var list = c.reasons.length ? '<div style="margin-top:.35rem;font-size:.78rem;color:var(--muted)">' + c.reasons.map(function (r) { return '・' + escapeHtml(r); }).join('<br>') + '</div>' : '';
+  box.innerHTML = head + '<div style="font-size:.72rem;color:var(--light);margin-top:.3rem">最終確認 ' + at + '　'
+    + '<a href="#" onclick="dmCheckJma(true);return false;" style="color:var(--green);text-decoration:underline">再確認する</a></div>' + list;
+}
+
+function setDmMode(m) {
+  dmMode = (m === 'on' || m === 'off') ? m : 'auto';
+  renderDmMode();
+}
+
+function renderDmMode() {
+  document.querySelectorAll('#dm-mode-group .dm-mode-btn').forEach(function (b) {
+    var on = b.getAttribute('data-mode') === dmMode;
+    b.classList.toggle('btn-g', on);
+    b.classList.toggle('btn-o', !on);
+  });
+  var note = document.getElementById('dm-mode-note');
+  if (note) {
+    note.textContent = dmMode === 'on' ? 'いま、防災モードを発動しています（自動判定より優先）。'
+      : dmMode === 'off' ? '自動判定では発動しません（手動で戻すまで非表示）。'
+      : '気象庁のデータで自動的に切り替わります。';
+  }
+}
+
+function renderDmShelters() {
+  var tb = document.getElementById('dm-shelter-tbody');
+  var empty = document.getElementById('dm-shelter-empty');
+  if (!tb) return;
+  var qEl = document.getElementById('dm-shelter-filter');
+  var q = qEl ? (qEl.value || '').trim() : '';
+  if (empty) empty.style.display = dmShelters.length ? 'none' : 'block';
+
+  var rows = '';
+  dmShelters.forEach(function (s, i) {
+    if (q && (s.name || '').indexOf(q) < 0 && (s.address || '').indexOf(q) < 0) return;
+    var opts = '';
+    [['unknown', '未公表'], ['open', '開設中'], ['closed', '閉鎖']].forEach(function (o) {
+      opts += '<option value="' + o[0] + '"' + (s.status === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
+    });
+    rows += '<tr>'
+      + '<td><input type="text" class="finput" value="' + escAttr(s.name) + '" oninput="dmSetShelter(' + i + ',\'name\',this.value)" style="width:100%;min-width:150px" /></td>'
+      + '<td><input type="text" class="finput" value="' + escAttr(s.address) + '" oninput="dmSetShelter(' + i + ',\'address\',this.value)" style="width:100%;min-width:130px" /></td>'
+      + '<td><select class="fselect" onchange="dmSetShelter(' + i + ',\'status\',this.value)">' + opts + '</select></td>'
+      + '<td><input type="text" class="finput" value="' + escAttr(s.note) + '" oninput="dmSetShelter(' + i + ',\'note\',this.value)" style="width:100%;min-width:120px" placeholder="例：2階以上のみ" /></td>'
+      + '<td><button class="btn btn-r btn-sm" type="button" onclick="dmShelterDel(' + i + ')" title="削除">✕</button></td>'
+      + '</tr>';
+  });
+  tb.innerHTML = rows;
+}
+
+function dmSetShelter(i, field, val) {
+  if (!dmShelters[i]) return;
+  dmShelters[i][field] = val;
+  if (field === 'status') renderDmShelters();
+}
+function dmShelterDel(i) { dmShelters.splice(i, 1); renderDmShelters(); }
+function dmShelterAdd() { dmShelters.unshift({ name: '', address: '', status: 'open', note: '' }); renderDmShelters(); }
+
+function dmShelterSeed() {
+  var existing = {};
+  dmShelters.forEach(function (s) { if (s.name) existing[s.name] = s.status; });
+  if (dmShelters.length && !confirm('いまの一覧を、洲本市の公開データ（' + DM_SEED_SHELTERS.length + 'か所）で置き換えます。よろしいですか？\n（同じ名前の避難所の開設状況は引き継ぎます）')) return;
+  dmShelters = DM_SEED_SHELTERS.map(function (r) {
+    return { name: r[0], address: '洲本市' + r[1], status: existing[r[0]] || 'unknown', note: '' };
+  });
+  renderDmShelters();
+  toast('避難所リストを読み込みました（' + dmShelters.length + 'か所）。保存を押すと反映されます', 'warn');
+}
+
+function renderDmLinks() {
+  var box = document.getElementById('dm-link-rows');
+  if (!box) return;
+  box.innerHTML = dmLinks.map(function (l, i) {
+    return '<div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">'
+      + '<input type="text" class="finput" value="' + escAttr(l.label) + '" placeholder="表示名（例：停電情報）" style="flex:1;min-width:150px" oninput="dmSetLink(' + i + ',\'label\',this.value)" />'
+      + '<input type="url" class="finput" value="' + escAttr(l.url) + '" placeholder="https://..." style="flex:2;min-width:220px" oninput="dmSetLink(' + i + ',\'url\',this.value)" />'
+      + '<button class="btn btn-r btn-sm" type="button" onclick="dmLinkDel(' + i + ')" title="削除">✕</button></div>';
+  }).join('');
+}
+function dmSetLink(i, field, val) { if (dmLinks[i]) dmLinks[i][field] = val; }
+function dmLinkDel(i) { dmLinks.splice(i, 1); renderDmLinks(); }
+function dmLinkAdd() { dmLinks.push({ label: '', url: '' }); renderDmLinks(); }
+
+async function loadDisasterAdmin(showToast) {
+  try {
+    var snap = await window._getDoc('siteConfig', 'disaster');
+    var d = snap.exists() ? snap.data() : {};
+    dmMode = (d.manualMode === 'on' || d.manualMode === 'off') ? d.manualMode : 'auto';
+    document.getElementById('dm-message').value = d.message || '';
+    dmShelters = Array.isArray(d.shelters) ? d.shelters.map(function (s) {
+      return { name: s.name || '', address: s.address || '', status: s.status || 'unknown', note: s.note || '' };
+    }) : [];
+    dmLinks = (Array.isArray(d.links) && d.links.length)
+      ? d.links.map(function (l) { return { label: l.label || '', url: l.url || '' }; })
+      : DM_DEFAULT_LINKS.map(function (l) { return { label: l.label, url: l.url }; });
+
+    var u = d.updatedAt;
+    var dt = (u && u.toDate) ? u.toDate() : (u ? new Date(u) : null);
+    document.getElementById('dm-updated-at').textContent = (dt && !isNaN(dt))
+      ? ('最終更新: ' + dt.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }) + (d.updatedBy ? '（' + d.updatedBy + '）' : ''))
+      : 'まだ保存されていません';
+    if (showToast) toast('防災モードの設定を読み込みました');
+  } catch (e) {
+    console.error('loadDisasterAdmin:', e);
+    toast('防災モードの設定を読み込めませんでした: ' + e.message, 'error');
+    dmShelters = dmShelters || [];
+    if (!dmLinks.length) dmLinks = DM_DEFAULT_LINKS.map(function (l) { return { label: l.label, url: l.url }; });
+  }
+  renderDmMode();
+  renderDmShelters();
+  renderDmLinks();
+  renderDmAutoStatus();
+  dmCheckJma(false);
+}
+
+async function saveDisasterConfig() {
+  if (dmBusy) return;
+  var btn = document.getElementById('dm-save-btn');
+  var msg = document.getElementById('dm-message').value.trim();
+
+  var badLink = dmLinks.filter(function (l) { return (l.url || '').trim() && !/^https?:\/\//i.test(l.url.trim()); })[0];
+  if (badLink) { toast('リンクのURLは http:// または https:// で始めてください（' + (badLink.label || badLink.url) + '）', 'warn'); return; }
+
+  var shelters = dmShelters.filter(function (s) { return (s.name || '').trim(); }).map(function (s) {
+    return {
+      name: s.name.trim(),
+      address: (s.address || '').trim(),
+      status: (s.status === 'open' || s.status === 'closed') ? s.status : 'unknown',
+      note: (s.note || '').trim()
+    };
+  });
+  var links = dmLinks.filter(function (l) { return (l.label || '').trim() && (l.url || '').trim(); }).map(function (l) {
+    return { label: l.label.trim(), url: l.url.trim() };
+  });
+
+  var user = (window._auth && window._auth.currentUser) ? (window._auth.currentUser.email || '') : '';
+  dmBusy = true;
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 保存中…'; }
+  try {
+    await window._setDoc('siteConfig', 'disaster', {
+      manualMode: dmMode,
+      message: msg,
+      shelters: shelters,
+      links: links,
+      updatedAt: window._ts(),
+      updatedBy: user
+    });
+    toast('防災モードの設定を保存しました ✅');
+    await loadDisasterAdmin(false);
+  } catch (e) {
+    console.error('saveDisasterConfig:', e);
+    toast('保存に失敗しました: ' + e.message, 'error');
+  } finally {
+    dmBusy = false;
+    if (btn) { btn.disabled = false; btn.textContent = '💾 保存して反映'; }
+  }
 }
 
 // ============================================================
@@ -5288,8 +5846,8 @@ async function saveSF_popup() {
       enabled: isSFOn('pu-toggle'),
       popupId: 'popup_' + Date.now(), // 内容が変わるたびに新しいIDにして「二度と表示しない」をリセット
       html: html,
-      startAt: startVal ? new Date(startVal).toISOString() : '',
-      endAt:   endVal   ? new Date(endVal).toISOString()   : '',
+      startAt: (function(){ var d = parseJstLocal(startVal); return d ? d.toISOString() : ''; })(),
+      endAt:   (function(){ var d = parseJstLocal(endVal);   return d ? d.toISOString() : ''; })(),
       delaySeconds: parseInt(document.getElementById('pu-delay').value,10) || 0,
       showOnAllPages: document.getElementById('pu-allpages').checked
     });
@@ -5636,8 +6194,8 @@ async function saveSpecialPage() {
     description: document.getElementById('spg-desc').value.trim(),
     status: document.getElementById('spg-status').value,
     layoutMode: document.getElementById('spg-layoutmode').value,
-    publishAt: document.getElementById('spg-publishat').value ? new Date(document.getElementById('spg-publishat').value).toISOString() : '',
-    unpublishAt: document.getElementById('spg-unpublishat').value ? new Date(document.getElementById('spg-unpublishat').value).toISOString() : '',
+    publishAt: (function(){ var d = parseJstLocal(document.getElementById('spg-publishat').value); return d ? d.toISOString() : ''; })(),
+    unpublishAt: (function(){ var d = parseJstLocal(document.getElementById('spg-unpublishat').value); return d ? d.toISOString() : ''; })(),
     pageMode: pageMode,
     blocks: pageMode === 'blocks' ? blocksToSave : [],
     rawHtml: pageMode === 'raw' ? document.getElementById('spg-rawhtml').value : '',
@@ -5700,7 +6258,7 @@ function selectHtml(idx, field, value, options) {
     + '</select>';
 }
 function updateSpBlockField(idx, field, val) { if (spCurrentBlocks[idx]) spCurrentBlocks[idx][field] = val; }
-function updateSpBlockDate(idx, field, val) { if (spCurrentBlocks[idx]) spCurrentBlocks[idx][field] = val ? new Date(val).toISOString() : ''; }
+function updateSpBlockDate(idx, field, val) { if (spCurrentBlocks[idx]) { var d = val ? parseJstLocal(val) : null; spCurrentBlocks[idx][field] = d ? d.toISOString() : ''; } }
 
 function spBlockHeaderHtml(idx, label) {
   return '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">'
@@ -5995,6 +6553,9 @@ document.addEventListener('DOMContentLoaded', function() {
   // ログイン初期化
   initLogin();
 
+  // GASのURL・シークレットが差し替え前のままになっていないか（症状：保存や送信が無反応）
+  checkGasConfig();
+
   // サイドバートグル
   document.getElementById('sb-toggle').addEventListener('click', function(){
     document.getElementById('sidebar').classList.contains('open') ? closeSB() : openSB();
@@ -6133,11 +6694,7 @@ function proofreadArticleForm() {
   statusEl.textContent = '✨ チェック中…';
   resultEl.style.display = 'none';
 
-  fetch(SUBMIT_GAS_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ type: 'admin_proofread', secret: ADMIN_API_SECRET, title: title, body: body })
-  }).then(function (r) { return r.json(); })
+  gasFetch(SUBMIT_GAS_URL, { type: 'admin_proofread', secret: ADMIN_API_SECRET, title: title, body: body }, 60000).then(function (r) { return r.json(); })
     .then(function (res) {
       btn.disabled = false;
       statusEl.textContent = '';
@@ -6397,11 +6954,7 @@ function hideAiChatThinking() {
 function runAiChatTurn() {
   setAiChatBusy(true);
   showAiChatThinking();
-  fetch(SUBMIT_GAS_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ type: 'admin_ai_chat', secret: ADMIN_API_SECRET, messages: _aichatHistory })
-  }).then(function (r) { return r.json(); })
+  gasFetch(SUBMIT_GAS_URL, { type: 'admin_ai_chat', secret: ADMIN_API_SECRET, messages: _aichatHistory }, 60000).then(function (r) { return r.json(); })
     .then(function (res) {
       hideAiChatThinking();
       if (!res.ok) {
@@ -6705,7 +7258,7 @@ function confirmAiChatArticle(draft, doPost, wrapEl) {
       resultEl.style.color = 'var(--green)';
       resultEl.innerHTML = '✅ ストックに保存しました' + (newData.thumbnail ? '（アイキャッチ画像つき）' : '') + '　「📅 定期配信」で枠に入れると公開されます';
       pushAiChatFunctionResponse('propose_article', { ok: true, posted: true, id: ref.id, title: newData.title, url: articleUrl });
-      sendNewsletterForArticle(Object.assign({ id: ref.id }, newData, { sendNewsletter: true }));
+      sendNewsletterForArticleSafe(Object.assign({ id: ref.id }, newData, { sendNewsletter: true }));
       return loadArticles();
     }).then(function () {
       runAiChatTurn();
