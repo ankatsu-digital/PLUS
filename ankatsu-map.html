@@ -411,7 +411,8 @@ const map = L.map('map', { zoomControl:false, attributionControl:true, minZoom:1
 const AWAJI_BOUNDS = L.latLngBounds([34.10,134.62],[34.70,135.05]);
 map.setMaxBounds(AWAJI_BOUNDS);
 
-const standardLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution:'&copy; <a href="https://carto.com/attributions">CARTO</a> &copy; OpenStreetMap contributors', subdomains:'abcd', maxZoom:20 }).addTo(map);
+/* 標準地図：CARTOのタイルが有料(APIキー必須)になったため、国土地理院の淡色地図タイル（無料・出典表示のみ）に変更 */
+const standardLayer = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', { attribution:'<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院</a>', minZoom:5, maxNativeZoom:18, maxZoom:20 }).addTo(map);
 const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution:'Tiles &copy; Esri', maxZoom:19 });
 
 L.control.scale({ position:'bottomleft', imperial:false }).addTo(map);
