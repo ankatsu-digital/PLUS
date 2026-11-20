@@ -501,7 +501,8 @@
         <div class="factions">
           <button class="btn btn-o" onclick="awGenerate()">🔄 再生成</button>
           <button class="btn btn-w" id="aw-bar-btn" style="display:none" onclick="awAddToBreakingBar()">📡 速報バーにも追加</button>
-          <button class="btn btn-g" onclick="awSendToForm()">📝 記事フォームで確認・編集する</button>
+          <button class="btn btn-o" id="aw-append-btn" style="display:none" onclick="awAppendToBase()">⚡ このまま元記事に追記して保存</button>
+          <button class="btn btn-g" id="aw-send-btn" onclick="awSendToForm()">📝 記事フォームで確認・編集する</button>
         </div>
       </div>
     </div>
@@ -6245,6 +6246,8 @@ function awInit() {
 function awOnModeChange() {
   var mode = document.getElementById('aw-mode').value;
   document.getElementById('aw-base-wrap').style.display = mode === 'followup' ? 'flex' : 'none';
+  document.getElementById('aw-cat').parentElement.style.display = mode === 'followup' ? 'none' : '';
+  document.getElementById('aw-author').parentElement.style.display = mode === 'followup' ? 'none' : '';
   var ph = {
     memo: '箇条書き・走り書きでOK。\n例）\n・11/23 10時〜 洲本城下町マルシェ\n・本町3丁目アーケード、出店30店\n・雨天は中止',
     followup: '前回から分かった新しい情報だけ書けばOK。\n例）\n・参加者は最終的に約500人\n・来年も開催予定',
@@ -6276,7 +6279,7 @@ async function awGenerate() {
         mode: mode,
         memo: memo,
         baseTitle: base ? base.title : '',
-        baseBody: base ? (base.body || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').slice(0, 3000) : '',
+        baseBody: base ? awBaseText(base.body) : '',
         category: document.getElementById('aw-cat').value,
         categories: AW_CATS,
         today: new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })
@@ -6294,13 +6297,38 @@ async function awGenerate() {
   }
 }
 
+function awBaseText(html) {
+  var t = (html || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+  return t.length > 3000 ? t.slice(0, 1500) + ' …（中略）… ' + t.slice(-1500) : t;
+}
+
+function awCurrentBase() {
+  return (_awCtx && _awCtx.baseId) ? articles.find(function (a) { return a.id === _awCtx.baseId; }) : null;
+}
+
+// 続報として元記事の末尾に足すHTML（見出し＋本文）
+function awFollowupBlock(r) {
+  var d = new Date();
+  return '<hr>\n<h2>【続報】' + (d.getMonth() + 1) + '月' + d.getDate() + '日</h2>\n' + r.body;
+}
+
 function awRenderResult() {
   var r = _awResult;
+  var isFollow = _awCtx.mode === 'followup';
+  var base = awCurrentBase();
   document.getElementById('aw-result').style.display = 'block';
-  document.getElementById('aw-r-title').textContent = r.title;
-  document.getElementById('aw-r-meta').textContent = (r.category || 'カテゴリ未設定') + (r.tags.length ? '　🏷️ ' + r.tags.join('、') : '');
-  document.getElementById('aw-r-body').innerHTML = r.body;
+  if (isFollow) {
+    document.getElementById('aw-r-title').textContent = '元記事：' + (base ? base.title : '');
+    document.getElementById('aw-r-meta').textContent = '↓ この内容が元記事の末尾に追記されます';
+    document.getElementById('aw-r-body').innerHTML = awFollowupBlock(r);
+  } else {
+    document.getElementById('aw-r-title').textContent = r.title;
+    document.getElementById('aw-r-meta').textContent = (r.category || 'カテゴリ未設定') + (r.tags.length ? '　🏷️ ' + r.tags.join('、') : '');
+    document.getElementById('aw-r-body').innerHTML = r.body;
+  }
   document.getElementById('aw-bar-btn').style.display = _awCtx.mode === 'breaking' ? '' : 'none';
+  document.getElementById('aw-append-btn').style.display = isFollow ? '' : 'none';
+  document.getElementById('aw-send-btn').textContent = isFollow ? '📝 元記事の編集画面で確認して追記' : '📝 記事フォームで確認・編集する';
   document.getElementById('aw-missing').innerHTML = (r.missing && r.missing.length)
     ? '<div style="background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.84rem;color:#856404">'
       + '<b>❓ 確認事項（メモに情報がなかったため、記事には書いていません）</b><br>'
@@ -6311,15 +6339,23 @@ function awRenderResult() {
 async function awSendToForm() {
   if (!_awResult) return;
   var r = _awResult, ctx = _awCtx;
-  var base = ctx.baseId ? articles.find(function (a) { return a.id === ctx.baseId; }) : null;
+  var base = awCurrentBase();
+
+  // 続報：新規記事ではなく、元記事の編集画面に「末尾に追記した状態」で開く（確認して公開保存）
+  if (ctx.mode === 'followup') {
+    if (!base) { toast('元記事が見つかりません', 'warn'); return; }
+    var fTags = (base.tags || []).slice();
+    if (fTags.indexOf('続報') < 0) fTags.push('続報');
+    editingId = base.id; editingDraftId = null;
+    setFormData(Object.assign({}, base, { body: (base.body || '') + '\n' + awFollowupBlock(r), tags: fTags }));
+    await goView('edit');
+    document.getElementById('form-title').textContent = '✏️ 続報を追記（内容を確認して公開保存）';
+    toast('元記事の末尾に続報を追記した状態です。確認して公開保存してください');
+    return;
+  }
 
   var cat = document.getElementById('aw-cat').value || r.category || 'まちの話題';
-  var body = r.body;
   var tags = (r.tags || []).slice();
-  if (ctx.mode === 'followup' && base) {
-    body = '<p>※<a href="index.html#article/' + encodeURIComponent(base.slug || base.id) + '">「' + awEsc(base.title) + '」</a>の続報。</p>' + body;
-    if (tags.indexOf('続報') < 0) tags.push('続報');
-  }
   if (ctx.mode === 'breaking' && tags.indexOf('速報') < 0) tags.push('速報');
 
   await Promise.all([loadSeries(), loadSpots(), loadAuthors()]);
@@ -6330,10 +6366,9 @@ async function awSendToForm() {
     slug: 'ai-' + Date.now(),
     categories: [cat], category: cat,
     author: document.getElementById('aw-author').value.trim() || '編集部',
-    seriesId: base ? (base.seriesId || '') : '',
-    mapSpotId: base ? (base.mapSpotId || '') : '',
+    seriesId: '', mapSpotId: '',
     tags: tags, thumbnail: '', featured: false,
-    body: body
+    body: r.body
   });
   document.querySelectorAll('.view').forEach(function (v) { v.classList.remove('on'); });
   document.getElementById('v-form').classList.add('on');
@@ -6341,6 +6376,28 @@ async function awSendToForm() {
   document.getElementById('form-title').textContent = '✏️ AI生成記事の確認（内容を確認して公開保存）';
   toast('記事フォームに反映しました。確認して公開保存してください');
   window.scrollTo(0, 0);
+}
+
+// 続報：確認画面を挟まず、元記事の末尾にそのまま追記して保存する
+async function awAppendToBase() {
+  var base = awCurrentBase();
+  if (!base || !_awResult) return;
+  if (!confirm('「' + base.title + '」の末尾に続報を追記して保存します。よろしいですか？')) return;
+  var tags = (base.tags || []).slice();
+  if (tags.indexOf('続報') < 0) tags.push('続報');
+  try {
+    await window._updateDoc('articles', base.id, {
+      body: (base.body || '') + '\n' + awFollowupBlock(_awResult),
+      tags: tags,
+      updatedAt: window._ts()
+    });
+    toast('元記事に続報を追記しました ✅');
+    await loadArticles();
+    awInit();
+    document.getElementById('aw-memo').value = '';
+    document.getElementById('aw-result').style.display = 'none';
+    _awResult = null;
+  } catch (e) { toast('追記失敗: ' + e.message, 'error'); }
 }
 
 async function awAddToBreakingBar() {
