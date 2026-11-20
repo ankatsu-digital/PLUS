@@ -543,6 +543,7 @@
                   <label><input type="checkbox" class="f-cat-check" value="学校・子育て"> 学校・子育て</label>
                   <label><input type="checkbox" class="f-cat-check" value="移住・定住"> 移住・定住</label>
                   <label><input type="checkbox" class="f-cat-check" value="防災"> 防災</label>
+                  <label><input type="checkbox" class="f-cat-check" value="事件・事故"> 事件・事故</label>
                   <label><input type="checkbox" class="f-cat-check" value="お知らせ"> お知らせ</label>
                 </div>
                 <span class="fhint">例：商店街の店主へのインタビュー記事なら「商店街」と「インタビュー」の両方にチェック</span>
@@ -3847,7 +3848,7 @@ function renderNewsletterAdmin() {
 
   var catWrap = document.getElementById('nl-send-cat-checks');
   catWrap.innerHTML = '<label><input type="checkbox" id="nl-send-cat-all" checked onchange="onNlSendAllChange()"> すべての登録者</label>'
-    + ['まちの話題','イベント','空き家活用','商店街','文化','インタビュー','学校・子育て','移住・定住','防災','お知らせ'].map(function(c){
+    + ['まちの話題','イベント','空き家活用','商店街','文化','インタビュー','学校・子育て','移住・定住','防災','事件・事故','お知らせ'].map(function(c){
         return '<label><input type="checkbox" class="nl-send-cat-check" value="'+c+'" onchange="onNlSendCatChange()"> '+c+'</label>';
       }).join('');
 
@@ -5907,6 +5908,7 @@ var EYECATCH_CATS = {
   '学校・子育て': { color: '#ec4899', dark: '#be185d', pattern: 'asanoha' },
   '移住・定住':   { color: '#10b981', dark: '#047857', pattern: 'ichimatsu' },
   '防災':         { color: '#f59e0b', dark: '#b45309', pattern: 'yabane' },
+  '事件・事故':   { color: '#475569', dark: '#1e293b', pattern: 'ichimatsu' },
   'お知らせ':     { color: '#0ea5e9', dark: '#0369a1', pattern: 'sayagata' }
 };
 var EYECATCH_DEFAULT_CAT = { color: '#2d6a4f', dark: '#1f4d39', pattern: 'koushi' };
@@ -6228,7 +6230,7 @@ function autoGenerateThumbForForm() {
 // ============================================================
 // AI記事作成（メモ／続報／速報）
 // ============================================================
-var AW_CATS = ['まちの話題','イベント','空き家活用','商店街','文化','インタビュー','学校・子育て','移住・定住','防災','お知らせ'];
+var AW_CATS = ['まちの話題','イベント','空き家活用','商店街','文化','インタビュー','学校・子育て','移住・定住','防災','事件・事故','お知らせ'];
 var _awResult = null;
 var _awCtx = null;
 
