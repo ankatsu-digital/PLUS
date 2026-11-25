@@ -327,9 +327,6 @@
       getFirestore, collection, getDocs, getDoc, doc,
       query, orderBy, where, limit, addDoc, serverTimestamp, updateDoc, increment
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-    import {
-      getMessaging, getToken, onMessage, isSupported
-    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js";
 
     const firebaseConfig = {
       apiKey:            "AIzaSyC4HUWd4c5_fdgA-k34i1uthozfqYcRn9A",
@@ -346,21 +343,7 @@
     window._db          = db;
     window._firestoreOp = { collection, getDocs, getDoc, doc, query, orderBy, where, limit, addDoc, serverTimestamp, updateDoc, increment };
 
-    isSupported().then(function(supported){
-      if (supported) {
-        try {
-          const messaging = getMessaging(app);
-          window._messaging = messaging;
-          window._getToken  = getToken;
-          onMessage(messaging, function(payload){
-            window.dispatchEvent(new CustomEvent('push-foreground-message', { detail: payload }));
-          });
-        } catch(e) { console.error('messaging init error:', e); }
-      }
-      document.dispatchEvent(new Event("firebase-ready"));
-    }).catch(function(){
-      document.dispatchEvent(new Event("firebase-ready"));
-    });
+    document.dispatchEvent(new Event("firebase-ready"));
   </script>
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -426,6 +409,10 @@
     #mobile-nav.open{display:flex}
     #mobile-nav .nav-link{font-size:1rem;padding:.6rem 1rem}
 
+    .delivery-badge{display:inline-block;font-size:.67rem;font-weight:700;letter-spacing:.06em;color:var(--accent);background:var(--bg-card);border:1px solid var(--accent);padding:.08rem .45rem;border-radius:3px;margin-bottom:.3rem;margin-right:.25rem}
+    .delivery-badge.today{background:var(--danger);border-color:var(--danger);color:#fff}
+    .feature-cat-tag ~ .delivery-badge{margin-bottom:.75rem}
+
     /* 速報バー */
     #breaking-bar{background:var(--accent);color:#fff;font-size:.82rem;display:flex;align-items:center;overflow:hidden;height:36px}
     #breaking-bar.hidden{display:none}
@@ -486,7 +473,6 @@
     .thumb-map-wrap{position:relative;display:block;flex-shrink:0}
     .map-pin-badge{position:absolute;top:5px;right:5px;z-index:2;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:var(--accent);color:#fff;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.3);font-size:.72rem;text-decoration:none;transition:transform var(--tr),background var(--tr)}
     .map-pin-badge:hover{background:var(--accent-light);transform:scale(1.1)}
-    .map-pin-badge svg{width:62%;height:62%;display:block}
     .map-pin-badge-lg{width:34px;height:34px;top:12px;right:12px;font-size:1rem}
     .article-map-link{display:inline-flex;align-items:center;gap:.4rem;background:var(--accent);color:#fff;padding:.5rem 1.1rem;border-radius:20px;font-size:.82rem;font-weight:700;margin-top:.9rem;transition:background var(--tr)}
     .article-map-link:hover{background:var(--accent-light)}
@@ -543,18 +529,6 @@
     #share-toast-container{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);z-index:9998;display:flex;flex-direction:column;align-items:center;gap:.5rem}
     .share-toast{background:var(--text-main);color:var(--bg);padding:.6rem 1.25rem;border-radius:20px;font-size:.82rem;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.25);animation:jmaSlideIn .2s ease-out}
 
-    /* プッシュ通知バナー */
-    #push-banner{display:none;position:fixed;bottom:1.25rem;left:1.25rem;right:1.25rem;z-index:9997;justify-content:center}
-    .push-banner-card{max-width:480px;width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:14px;box-shadow:0 10px 30px var(--shadow);padding:1.1rem 1.25rem;display:flex;align-items:center;gap:.9rem;flex-wrap:wrap;animation:jmaSlideIn .3s ease-out}
-    .push-banner-icon{font-size:1.6rem;flex-shrink:0}
-    .push-banner-text{flex:1;min-width:160px}
-    .push-banner-title{font-size:.87rem;font-weight:700;margin-bottom:.2rem;color:var(--text-main)}
-    .push-banner-sub{font-size:.74rem;color:var(--text-muted)}
-    .push-banner-actions{display:flex;gap:.5rem;flex-shrink:0}
-    .push-banner-btn{padding:.45rem .9rem;border-radius:20px;font-size:.8rem;font-weight:700}
-    .push-banner-btn-primary{background:var(--accent);color:#fff}
-    .push-banner-btn-primary:hover{background:var(--accent-light)}
-    .push-banner-btn-secondary{background:var(--bg-sub);color:var(--text-muted);border:1px solid var(--border)}
     .back-btn{display:inline-flex;align-items:center;gap:.5rem;font-size:.85rem;color:var(--text-muted);padding:.5rem 1rem;border:1px solid var(--border);border-radius:4px;margin-bottom:1.5rem;transition:background var(--tr);cursor:pointer}
     .back-btn:hover{background:var(--bg-sub);color:var(--accent)}
 
@@ -849,6 +823,28 @@
     .popup-close-btn{background:var(--accent);color:#fff;padding:.5rem 1.2rem;border-radius:6px;font-size:.85rem;font-weight:700;cursor:pointer;flex-shrink:0}
     .popup-close-btn:hover{background:var(--accent-light)}
 
+    /* 記事の言語切り替え */
+    .lang-switch{display:flex;gap:.4rem;flex-wrap:wrap;margin:.25rem 0 .6rem}
+    .lang-btn{padding:.35rem .95rem;border:1.5px solid var(--border);border-radius:20px;font-size:.8rem;font-weight:700;background:var(--bg-card);color:var(--text-muted);transition:background var(--tr),color var(--tr),border-color var(--tr)}
+    .lang-btn:hover{border-color:var(--accent);color:var(--accent)}
+    .lang-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+    .lang-note{font-size:.76rem;color:var(--text-light);margin-bottom:.75rem;line-height:1.7}
+
+    /* PR（製品の提供を受けて制作した記事）の表示 */
+    .news-cat-tag.is-pr,.feature-cat-tag.is-pr{background:#475569;color:#fff}
+    .article-cat-badge-item.is-pr{color:#475569}
+    .article-cat-badge-item.is-pr::before{background:#475569}
+    .pr-notice{max-width:760px;margin:0 auto 1rem;background:#f1f5f9;border:1px solid #cbd5e1;border-left:5px solid #475569;border-radius:6px;padding:.75rem 1rem;font-size:.84rem;line-height:1.8;color:#334155}
+    .pr-notice a{text-decoration:underline;color:#334155;font-weight:700}
+
+    /* お気に入りイベント */
+    #favorites-view{display:none}
+    #favorites-view.visible{display:block}
+    .cal-add-btn.fav-on{border-color:var(--danger);color:var(--danger)}
+    #fav-popup{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:15400;align-items:center;justify-content:center;padding:1.25rem}
+    #fav-popup.is-open{display:flex}
+    .fav-note{background:var(--bg-sub);border:1px solid var(--border);border-radius:8px;padding:.9rem 1.1rem;font-size:.84rem;line-height:1.8;color:var(--text-muted);margin-bottom:1.25rem}
+
     /* レスポンシブ */
     @media(max-width:900px){
       #top-layout{grid-template-columns:1fr}
@@ -885,7 +881,7 @@
   <!-- メンテナンス画面（adminで設定した期間中に全画面表示） -->
   <div id="maintenance-overlay">
     <div class="maintenance-box">
-      
+      <div class="maintenance-icon"></div>
       <div class="maintenance-title">ただいまメンテナンス中です</div>
       <p class="maintenance-desc">より良いサービスのため、只今サイトのメンテナンスを行っております。<br>ご不便をおかけし申し訳ございません。</p>
       <div class="maintenance-end" id="maintenance-overlay-end"></div>
@@ -914,7 +910,7 @@
   <!-- メールマガジン 登録バナー -->
   <div id="newsletter-banner">
     <div class="newsletter-banner-card">
-      
+      <span class="newsletter-banner-icon"></span>
       <div class="newsletter-banner-text">
         <div class="newsletter-banner-title">メールマガジンに登録しませんか？</div>
         <div class="newsletter-banner-sub">下から登録できます。新着記事をメールでお届けします</div>
@@ -922,6 +918,24 @@
       <div class="newsletter-banner-actions">
         <button class="newsletter-banner-btn newsletter-banner-btn-primary" onclick="openNewsletterModal()">登録する</button>
         <button class="newsletter-banner-btn newsletter-banner-btn-secondary" onclick="dismissNewsletterBanner(true)">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- お気に入り追加時の、メルマガ登録案内ポップアップ -->
+  <div id="fav-popup">
+    <div class="newsletter-modal-card">
+      <div class="newsletter-modal-header">
+        <span>お気に入りに追加しました</span>
+        <button class="newsletter-modal-close-btn" onclick="closeFavPopup()">&times;</button>
+      </div>
+      <div class="newsletter-modal-body">
+        <p style="font-size:.9rem;line-height:1.9;margin-bottom:.6rem">お気に入りは、この端末に保存されました。</p>
+        <p style="font-size:.9rem;line-height:1.9;margin-bottom:1.1rem;font-weight:700;color:var(--accent)">メルマガに登録すると、お気に入りにしたイベントの前日（夕方）に、メールでリマインドが届きます。</p>
+        <div style="display:flex;gap:.65rem;flex-wrap:wrap">
+          <button class="contact-submit" onclick="favPopupRegister()">メルマガに登録する</button>
+          <button class="share-btn" onclick="closeFavPopup()">あとで</button>
+        </div>
       </div>
     </div>
   </div>
@@ -952,18 +966,13 @@
         </div>
 
         <div id="nl-step-done" style="display:none;text-align:center;padding:1rem 0">
-          
+          <div style="font-size:2.2rem;margin-bottom:.75rem"></div>
           <p style="font-size:.92rem;font-weight:700;margin-bottom:.5rem" id="nl-done-title">登録が完了しました！</p>
           <p style="font-size:.82rem;color:var(--text-muted)" id="nl-done-sub">確認メールをお送りしました。配信設定の変更・停止はフッターの「メールマガジンの登録・設定変更」からいつでも行えます。</p>
           <button class="share-btn" style="margin-top:1rem" onclick="closeNewsletterModal()">閉じる</button>
         </div>
 
       </div>
-    </div>
-  </div>
-
-  <!-- プッシュ通知 購読案内バナー -->
-
     </div>
   </div>
 
@@ -982,8 +991,17 @@
         <span class="logo-main">アンカツ＋</span>
         <span class="logo-sub">城下町洲本 / Sumoto city</span>
       </div>
+      <nav id="main-nav">
+        <span class="nav-link active" data-cat="all">すべて</span>
+        <span class="nav-link" data-cat="まちの話題">まちの話題</span>
+        <span class="nav-link" data-cat="イベント">イベント</span>
+        <span class="nav-link" data-cat="防災">防災</span>
+        <span class="nav-link" data-cat="インタビュー">インタビュー</span>
+        <span class="nav-link" data-cat="series">連載・特集</span>
+        <span class="nav-link" data-cat="calendar">イベントカレンダー</span>
+        <span class="nav-link" data-cat="favorites">お気に入り</span>
+      </nav>
       <div class="search-box">
-        
         <input id="search-input" type="search" placeholder="記事を検索..." />
       </div>
       <button id="dark-toggle" aria-label="ダークモード切替"></button>
@@ -999,9 +1017,13 @@
     <span class="nav-link" data-cat="文化">文化</span>
     <span class="nav-link" data-cat="インタビュー">インタビュー</span>
     <span class="nav-link" data-cat="防災">防災</span>
-        <span class="nav-link" data-cat="事件・事故">事件・事故</span>
+    <span class="nav-link" data-cat="事件・事故">事件・事故</span>
+    <span class="nav-link" data-cat="暮らしのもの">暮らしのもの</span>
+    <span class="nav-link" data-cat="グルメ・特産品">グルメ・特産品</span>
+    <span class="nav-link" data-cat="PR">PR</span>
     <span class="nav-link" data-cat="series">連載・特集</span>
     <span class="nav-link" data-cat="calendar">イベントカレンダー</span>
+        <span class="nav-link" data-cat="favorites">お気に入り</span>
     <span class="nav-link" data-cat="archive">アーカイブ</span>
     <div style="padding:.75rem 1rem">
       <div class="search-box"><input id="search-input-mob" type="search" placeholder="記事を検索..." style="width:100%" /></div>
@@ -1028,10 +1050,14 @@
       <button class="cat-btn" data-cat="学校・子育て">学校・子育て</button>
       <button class="cat-btn" data-cat="移住・定住">移住・定住</button>
       <button class="cat-btn" data-cat="お知らせ">お知らせ</button>
+      <button class="cat-btn" data-cat="暮らしのもの">暮らしのもの</button>
+      <button class="cat-btn" data-cat="グルメ・特産品">グルメ・特産品</button>
+      <button class="cat-btn" data-cat="PR">PR</button>
       <button class="cat-btn" data-cat="防災">防災</button>
       <button class="cat-btn" data-cat="事件・事故">事件・事故</button>
       <button class="cat-btn" data-cat="series">連載・特集</button>
       <button class="cat-btn" data-cat="calendar">イベントカレンダー</button>
+      <button class="cat-btn" data-cat="favorites">お気に入り</button>
       <button class="cat-btn" data-cat="archive">アーカイブ</button>
     </div>
   </div>
@@ -1154,6 +1180,10 @@
       <div id="newsletter-manage-content"></div>
     </section>
 
+    <section id="favorites-view">
+      <div id="favorites-content"></div>
+    </section>
+
     <section id="special-view">
       <div id="special-content"></div>
     </section>
@@ -1177,6 +1207,9 @@
           <a data-cat-foot="移住・定住">移住・定住</a>
           <a data-cat-foot="防災">防災</a>
           <a data-cat-foot="事件・事故">事件・事故</a>
+          <a data-cat-foot="暮らしのもの">暮らしのもの</a>
+          <a data-cat-foot="グルメ・特産品">グルメ・特産品</a>
+          <a data-cat-foot="PR">PR</a>
         </div>
       </div>
       <div>
@@ -1185,6 +1218,8 @@
           <a data-page="about">発行団体について</a>
           <a data-page="tokku">「生涯活躍のまち」特区</a>
           <a data-page="privacy">プライバシーポリシー</a>
+          <a data-page="tip">情報提供（写真・イベント・事件事故）</a>
+          <a data-page="pr">PR記事について（製品提供でのご相談）</a>
           <a data-page="contact">お問い合わせ</a>
           <a onclick="openNewsletterManagePage()">メールマガジンの登録・設定変更</a>
           <a href="admin.html">管理ページ</a>
@@ -1198,18 +1233,13 @@
   </footer>
 
   <script>
-  /* 管理画面で入力された文言に絵文字が混ざっていても、サイト上では表示しない */
-  function stripEmoji(s){
-    return String(s==null?'':s).replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B50}\u{2B55}\u{2300}-\u{23FF}\u{FE0F}\u{200D}]/gu,'').replace(/[ ]{2,}/g,' ').trim();
-  }
-
   var allArticles = [];
   var visibleArticles = []; // allArticlesから限定公開(unlisted)記事を除いたもの。一覧・検索・カレンダー等はこちらを使う
   var allSeries = [];
   var currentView = 'top';
 
-  var CAT_EMOJI = {}; /* 絵文字は使用しない */
-  var ALL_CATEGORIES = ['まちの話題','イベント','空き家活用','商店街','文化','インタビュー','学校・子育て','移住・定住','防災','事件・事故','お知らせ'];
+  var CAT_EMOJI = {'暮らしのもの':'','グルメ・特産品':'','PR':'','まちの話題':'','イベント':'','空き家活用':'','商店街':'','文化':'','インタビュー':'','学校・子育て':'','移住・定住':'','お知らせ':'','防災':''};
+  var ALL_CATEGORIES = ['まちの話題','イベント','空き家活用','商店街','文化','インタビュー','学校・子育て','移住・定住','防災','事件・事故','お知らせ','暮らしのもの','グルメ・特産品','PR'];
 
   /* ---- 記事の複数カテゴリ対応ヘルパー ----
      新しい記事は categories:['商店街','インタビュー'] のような配列を持つ。
@@ -1219,10 +1249,30 @@
     return (a && a.category) ? [a.category] : [];
   }
   function primaryCat(a){ var c=articleCats(a); return c.length?c[0]:''; }
+  /* 定期配信（deliveryMode:'scheduled'）の記事に「本日の配信／今週の配信」バッジを付ける（週は月曜始まり） */
+  function deliveryBadgeLabel(a){
+    if(!a || a.deliveryMode!=='scheduled') return '';
+    var d; try{ d=(a.createdAt&&a.createdAt.toDate)?a.createdAt.toDate():new Date(a.createdAt||0); }catch(e){ return ''; }
+    if(!d||isNaN(d)) return '';
+    var now=new Date();
+    var today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    var dDay=new Date(d.getFullYear(),d.getMonth(),d.getDate());
+    if(dDay.getTime()===today.getTime()) return '本日の配信';
+    var weekStart=new Date(today); weekStart.setDate(today.getDate()-((today.getDay()+6)%7));
+    var weekEnd=new Date(weekStart); weekEnd.setDate(weekStart.getDate()+7);
+    if(dDay>=weekStart && dDay<weekEnd) return '今週の配信';
+    return '';
+  }
+  function deliveryBadgeHtml(a){
+    var l=deliveryBadgeLabel(a);
+    return l ? '<span class="delivery-badge'+(l==='本日の配信'?' today':'')+'">'+l+'</span>' : '';
+  }
   function catTagsHtml(a,cls){
-    var cats=articleCats(a);
-    if(!cats.length) return '<span class="'+cls+'">記事</span>';
-    return cats.map(function(c){return '<span class="'+cls+'">'+c+'</span>';}).join('');
+    var cats=articleCats(a).slice();
+    if(cats.indexOf('PR')>0){ cats.splice(cats.indexOf('PR'),1); cats.unshift('PR'); } /* PRは、いつも先頭に */
+    var badge=(cls==='article-cat-badge-item')?'':deliveryBadgeHtml(a);
+    if(!cats.length) return badge+'<span class="'+cls+'">記事</span>';
+    return badge+cats.map(function(c){return '<span class="'+cls+(c==='PR'?' is-pr':'')+'">'+c+'</span>';}).join('');
   }
 
   /* =========================================================================
@@ -1312,7 +1362,7 @@
   function mapPinBadge(a, size){
     if(!a || !a.mapSpotId) return '';
     var cls = size==='lg' ? 'map-pin-badge map-pin-badge-lg' : 'map-pin-badge';
-    return '<a class="'+cls+'" href="'+mapSpotUrl(a.mapSpotId)+'" target="_blank" rel="noopener" title="アンカツMAPでこの場所を見る" onclick="event.stopPropagation()"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg></a>';
+    return '<a class="'+cls+'" href="'+mapSpotUrl(a.mapSpotId)+'" target="_blank" rel="noopener" title="アンカツMAPでこの場所を見る" onclick="event.stopPropagation()"></a>';
   }
 
   var MAINTENANCE_REDIRECT_URL = 'maintenance.html'; /* ← 別途用意する簡易ページのURL・パスに書き換えてください */
@@ -1393,7 +1443,7 @@
       if(cfg.breakingLabel) document.getElementById('breaking-label').textContent=cfg.breakingLabel;
       if(cfg.breakingItems&&cfg.breakingItems.length){
         var items=cfg.breakingItems;
-        var html=items.map(function(t){return '<span class="breaking-item">'+stripEmoji(t)+'</span><span class="breaking-sep">◆</span>';}).join('');
+        var html=items.map(function(t){return '<span class="breaking-item">'+t+'</span><span class="breaking-sep">◆</span>';}).join('');
         document.getElementById('breaking-inner').innerHTML=html+html;
       } else {
         setDefaultBreaking();
@@ -1404,7 +1454,7 @@
 
   function setDefaultBreaking(){
     var defaults=['洲本市の空き家活用プロジェクト始動','洲本城下町ウォーキングマップ完成、市役所で無料配布中','特区構想「生涯活躍のまち」認定申請、来月審査へ','商店街の若手経営者グループが新カフェをオープン予定'];
-    var html=defaults.map(function(t){return '<span class="breaking-item">'+stripEmoji(t)+'</span><span class="breaking-sep">◆</span>';}).join('');
+    var html=defaults.map(function(t){return '<span class="breaking-item">'+t+'</span><span class="breaking-sep">◆</span>';}).join('');
     document.getElementById('breaking-inner').innerHTML=html+html;
     runBreakingMarquee();
   }
@@ -1606,7 +1656,7 @@
         + '<button type="button" class="fb-btn" onclick="selectFeedback(this,\'not_helpful\')">役に立たなかった</button>'
       : '<button type="button" class="fb-btn" onclick="selectFeedback(this,\'good\')">よかった</button>'
         + '<button type="button" class="fb-btn" onclick="selectFeedback(this,\'normal\')">ふつう</button>'
-        + '<button type="button" class="fb-btn" onclick="selectFeedback(this,\'bad\')">いまひとつ</button>';
+        + '<button type="button" class="fb-btn" onclick="selectFeedback(this,\'bad\')">いまいち</button>';
     return '<div class="feedback-box" id="feedback-box" data-article-id="'+a.id+'">'
       + '<div class="feedback-q">この記事はどうでしたか？</div>'
       + '<div class="feedback-buttons" id="feedback-buttons">'+buttonsHtml+'</div>'
@@ -1675,7 +1725,7 @@
     wrap.innerHTML = items.map(function(it, idx){
       var targetAttr = it.newTab===false ? '' : ' target="_blank" rel="noopener"';
       var cls = idx===0 ? 'floating-menu-item' : 'floating-menu-item secondary'; // 一番上だけ強調色、それ以外は控えめに
-      var iconHtml = '';
+      var iconHtml = it.icon ? '<span class="fmi-icon">'+it.icon+'</span>' : '';
       return '<a class="'+cls+'" href="'+it.url+'"'+targetAttr+'>'+iconHtml+'<span class="fmi-label">'+(it.label||'')+'</span></a>';
     }).join('');
     document.body.appendChild(wrap);
@@ -1694,6 +1744,8 @@
       var now=new Date();
       allArticles=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());})
         .filter(function(a){
+          /* 予備・ストック記事（定期配信の枠に入るまで）は公開しない */
+          if((a.deliveryMode==='reserve' || a.deliveryMode==='stock') && !a.unlisted) return false; /* 限定公開の記事はリンクで開けるように除外しない */
           /* 予約投稿（createdAtが未来日時）はサイトにはまだ表示しない */
           try{
             var createdAtDate=(a.createdAt&&a.createdAt.toDate)?a.createdAt.toDate():(a.createdAt?new Date(a.createdAt):null);
@@ -1817,6 +1869,7 @@
     document.getElementById('archive-view').classList.toggle('visible',v==='archive');
     document.getElementById('author-view').classList.toggle('visible',v==='author');
     document.getElementById('special-view').classList.toggle('visible',v==='special');
+    document.getElementById('favorites-view').classList.toggle('visible',v==='favorites');
     document.getElementById('newsletter-manage-view').classList.toggle('visible',v==='newsletter-manage');
     currentView=v; window.scrollTo(0,0);
   }
@@ -1838,7 +1891,7 @@
   function renderArticleGate(a){
     document.getElementById('article-content').innerHTML =
       '<div style="max-width:480px;margin:4rem auto;text-align:center;padding:0 1.5rem">'
-      + ''
+      + '<div style="font-size:2.5rem;margin-bottom:1rem"></div>'
       + '<h1 style="font-family:var(--serif);font-size:1.3rem;font-weight:900;margin-bottom:.75rem">限定公開記事です</h1>'
       + '<p style="font-size:.86rem;color:var(--text-muted);line-height:1.8;margin-bottom:1.5rem">このページを見るにはパスワードが必要です。リンクを共有された方からパスワードをご確認ください。</p>'
       + '<div style="display:flex;gap:.5rem;max-width:320px;margin:0 auto">'
@@ -1914,6 +1967,12 @@
     var url = buildShareUrl(a);
     var uidBase = (a.id||a.slug||'event');
     var lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//アンカツ＋//JP'];
+    /* 通知（リマインド）：時刻つきは「前日」と「1時間前」、終日は「前日の18時」 */
+    function alarmLines(timed){
+      var t = icsEscape_(a.title||'');
+      function al(trigger){ return ['BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+t,'TRIGGER:'+trigger,'END:VALARM']; }
+      return timed ? al('-P1D').concat(al('-PT1H')) : al('-PT6H');
+    }
 
     function pushTimedEvent(dateObj, uidSuffix){
       var s = new Date(dateObj); s.setHours(tr.sh, tr.sm, 0, 0);
@@ -1922,13 +1981,13 @@
       lines.push('BEGIN:VEVENT','UID:'+uidBase+uidSuffix+'@ankatsu-plus','DTSTAMP:'+calDateTime_(new Date())+'Z');
       lines.push('DTSTART;TZID=Asia/Tokyo:'+calDateTime_(s));
       lines.push('DTEND;TZID=Asia/Tokyo:'+calDateTime_(e));
-      lines.push('SUMMARY:'+icsEscape_(a.title||''), 'DESCRIPTION:'+icsEscape_(url), 'URL:'+url, 'END:VEVENT');
+      lines.push('SUMMARY:'+icsEscape_(a.title||''), 'DESCRIPTION:'+icsEscape_(url), 'URL:'+url); lines = lines.concat(alarmLines(true)); lines.push('END:VEVENT');
     }
     function pushAllDayEvent(startObj, endObjExclusive, uidSuffix){
       lines.push('BEGIN:VEVENT','UID:'+uidBase+uidSuffix+'@ankatsu-plus','DTSTAMP:'+calDateTime_(new Date())+'Z');
       lines.push('DTSTART;VALUE=DATE:'+calYmd_(startObj));
       lines.push('DTEND;VALUE=DATE:'+calYmd_(endObjExclusive));
-      lines.push('SUMMARY:'+icsEscape_(a.title||''), 'DESCRIPTION:'+icsEscape_(url), 'URL:'+url, 'END:VEVENT');
+      lines.push('SUMMARY:'+icsEscape_(a.title||''), 'DESCRIPTION:'+icsEscape_(url), 'URL:'+url); lines = lines.concat(alarmLines(false)); lines.push('END:VEVENT');
     }
 
     var mode = sched ? sched.mode : 'single';
@@ -1960,13 +2019,13 @@
         lines.push('DTSTART;TZID=Asia/Tokyo:'+calDateTime_(s2));
         lines.push('DTEND;TZID=Asia/Tokyo:'+calDateTime_(e2));
         lines.push('RRULE:FREQ=WEEKLY;UNTIL='+untilStr);
-        lines.push('SUMMARY:'+icsEscape_(a.title||''), 'DESCRIPTION:'+icsEscape_(url), 'URL:'+url, 'END:VEVENT');
+        lines.push('SUMMARY:'+icsEscape_(a.title||''), 'DESCRIPTION:'+icsEscape_(url), 'URL:'+url); lines = lines.concat(alarmLines(true)); lines.push('END:VEVENT');
       } else {
         lines.push('BEGIN:VEVENT','UID:'+uidBase+'@ankatsu-plus','DTSTAMP:'+calDateTime_(new Date())+'Z');
         lines.push('DTSTART;VALUE=DATE:'+calYmd_(first));
         lines.push('DTEND;VALUE=DATE:'+calYmd_(new Date(first.getTime()+86400000)));
         lines.push('RRULE:FREQ=WEEKLY;UNTIL='+calYmd_(untilD));
-        lines.push('SUMMARY:'+icsEscape_(a.title||''), 'DESCRIPTION:'+icsEscape_(url), 'URL:'+url, 'END:VEVENT');
+        lines.push('SUMMARY:'+icsEscape_(a.title||''), 'DESCRIPTION:'+icsEscape_(url), 'URL:'+url); lines = lines.concat(alarmLines(false)); lines.push('END:VEVENT');
       }
     }
     lines.push('END:VCALENDAR');
@@ -2011,6 +2070,7 @@
       ?'<a class="article-map-link" href="'+mapSpotUrl(a.mapSpotId)+'" target="_blank" rel="noopener">この場所をアンカツMAPで見る</a>'
       :'';
     var calButtons=articleCalendarButtonsHtml_(a);
+    var favBtn=favButtonHtml_(a);
     var statusRow=eventStatusRowHtml_(a);
     var shareBar='<div class="article-share-bar">'
       +'<span class="share-label">この記事をシェア</span>'
@@ -2026,17 +2086,22 @@
       '<header class="article-header">'
       +seriesBadge
       +'<div class="article-cat-badge">'+catTagsHtml(a,'article-cat-badge-item')+'</div>'
-      +'<h1 class="article-title">'+articleDisplayTitle(a)+'</h1>'
+      +(deliveryBadgeLabel(a)?'<div style="margin-bottom:.6rem">'+deliveryBadgeHtml(a)+'</div>':'')
+      +(articleCats(a).indexOf('PR')>=0?'<div class="pr-notice"><b>PR</b>：この記事は、製品・サービスの提供を受けて制作しています。感想・評価は、編集部の率直な意見です。<a href="#page/pr" onclick="event.preventDefault();showStaticPage(\'pr\');history.pushState({view:\'static\',page:\'pr\'},\'\',\'#page/pr\')">PR記事について</a></div>':'')
+      +'<div id="lang-switch" data-aid="'+a.id+'"></div>'
+      +'<h1 class="article-title" id="article-title-el">'+articleDisplayTitle(a)+'</h1>'
       +statusRow
       +'<div class="article-meta"><span><span class="author-name-link" onclick="openAuthor(\''+(a.author||'編集部').replace(/'/g,"\\'")+'\')">'+(a.author||'編集部')+'</span></span><span>'+fmtDate(a.createdAt)+'</span>'+articleViewCountHtml(a)+'</div>'
       +mapLink
+      +favBtn
       +calButtons
       +shareBar
       +'</header>'+img
-      +'<div class="article-body">'+(a.body||'<p>本文がありません。</p>')+'</div>'
+      +'<div class="article-body" id="article-body-el">'+(a.body||'<p>本文がありません。</p>')+'</div>'
       +'<div class="article-tags">'+tags+'</div>'
       +feedbackWidgetHtml(a);
     document.title=articleDisplayTitle(a)+' | アンカツ＋';
+    initArticleTranslation(a);
   }
 
   var EVENT_STATUS_COLORS = {
@@ -2065,7 +2130,7 @@
     if(!cfg.enabled || !cfg.showToReaders) return '';
     var n = a.viewCount || 0;
     var tpl = cfg.displayText || '{{n}} 回読まれました';
-    return '<span class="article-view-count">'+stripEmoji(tpl.replace('{{n}}', n))+'</span>';
+    return '<span class="article-view-count">'+tpl.replace('{{n}}', n)+'</span>';
   }
 
   /* ---- 記事共有機能 ---- */
@@ -2132,61 +2197,6 @@
     setTimeout(function(){ el.remove(); }, 2400);
   }
 
-  /* ---- プッシュ通知（Firebase Cloud Messaging + Google Apps Script） ---- */
-  var PUSH_GAS_URL = 'https://script.google.com/macros/s/XXXXXXXXXXXXXXXX/exec'; /* ← 発行したGASウェブアプリのURLに書き換えてください */
-  var PUSH_VAPID_KEY = 'YOUR_VAPID_KEY_HERE'; /* ← FirebaseコンソールのWeb Push証明書の鍵に書き換えてください */
-  var PUSH_DISMISS_KEY = 'ankatsu_push_prompt_dismissed';
-
-  function initPushNotifications(){
-    if(!('Notification' in window) || !('serviceWorker' in navigator) || !window._messaging) return;
-    if(Notification.permission!=='default') return; /* すでに許可・拒否済みなら何もしない */
-    if(localStorage.getItem(PUSH_DISMISS_KEY)==='1') return;
-    setTimeout(function(){ document.getElementById('push-banner').style.display='flex'; }, 2500);
-  }
-
-  function dismissPushBanner(remember){
-    document.getElementById('push-banner').style.display='none';
-    if(remember) localStorage.setItem(PUSH_DISMISS_KEY,'1');
-  }
-
-  async function enablePushNotifications(){
-    try{
-      var permission=await Notification.requestPermission();
-      if(permission!=='granted'){
-        dismissPushBanner(true);
-        showShareToast('通知が許可されませんでした');
-        return;
-      }
-      var reg=await navigator.serviceWorker.register('firebase-messaging-sw.js');
-      var token=await window._getToken(window._messaging, {vapidKey:PUSH_VAPID_KEY, serviceWorkerRegistration:reg});
-      if(!token){ showShareToast('通知の登録に失敗しました'); return; }
-      await fetch(PUSH_GAS_URL, {
-        method:'POST',
-        headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body: JSON.stringify({action:'subscribe', token:token})
-      });
-      dismissPushBanner(true);
-      showShareToast('プッシュ通知をオンにしました ');
-    }catch(e){
-      console.error('push subscribe error:', e);
-      showShareToast('通知の設定に失敗しました');
-    }
-  }
-
-  window.addEventListener('push-foreground-message', function(e){
-    var payload=e.detail||{};
-    var title=(payload.notification&&payload.notification.title)||'アンカツ＋';
-    var body=(payload.notification&&payload.notification.body)||'';
-    var url=(payload.fcmOptions&&payload.fcmOptions.link)||(payload.data&&payload.data.url)||'';
-    showShareToast(''+title+(body?'：'+body:''));
-    if('Notification' in window && Notification.permission==='granted'){
-      try{
-        var n=new Notification(title, {body:body, icon:'web-app-manifest-512x512.png'});
-        if(url){ n.onclick=function(){ window.focus(); location.href=url; }; }
-      }catch(e){ /* 一部ブラウザ（iOS Safari等）はページ内からのNotification生成に対応していないため無視 */ }
-    }
-  });
-
   function goBack(){
     history.back();
     setTimeout(function(){if(currentView!=='top'){showView('top');document.title='アンカツ＋ | 城下町洲本のデジタルアーカイブ';}},150);
@@ -2196,6 +2206,12 @@
   function filterByCategory(cat){
     document.querySelectorAll('.nav-link,.cat-btn').forEach(function(el){el.classList.toggle('active',el.dataset.cat===cat);});
     if(cat==='all'){showView('top');history.pushState(null,'',location.pathname);document.title='アンカツ＋ | 城下町洲本のデジタルアーカイブ';return;}
+    if(cat==='favorites'){
+      renderFavoritesPage();showView('favorites');
+      history.pushState({view:'favorites'},'','#favorites');
+      document.title='お気に入りイベント | アンカツ＋';
+      return;
+    }
     if(cat==='series'){
       renderSeriesList();showView('series');
       history.pushState({view:'series'},'','#series');
@@ -2223,7 +2239,7 @@
   function renderSeriesList(){
     document.getElementById('series-count').textContent=allSeries.length+'件';
     document.getElementById('series-grid').innerHTML=!allSeries.length
-      ?'<div class="empty-state" style="grid-column:1/-1"><p>連載・特集はまだありません</p></div>'
+      ?'<div class="empty-state" style="grid-column:1/-1"><div class="icon"></div><p>連載・特集はまだありません</p></div>'
       :allSeries.map(function(s){
           var cnt=visibleArticles.filter(function(a){return a.seriesId===s.id||a.seriesId===s.slug;}).length;
           return '<article class="series-card" onclick="openSeries(\''+(s.slug||s.id)+'\')">'
@@ -2248,7 +2264,7 @@
   function renderSeriesDetail(s){
     var arts=visibleArticles.filter(function(a){return a.seriesId===s.id||a.seriesId===s.slug;});
     var artsHtml=!arts.length
-      ?'<div class="empty-state"><p>この連載・特集にはまだ記事がありません</p></div>'
+      ?'<div class="empty-state"><div class="icon"></div><p>この連載・特集にはまだ記事がありません</p></div>'
       :'<div class="articles-grid">'+arts.map(function(a){
           return gridCardHtml(a);
         }).join('')+'</div>';
@@ -2372,7 +2388,7 @@
     var years=Object.keys(groups).sort(function(a,b){return b-a;});
     document.getElementById('archive-count').textContent=visibleArticles.length+'件の記事';
     if(!years.length){
-      document.getElementById('archive-groups').innerHTML='<div class="empty-state"><p>記事がありません</p></div>';
+      document.getElementById('archive-groups').innerHTML='<div class="empty-state"><div class="icon"></div><p>記事がありません</p></div>';
       return;
     }
     document.getElementById('archive-groups').innerHTML=years.map(function(y){
@@ -2412,7 +2428,7 @@
     var arts=visibleArticles.filter(function(a){return (a.author||'編集部')===name;});
     var info=(allAuthors||[]).find(function(x){return x.name===name;})||{};
     var artsHtml=!arts.length
-      ?'<div class="empty-state"><p>この執筆者の記事はまだありません</p></div>'
+      ?'<div class="empty-state"><div class="icon"></div><p>この執筆者の記事はまだありません</p></div>'
       :'<div class="articles-grid">'+arts.map(function(a){
           return gridCardHtml(a);
         }).join('')+'</div>';
@@ -2522,7 +2538,7 @@
     });
     document.getElementById('list-count').textContent=list.length+'件';
     document.getElementById('articles-grid').innerHTML=!list.length
-      ?'<div class="empty-state" style="grid-column:1/-1"><p>該当する記事がありません</p></div>'
+      ?'<div class="empty-state" style="grid-column:1/-1"><div class="icon"></div><p>該当する記事がありません</p></div>'
       :list.map(function(a){
           return gridCardHtml(a);
         }).join('');
@@ -2557,7 +2573,9 @@
     about:{title:'発行団体について',lead:'アンカツ城下町洲本 発行団体のご紹介',body:'<h2>発行団体</h2><p>「生涯活躍のまち」の特区にしたい会は、兵庫県洲本市を拠点に活動する地域団体です。洲本城下町の文化・歴史・人を記録し、デジタルとアナログの両面から地域情報を発信しています。</p><h2>ミッション</h2><p>「地方の小さな声を、デジタルで広げる」をテーマに、まちの人・商店・イベント・空き家活用など、地域のあらゆる活動をアーカイブします。</p><h2>発行メディア</h2><ul><li>地域密着型ミニコミ誌「アンカツ城下町洲本」（印刷版）</li><li>デジタル版Webメディア「アンカツ＋」（本サイト）</li></ul><h2>所在地</h2><p>兵庫県洲本市（南あわじ市・淡路島）</p>'},
     tokku:{title:'「生涯活躍のまち」特区',lead:'洲本市が目指す特区構想について',body:'<h2>特区構想とは</h2><p>「生涯活躍のまち」特区は、高齢者をはじめすべての世代が健康で活躍し続けられるまちづくりを推進する国家戦略特区の構想です。</p><h2>洲本市での取り組み</h2><ul><li>空き家バンクの整備と移住者サポート</li><li>生涯学習・就労支援プログラム</li><li>高齢者・若者・移住者の交流拠点づくり</li><li>商店街の活性化と新規出店支援</li></ul>'},
     privacy:{title:'プライバシーポリシー',lead:'個人情報の取り扱いについて',body:'<h2>個人情報の収集</h2><p>本サイトでは、お問い合わせフォームにてお名前・メールアドレス等をお預かりする場合があります。</p><h2>利用目的</h2><ul><li>お問い合わせへの回答・連絡</li><li>本サイトの改善・運営のための分析</li></ul><h2>第三者への提供</h2><p>法令に基づく場合を除き、個人情報を第三者に提供することはありません。</p>'},
-    contact:{title:'お問い合わせ',lead:'ご意見・ご感想・取材のご依頼など、お気軽にどうぞ',body:''}
+    contact:{title:'お問い合わせ',lead:'ご意見・ご感想・取材のご依頼など、お気軽にどうぞ',body:''},
+    tip:{title:'情報提供',lead:'イベント情報・まちの話題・写真・事件事故など、気づいたことを教えてください',body:''},
+    pr:{title:'PR記事について',lead:'製品・サービスの提供を受けて書く記事の、ルールです',body:'<h2>PR記事とは</h2><p>企業や作り手から、製品・サービスのご提供を受けて、編集部が使ってみた感想などを書く記事です。カテゴリ「PR」が付き、記事の上に、PRであることを示す表示が出ます。</p><h2>記事づくりのお約束</h2><ul><li>提供を受けた記事には、PRの表示を、必ず付けます。</li><li>良い点も、気になった点も、率直に書きます。評価の内容は、編集部が決めます。</li><li>事実の誤りは、ご指摘をいただければ、直します。</li><li>掲載をお約束するものではありません。製品や時期によっては、お断りすることがあります。</li><li>お預かりした製品は、原則として返却しません。返却をご希望の場合は、事前にご相談ください。</li></ul><h2>ご相談について</h2><p>地域の特産品、ガジェット、暮らしの道具など、暮らしを豊かにする製品を、紹介したいと考えています。現在は、製品をご提供いただく形で、掲載料はいただいていません（当面のあいだ。内容は変更することがあります）。</p><p>医薬品、効果・効能を断定する健康食品、ギャンブル、アダルトなどは、お受けできません。</p><p>ご相談は、お問い合わせから、種別「PR・製品の掲載のご相談」を選んでお送りください。</p>'}
   };
 
   function showStaticPage(key){
@@ -2568,7 +2586,7 @@
       +'<button class="back-btn" onclick="goBack()">← トップへ戻る</button>'
       +'<h1 class="static-page-title">'+page.title+'</h1>'
       +'<div class="static-page-lead">'+page.lead+'</div>'
-      +(key==='contact'?buildContactForm():page.body)
+      +(key==='contact'?buildContactForm():(key==='tip'?buildTipForm():page.body))
       +'</div>';
     showView('static'); document.title=page.title+' | アンカツ＋';
   }
@@ -2577,11 +2595,292 @@
     return '<form class="contact-form" id="contact-form" onsubmit="return false">'
       +'<div class="contact-row"><label class="contact-label">お名前 <span class="req">*</span></label><input id="c-name" type="text" class="contact-input" placeholder="山田 太郎" /></div>'
       +'<div class="contact-row"><label class="contact-label">メールアドレス <span class="req">*</span></label><input id="c-email" type="email" class="contact-input" placeholder="example@email.com" /></div>'
-      +'<div class="contact-row"><label class="contact-label">種別</label><select id="c-type" class="contact-select"><option value="一般">一般的なお問い合わせ</option><option value="取材">取材・掲載依頼</option><option value="移住">移住・空き家について</option><option value="特区">特区構想について</option><option value="その他">その他</option></select></div>'
+      +'<div class="contact-row"><label class="contact-label">種別</label><select id="c-type" class="contact-select"><option value="一般">一般的なお問い合わせ</option><option value="取材">取材・掲載依頼</option><option value="移住">移住・空き家について</option><option value="特区">特区構想について</option><option value="PR掲載">PR・製品の掲載のご相談</option><option value="その他">その他</option></select></div>'
       +'<div class="contact-row"><label class="contact-label">メッセージ <span class="req">*</span></label><textarea id="c-msg" class="contact-textarea" placeholder="お問い合わせ内容をご記入ください"></textarea></div>'
       +'<button type="button" class="contact-submit" id="c-submit" onclick="submitContact()">送信する →</button>'
       +'</form>'
       +'<div class="contact-done" id="contact-done">お問い合わせを受け付けました。<br>内容を確認のうえ、ご連絡いたします。</div>';
+  }
+
+  /* =========================================================================
+     情報提供フォーム（読者から イベント情報・写真・事件事故などを受け付ける）
+     Firestore「tips」に保存 → 管理画面「情報提供」で確認。すぐには公開されません（編集部が確認してから記事化）
+     ========================================================================= */
+  var TIP_CLOUD_NAME = 'eaiqrsaa';      /* admin.html と同じ Cloudinary の Cloud name */
+  var TIP_UPLOAD_PRESET = 'ankatsu';    /* Unsigned の Upload preset */
+  var TIP_MAX_PHOTOS = 4;
+  var _tipPhotos = [], _tipLoc = null, _tipUploading = 0;
+
+  function buildTipForm(){
+    _tipPhotos = []; _tipLoc = null; _tipUploading = 0;
+    return '<div style="background:var(--bg-sub);border:1px solid var(--border);border-radius:8px;padding:.9rem 1.1rem;font-size:.82rem;line-height:1.8;color:var(--text-muted);margin-bottom:1rem">'
+      +'写真だけ・ひとことだけでも大丈夫です。編集部が内容を確認してから記事にします（すぐには公開されません）。<br>'
+      +'事件・事故・災害で<b>緊急の場合は、先に110番・119番</b>へ。個人が特定できる写真や、確認できていない情報は掲載しないことがあります。'
+      +'</div>'
+      +'<form class="contact-form" id="tip-form" onsubmit="return false">'
+      +'<div class="contact-row"><label class="contact-label">分類</label><select id="tip-cat" class="contact-select"><option>イベント情報</option><option>事件・事故・災害</option><option>お店・まちの話題</option><option>写真の投稿</option><option>その他</option></select></div>'
+      +'<div class="contact-row"><label class="contact-label">タイトル（ひとこと・任意）</label><input id="tip-title" type="text" class="contact-input" maxlength="100" placeholder="例：本町商店街で夏祭りの準備中" /></div>'
+      +'<div class="contact-row"><label class="contact-label">内容 <span style="font-weight:400">（写真があれば省略OK）</span></label><textarea id="tip-msg" class="contact-textarea" maxlength="5000" style="min-height:120px" placeholder="見たこと・知っていることを、分かる範囲で"></textarea></div>'
+      +'<div class="contact-row"><label class="contact-label">写真（最大'+TIP_MAX_PHOTOS+'枚）</label>'
+      +'<div id="tip-photos" style="display:flex;gap:.5rem;flex-wrap:wrap"></div>'
+      +'<div><label class="share-btn" style="cursor:pointer">写真を選ぶ／撮る<input type="file" id="tip-file" accept="image/*" multiple style="display:none" onchange="tipPickPhotos(this)"></label> <span id="tip-photo-status" style="font-size:.78rem;color:var(--text-muted)"></span></div></div>'
+      +'<div class="contact-row"><label class="contact-label">場所</label><input id="tip-place" type="text" class="contact-input" maxlength="100" placeholder="例：洲本城下、〇〇交差点付近" />'
+      +'<div style="margin-top:.4rem"><button type="button" class="share-btn" onclick="tipGetLocation()">現在地を添付する</button> <span id="tip-loc-status" style="font-size:.78rem;color:var(--text-muted)"></span></div></div>'
+      +'<div class="contact-row"><label class="contact-label">いつ</label><input id="tip-when" type="text" class="contact-input" maxlength="60" placeholder="例：今日の15時ごろ／8月9日 10:00〜" /></div>'
+      +'<div class="contact-row"><label class="contact-label">お名前・ニックネーム（任意）</label><input id="tip-name" type="text" class="contact-input" maxlength="50" /></div>'
+      +'<div class="contact-row"><label class="contact-label">メールアドレス（任意・確認のご連絡が必要な場合のみ）</label><input id="tip-email" type="email" class="contact-input" maxlength="100" /></div>'
+      +'<label style="display:flex;align-items:center;gap:.5rem;font-size:.84rem;cursor:pointer"><input type="checkbox" id="tip-credit" style="width:16px;height:16px;accent-color:var(--accent)"> 記事にする場合、お名前（ニックネーム）を載せてもよい</label>'
+      +'<input type="text" id="tip-website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;opacity:0" aria-hidden="true" />'
+      +'<button type="button" class="contact-submit" id="tip-submit" onclick="submitTip()">送信する →</button>'
+      +'</form>'
+      +'<div class="contact-done" id="tip-done">情報をお送りいただきありがとうございます。<br>編集部で内容を確認します。</div>';
+  }
+
+  async function tipResize(file){
+    if(!/^image\/(jpeg|png|webp)$/.test(file.type)) return file;
+    try{
+      var bmp = await createImageBitmap(file);
+      var scale = Math.min(1, 1600 / bmp.width);
+      if(scale === 1 && file.size < 1.5*1024*1024) return file;
+      var c = document.createElement('canvas');
+      c.width = Math.round(bmp.width*scale); c.height = Math.round(bmp.height*scale);
+      c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+      var type = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+      var blob = await new Promise(function(r){ c.toBlob(r, type, 0.85); });
+      return (blob && blob.size < file.size) ? blob : file;
+    }catch(e){ return file; }
+  }
+  async function tipUpload(file){
+    var blob = await tipResize(file);
+    if(blob.size > 10*1024*1024) throw new Error('写真が大きすぎます（10MB以下）');
+    var fd = new FormData();
+    fd.append('file', blob, file.name || 'photo.jpg');
+    fd.append('upload_preset', TIP_UPLOAD_PRESET);
+    var res = await fetch('https://api.cloudinary.com/v1_1/'+TIP_CLOUD_NAME+'/image/upload', { method:'POST', body:fd });
+    var json = await res.json();
+    if(!json.secure_url) throw new Error(json.error ? json.error.message : 'アップロードに失敗しました');
+    return json.secure_url;
+  }
+  function renderTipPhotos(){
+    var el = document.getElementById('tip-photos'); if(!el) return;
+    el.innerHTML = _tipPhotos.map(function(u, i){
+      return '<div style="position:relative"><img src="'+u+'" style="width:84px;height:84px;object-fit:cover;border-radius:6px;border:1px solid var(--border)">'
+        +'<button type="button" onclick="tipRemovePhoto('+i+')" style="position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;background:#e63946;color:#fff;font-size:.8rem;line-height:22px">×</button></div>';
+    }).join('');
+  }
+  function tipRemovePhoto(i){ _tipPhotos.splice(i,1); renderTipPhotos(); }
+  async function tipPickPhotos(inp){
+    var files = Array.prototype.slice.call(inp.files || []).filter(function(f){ return /^image\//.test(f.type); });
+    inp.value = '';
+    var room = TIP_MAX_PHOTOS - _tipPhotos.length;
+    if(files.length > room){ alert('写真は最大'+TIP_MAX_PHOTOS+'枚までです'); files = files.slice(0, Math.max(room,0)); }
+    var st = document.getElementById('tip-photo-status');
+    for(var i=0;i<files.length;i++){
+      _tipUploading++; st.textContent = 'アップロード中…';
+      try{ _tipPhotos.push(await tipUpload(files[i])); renderTipPhotos(); }
+      catch(e){ alert('写真のアップロードに失敗しました：'+e.message); }
+      finally{ _tipUploading--; }
+    }
+    st.textContent = _tipUploading ? 'アップロード中…' : '';
+  }
+  function tipGetLocation(){
+    var st = document.getElementById('tip-loc-status');
+    if(!navigator.geolocation){ st.textContent = 'この端末では位置情報を使えません'; return; }
+    st.textContent = '取得中…';
+    navigator.geolocation.getCurrentPosition(function(pos){
+      _tipLoc = { lat: Math.round(pos.coords.latitude*100000)/100000, lng: Math.round(pos.coords.longitude*100000)/100000 };
+      st.textContent = '現在地を添付しました';
+    }, function(){ st.textContent = '取得できませんでした（場所の欄に文字で書いてください）'; }, { enableHighAccuracy:true, timeout:10000 });
+  }
+  function tipVal(id){ var el = document.getElementById(id); return el ? el.value.trim() : ''; }
+
+  async function submitTip(){
+    if(tipVal('tip-website')){ document.getElementById('tip-form').style.display='none'; document.getElementById('tip-done').classList.add('visible'); return; } /* 自動投稿ボット対策 */
+    var cat = tipVal('tip-cat'), title = tipVal('tip-title'), msg = tipVal('tip-msg'), place = tipVal('tip-place'),
+        when = tipVal('tip-when'), name = tipVal('tip-name'), email = tipVal('tip-email');
+    if(_tipUploading > 0){ alert('写真のアップロードが終わるまで、少しお待ちください'); return; }
+    if(!msg && !_tipPhotos.length){ alert('内容を書くか、写真を1枚以上添付してください'); return; }
+    if(email && email.indexOf('@') < 0){ alert('メールアドレスを正しく入力してください'); return; }
+    var last = parseInt(localStorage.getItem('ankatsu_tip_last')||'0', 10);
+    if(Date.now() - last < 60000){ alert('続けて送信できません。1分ほど空けてからお試しください'); return; }
+
+    var btn = document.getElementById('tip-submit');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 送信中…';
+    var db = window._db, ops = window._firestoreOp;
+    try{
+      var doc = { category:cat, title:title, message:msg, place:place, whenText:when, photos:_tipPhotos.slice(),
+                  name:name, email:email, creditOk:document.getElementById('tip-credit').checked,
+                  status:'new', createdAt:ops.serverTimestamp() };
+      if(_tipLoc){ doc.lat = _tipLoc.lat; doc.lng = _tipLoc.lng; }
+      var tipRef = await ops.addDoc(ops.collection(db,'tips'), doc);
+      localStorage.setItem('ankatsu_tip_last', String(Date.now()));
+
+      /* 通知メール（編集部へ「情報提供がありました」／メールアドレスがあれば提供者へ「受付しました」）はGASが送る */
+      nlCallGas({ type:'tip_notify', tipId: tipRef.id }).catch(function(){});
+      document.getElementById('tip-done').innerHTML = '情報をお送りいただきありがとうございます。<br>編集部で内容を確認します。'+(email?'<br><span style="font-size:.85rem;font-weight:400">ご入力のメールアドレスに、受付のメールをお送りしました。</span>':'');
+      document.getElementById('tip-form').style.display = 'none';
+      document.getElementById('tip-done').classList.add('visible');
+      document.title = '情報提供ありがとうございます | アンカツ＋';
+    }catch(e){
+      console.error(e); btn.disabled = false; btn.textContent = '送信する →';
+      alert('送信に失敗しました。しばらくしてから、もう一度お試しください。');
+    }
+  }
+
+  /* =========================================================================
+     お気に入りイベント（端末に保存）＋ メルマガ登録者には、前日の夕方にリマインドメール
+     ・端末：localStorage「ankatsu_fav_events」に記事IDの配列
+     ・登録者：GAS経由で newsletterSubscribers.favorites に保存（複数端末の分は合わさる）
+     ========================================================================= */
+  var FAV_KEY = 'ankatsu_fav_events';
+  var FAV_POPUP_KEY = 'ankatsu_fav_popup_last';
+  function getFavs(){ try{ var v = JSON.parse(localStorage.getItem(FAV_KEY)||'[]'); return Array.isArray(v)?v:[]; }catch(e){ return []; } }
+  function setFavs(a){ try{ localStorage.setItem(FAV_KEY, JSON.stringify(a)); }catch(e){} }
+  function isFav(id){ return getFavs().indexOf(id) >= 0; }
+  function favLabel(on){ return on ? 'お気に入り済み（前日にお知らせ）' : '行きたい（お気に入りに追加）'; }
+
+  function favButtonHtml_(a){
+    if(articleCats(a).indexOf('イベント') < 0) return '';
+    var st = getArticleEventStatus(a);
+    if(st && st.key === 'ended') return '';
+    var on = isFav(a.id);
+    return '<div class="article-calendar-add"><button class="cal-add-btn cal-add-btn-o fav-btn'+(on?' fav-on':'')+'" data-fav-id="'+a.id+'" onclick="toggleFavorite(\''+a.id+'\')">'+favLabel(on)+'</button></div>';
+  }
+  function updateFavButtons(id){
+    var on = isFav(id);
+    document.querySelectorAll('.fav-btn[data-fav-id="'+id+'"]').forEach(function(b){ b.textContent = favLabel(on); b.classList.toggle('fav-on', on); });
+  }
+
+  function toggleFavorite(id){
+    var favs = getFavs(), i = favs.indexOf(id), on = i < 0;
+    if(on) favs.push(id); else favs.splice(i, 1);
+    setFavs(favs);
+    updateFavButtons(id);
+    showShareToast(on ? 'お気に入りに追加しました' : 'お気に入りから外しました');
+    var token = localStorage.getItem(NEWSLETTER_TOKEN_KEY);
+    if(token){ nlCallGas({ type:'newsletter_fav_update', token:token, id:id, on:on }); }
+    else if(on){ maybeShowFavPopup(); }
+    if(currentView === 'favorites') renderFavoritesPage();
+  }
+
+  /* 登録済みの端末では、保存分をまとめてサーバーと合わせる（他の端末で付けたお気に入りも、ここに入る） */
+  async function syncFavoritesToServer(){
+    var token = localStorage.getItem(NEWSLETTER_TOKEN_KEY);
+    if(!token) return;
+    var res = await nlCallGas({ type:'newsletter_fav_sync', token:token, favorites:getFavs() });
+    if(res && res.ok && Array.isArray(res.favorites)){
+      setFavs(res.favorites);
+      res.favorites.forEach(updateFavButtons);
+      if(currentView === 'favorites') renderFavoritesPage();
+    }
+  }
+
+  /* ---- メルマガ登録の案内ポップアップ（未登録の端末で、お気に入りを追加した時。同じセッションでは1回、日をまたぐと3日おき） ---- */
+  function maybeShowFavPopup(){
+    try{
+      if(sessionStorage.getItem('ankatsu_fav_popup_shown')) return;
+      var last = parseInt(localStorage.getItem(FAV_POPUP_KEY)||'0', 10);
+      if(Date.now() - last < 3*86400000) return;
+      sessionStorage.setItem('ankatsu_fav_popup_shown','1');
+    }catch(e){}
+    setTimeout(function(){ document.getElementById('fav-popup').classList.add('is-open'); }, 500);
+  }
+  function closeFavPopup(){
+    document.getElementById('fav-popup').classList.remove('is-open');
+    try{ localStorage.setItem(FAV_POPUP_KEY, String(Date.now())); }catch(e){}
+  }
+  function favPopupRegister(){
+    document.getElementById('fav-popup').classList.remove('is-open');
+    openNewsletterModal();
+  }
+
+  /* ---- お気に入り一覧ページ ---- */
+  function renderFavoritesPage(){
+    var arts = getFavs().map(function(id){ return allArticles.find(function(a){ return a.id === id; }); }).filter(Boolean);
+    arts.forEach(function(a){ a._favNext = getNextEventOccurrence(a); });
+    var upcoming = arts.filter(function(a){ return a._favNext; }).sort(function(x,y){ return x._favNext - y._favNext; });
+    var past = arts.filter(function(a){ return !a._favNext; });
+    var registered = !!localStorage.getItem(NEWSLETTER_TOKEN_KEY);
+    var card = function(a, dim){
+      return '<div style="'+(dim?'opacity:.55':'')+'">'+gridCardHtml(a)
+        +'<button class="share-btn" style="margin-top:.5rem" onclick="toggleFavorite(\''+a.id+'\')">お気に入りから外す</button></div>';
+    };
+    document.getElementById('favorites-content').innerHTML =
+      '<div class="list-header"><h2 class="list-title">お気に入りイベント</h2><span class="list-count">'+arts.length+'件</span></div>'
+      +'<div class="fav-note">'+(registered
+          ? 'メルマガ登録済みです。お気に入りにしたイベントの<b>前日の夕方</b>に、メールでお知らせします。'
+          : 'メルマガに登録すると、お気に入りにしたイベントの<b>前日の夕方</b>に、メールでリマインドが届きます。<br><button class="contact-submit" style="margin-top:.6rem" onclick="openNewsletterModal()">メルマガに登録する</button>')
+      +'</div>'
+      +(!arts.length
+          ? '<div class="empty-state"><div class="icon"></div><p>お気に入りのイベントは、まだありません。<br>イベント記事の「行きたい」を押すと、ここに保存されます。</p></div>'
+          : '<div class="articles-grid">'+upcoming.map(function(a){ return card(a,false); }).join('')+'</div>'
+            +(past.length ? '<div class="series-detail-articles-head" style="margin-top:2rem">終了したイベント・日程のないイベント</div><div class="articles-grid">'+past.map(function(a){ return card(a,true); }).join('')+'</div>' : ''));
+  }
+
+  /* =========================================================================
+     記事の言語切り替え（日本語／やさしい日本語／English）
+     翻訳は、GASがAIで事前に作って、Firestoreの translations に保存している。ここでは、保存済みの翻訳を読んで表示するだけ。
+     ・翻訳が無い記事には、切り替え欄を出さない（日本語の原文のまま）
+     ・記事が更新されて、翻訳が古い場合は、その旨の注意書きを出す
+     ========================================================================= */
+  var LANG_LABELS = { ja:'日本語', easy:'やさしい日本語', en:'English' };
+  var _trCache = {};
+  function textHash_(str){
+    var h = 5381;
+    for(var i=0;i<str.length;i++){ h = ((h<<5) + h + str.charCodeAt(i)) | 0; }
+    return String(h >>> 0);
+  }
+  function articleHash_(a){ return textHash_((a.title||'')+'\n'+(a.body||'')); }
+
+  async function initArticleTranslation(a){
+    var el = document.getElementById('lang-switch');
+    if(!el || a.accessPassword || a.unlisted) return;
+    var docs = _trCache[a.id];
+    if(!docs){
+      var db = window._db, ops = window._firestoreOp;
+      if(!db || !ops) return;
+      docs = {};
+      await Promise.all(['en','easy'].map(async function(l){
+        try{
+          var snap = await ops.getDoc(ops.doc(db,'translations',a.id+'__'+l));
+          if(snap.exists()){ var d = snap.data(); if(d.title && d.body) docs[l] = d; }
+        }catch(e){ /* 翻訳が読めなくても、日本語の記事は普通に読める */ }
+      }));
+      _trCache[a.id] = docs;
+    }
+    var el2 = document.getElementById('lang-switch');
+    if(!el2 || el2.dataset.aid !== a.id) return; /* 読み込み中に、別の記事へ移動していた */
+    var langs = ['ja'].concat(['easy','en'].filter(function(l){ return docs[l]; }));
+    if(langs.length < 2){ el2.innerHTML = ''; return; }
+    el2.innerHTML = '<div class="lang-switch">'+langs.map(function(l){
+        return '<button type="button" class="lang-btn" data-lang="'+l+'" onclick="setArticleLang(\''+a.id+'\',\''+l+'\')">'+LANG_LABELS[l]+'</button>';
+      }).join('')+'</div><div class="lang-note" id="lang-note"></div>';
+    var pref = 'ja';
+    try{ pref = localStorage.getItem('ankatsu_lang') || 'ja'; }catch(e){}
+    setArticleLang(a.id, langs.indexOf(pref) >= 0 ? pref : 'ja', true);
+  }
+
+  function setArticleLang(id, lang, silent){
+    var a = allArticles.find(function(x){ return x.id === id; });
+    var t = document.getElementById('article-title-el'), b = document.getElementById('article-body-el'), note = document.getElementById('lang-note');
+    if(!a || !t || !b) return;
+    var docs = _trCache[id] || {};
+    if(!silent){ try{ localStorage.setItem('ankatsu_lang', lang); }catch(e){} }
+    document.querySelectorAll('.lang-btn').forEach(function(btn){ btn.classList.toggle('active', btn.dataset.lang === lang); });
+    if(lang === 'ja' || !docs[lang]){
+      t.textContent = articleDisplayTitle(a);
+      b.innerHTML = a.body || '<p>本文がありません。</p>';
+      t.removeAttribute('lang'); b.removeAttribute('lang');
+      if(note) note.textContent = '';
+      return;
+    }
+    var d = docs[lang];
+    t.textContent = d.title;
+    b.innerHTML = d.body;
+    var lc = (lang === 'en') ? 'en' : 'ja';
+    t.setAttribute('lang', lc); b.setAttribute('lang', lc);
+    var stale = d.sourceHash !== articleHash_(a);
+    if(note) note.textContent = 'AIによる翻訳です。内容は、日本語の原文を優先します。'+(stale ? '（この翻訳は、記事を更新する前の内容です）' : '');
   }
 
   /* ---- お問い合わせフォーム：GAS自動返信 ---- */
@@ -2638,6 +2937,7 @@
     else if(h.startsWith('#series/')){var sid=decodeURIComponent(h.slice(8));var s=allSeries.find(function(x){return x.slug===sid||x.id===sid;});if(s){renderSeriesDetail(s);showView('series-detail');}}
     else if(h.startsWith('#calendar/')){var cparts=decodeURIComponent(h.slice(10)).split('-');openCalendarDay(cparts[0],cparts[1]);}
     else if(h==='#calendar')        filterByCategory('calendar');
+    else if(h==='#favorites')       filterByCategory('favorites');
     else if(h==='#archive')         filterByCategory('archive');
     else if(h.startsWith('#archive/')){var parts=decodeURIComponent(h.slice(9)).split('-');openArchiveMonth(parseInt(parts[0],10),parseInt(parts[1],10));}
     else if(h.startsWith('#author/')){var an=decodeURIComponent(h.slice(8));renderAuthorPage(an);showView('author');}
@@ -2654,11 +2954,12 @@
   function handleInitialHash(){
     var h=location.hash;
     if(!h) return;
-    if(h.startsWith('#article/')){var id=decodeURIComponent(h.slice(9));var a=allArticles.find(function(x){return x.slug===id||x.id===id;});if(a){if(isArticleUnlocked(a)){trackArticleView(a);trackPageView(a);}renderArticle(a);showView('article');}}
+    if(h.startsWith('#article/')){var id=decodeURIComponent(h.slice(9));var a=allArticles.find(function(x){return x.slug===id||x.id===id;});if(a){if(isArticleUnlocked(a)){trackArticleView(a);trackPageView(a);}renderArticle(a);showView('article');}else{showShareToast('記事が見つかりませんでした（非公開、または削除された可能性があります）');}}
     else if(h==='#series')          filterByCategory('series');
     else if(h.startsWith('#series/')){var sid=decodeURIComponent(h.slice(8));var s=allSeries.find(function(x){return x.slug===sid||x.id===sid;});if(s){renderSeriesDetail(s);showView('series-detail');}}
     else if(h.startsWith('#calendar/')){var cparts=decodeURIComponent(h.slice(10)).split('-');openCalendarDay(cparts[0],cparts[1]);}
     else if(h==='#calendar')        filterByCategory('calendar');
+    else if(h==='#favorites')       filterByCategory('favorites');
     else if(h==='#archive')         filterByCategory('archive');
     else if(h.startsWith('#archive/')){var parts=decodeURIComponent(h.slice(9)).split('-');openArchiveMonth(parseInt(parts[0],10),parseInt(parts[1],10));}
     else if(h.startsWith('#author/')){var an=decodeURIComponent(h.slice(8));renderAuthorPage(an);showView('author');}
@@ -2683,7 +2984,7 @@
       var q = ops.query(ops.collection(db,'specialPages'), ops.where('slug','==',slug), ops.where('status','==','published'));
       var snap = await ops.getDocs(q);
       if(snap.empty){
-        document.getElementById('special-content').innerHTML = '<div style="max-width:760px;margin:4rem auto;text-align:center;color:var(--text-light)">このページは見つかりませんでした。</div>';
+        document.getElementById('special-content').innerHTML = '<div style="max-width:760px;margin:4rem auto;text-align:center;color:var(--text-light)"><div style="font-size:2.5rem;margin-bottom:1rem"></div>このページは見つかりませんでした。</div>';
         return;
       }
       var page = Object.assign({id:snap.docs[0].id}, snap.docs[0].data());
@@ -2922,7 +3223,7 @@
     if(!res.ok){ alert('登録に失敗しました：'+(res.error||'')); return; }
 
     if(res.isNew){
-      localStorage.setItem(NEWSLETTER_TOKEN_KEY, res.token);
+      localStorage.setItem(NEWSLETTER_TOKEN_KEY, res.token); syncFavoritesToServer();
       document.getElementById('nl-done-title').textContent = '登録が完了しました！';
       document.getElementById('nl-done-sub').textContent = '確認メールをお送りしました。配信設定の変更・停止はフッターの「メールマガジンの登録・設定変更」からいつでも行えます。';
       document.getElementById('nl-step-email').style.display='none';
@@ -2948,7 +3249,7 @@
     var res = await nlCallGas({ type:'newsletter_verify_login_otp', email:_nlPendingEmail, code: code });
     btn.disabled=false; btn.textContent='確認する';
     if(!res.ok){ alert('認証コードが正しくないか、有効期限が切れています'); return; }
-    localStorage.setItem(NEWSLETTER_TOKEN_KEY, res.token);
+    localStorage.setItem(NEWSLETTER_TOKEN_KEY, res.token); syncFavoritesToServer();
     closeNewsletterModal();
     openNewsletterManagePage(); /* 既存登録者は、そのまま設定変更ページへ */
   }
@@ -3013,7 +3314,7 @@
     if(!res.ok){ alert('処理に失敗しました：'+(res.error||'')); return; }
 
     if(res.isNew){
-      localStorage.setItem(NEWSLETTER_TOKEN_KEY, res.token);
+      localStorage.setItem(NEWSLETTER_TOKEN_KEY, res.token); syncFavoritesToServer();
       renderNlmSettings(res.token, { email: email, categories: res.categories, status:'active' });
       showShareToast('登録が完了しました ');
       return;
@@ -3035,7 +3336,7 @@
     var res = await nlCallGas({ type:'newsletter_verify_login_otp', email:_nlPendingEmail, code: code });
     btn.disabled=false; btn.textContent='確認する';
     if(!res.ok){ alert('認証コードが正しくないか、有効期限が切れています'); return; }
-    localStorage.setItem(NEWSLETTER_TOKEN_KEY, res.token);
+    localStorage.setItem(NEWSLETTER_TOKEN_KEY, res.token); syncFavoritesToServer();
     renderNlmSettings(res.token, res);
   }
 
@@ -3140,8 +3441,8 @@
       loadBreaking();
       checkMaintenance();
       setInterval(checkMaintenance, MAINTENANCE_CHECK_INTERVAL);
-      initPushNotifications();
       initNewsletterBanner();
+      setTimeout(function(){ try{ if(localStorage.getItem(NEWSLETTER_TOKEN_KEY) && !sessionStorage.getItem('ankatsu_fav_synced')){ sessionStorage.setItem('ankatsu_fav_synced','1'); syncFavoritesToServer(); } }catch(e){} }, 3000);
       loadSiteFeatureSettings();
       Promise.all([loadArticles(), loadSeries(), loadAuthors()]).then(handleInitialHash);
     }
