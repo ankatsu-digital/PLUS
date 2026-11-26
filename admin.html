@@ -378,6 +378,7 @@
       <button class="sb-btn on"  data-v="dashboard">📊 ダッシュボード</button>
       <button class="sb-btn"     data-v="articles">📰 記事一覧</button>
       <button class="sb-btn"     data-v="new">✏️ 新規記事作成</button>
+      <button class="sb-btn"     data-v="aiwriter">✍️ AI記事作成</button>
       <button class="sb-btn"     data-v="contacts">✉️ お問い合わせ<span id="sb-unread"></span></button>
       <button class="sb-btn"     data-v="submissions">📨 投稿申請<span id="sb-submissions"></span></button>
       <button class="sb-btn"     data-v="tips">📮 情報提供<span id="sb-tips"></span></button>
@@ -480,6 +481,60 @@
               <tbody id="art-tbody"></tbody>
             </table>
             <div id="art-empty" class="etbl" style="display:none">記事がまだありません。最初の記事を作成しましょう！</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI記事作成 -->
+      <div id="v-aiwriter" class="view">
+        <div class="fcard">
+          <div class="fhead"><span style="font-weight:700;font-size:.95rem">✍️ AI記事作成（文体：だ・である調）</span></div>
+          <div class="fbody">
+            <div class="fgrid">
+              <div class="frow full">
+                <label class="flabel">作り方</label>
+                <select id="aw-mode" class="fselect" onchange="awOnModeChange()">
+                  <option value="memo">📝 メモから新規記事</option>
+                  <option value="followup">🔁 既存記事の続報</option>
+                  <option value="breaking">⚡ 速報</option>
+                </select>
+              </div>
+              <div class="frow full" id="aw-base-wrap" style="display:none">
+                <label class="flabel">元になる記事 <span class="req">*</span></label>
+                <select id="aw-base" class="fselect"></select>
+                <span class="fhint">この記事へのリンク・連載・地図スポットを引き継ぎます</span>
+              </div>
+              <div class="frow full">
+                <label class="flabel">メモ <span class="req">*</span></label>
+                <textarea id="aw-memo" class="finput" style="min-height:170px;resize:vertical;font-family:inherit"></textarea>
+                <span class="fhint">書かれていない事実は記事に足されません。足りない情報は「確認事項」として表示されます</span>
+              </div>
+              <div class="frow">
+                <label class="flabel">カテゴリ</label>
+                <select id="aw-cat" class="fselect"></select>
+              </div>
+              <div class="frow">
+                <label class="flabel">著者</label>
+                <input id="aw-author" type="text" class="finput" value="編集部" list="author-datalist" />
+              </div>
+            </div>
+            <div class="factions">
+              <button class="btn btn-g" id="aw-gen-btn" onclick="awGenerate()">✨ 記事を生成する</button>
+            </div>
+
+            <div id="aw-result" style="display:none;margin-top:1.5rem;border-top:1px solid var(--border);padding-top:1.25rem">
+              <div id="aw-missing"></div>
+              <div class="flabel" style="margin-bottom:.3rem">タイトル案</div>
+              <div id="aw-r-title" style="font-weight:700;font-size:1.05rem;margin-bottom:.4rem"></div>
+              <div id="aw-r-meta" style="font-size:.78rem;color:var(--muted);margin-bottom:.8rem"></div>
+              <div id="aw-r-body" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:1rem 1.2rem;font-size:.9rem;line-height:1.9;max-height:420px;overflow-y:auto"></div>
+              <div class="factions">
+                <button class="btn btn-o" onclick="awGenerate()">🔄 再生成</button>
+                <button class="btn btn-w" id="aw-bar-btn" style="display:none" onclick="awAddToBreakingBar()">📡 速報バーにも追加</button>
+                <button class="btn btn-o" id="aw-append-btn" style="display:none" onclick="awAppendToBase()">⚡ このまま元記事に追記して保存</button>
+                <button class="btn btn-g" id="aw-send-btn" onclick="awSendToForm()">📝 記事フォームで確認・編集する</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1838,14 +1893,14 @@ var VTITLES = {
   spots:'🗺️ 地図スポット',
   breaking:'📡 速報バー設定', delivery:'📅 定期配信', tips:'📮 情報提供', backup:'💾 バックアップ', translate:'🌐 翻訳', newsletter:'📧 メールマガジン', json:'📦 JSON入出力',
   sitefeatures:'📣 サイト機能設定', feedbacklist:'💬 記事フィードバック', analytics:'📊 記事アナリティクス',
-  specialpages:'🎌 特設ページ', aichat:'🤖 AIアシスタント'
+  specialpages:'🎌 特設ページ', aichat:'🤖 AIアシスタント', aiwriter:'✍️ AI記事作成'
 };
 
 // 承認済み投稿者が使えるビュー（記事の投稿・自分の記事の編集・プロフィール編集）
 var CONTRIBUTOR_APPROVED_VIEWS = ['authors', 'new', 'edit', 'articles'];
 // 編集部員が使えるビュー（投稿者の範囲＋記事全件管理・お問い合わせ・地図スポット・連載特集・アナリティクス・フィードバック）
 // 「投稿者アカウント」の承認/追加確認/権限設定や、サイト機能設定・速報バー・JSON入出力は管理者専用のまま。
-var EDITOR_APPROVED_VIEWS = CONTRIBUTOR_APPROVED_VIEWS.concat(['delivery','tips','contacts','spots','series','analytics','feedbacklist','specialpages']);
+var EDITOR_APPROVED_VIEWS = CONTRIBUTOR_APPROVED_VIEWS.concat(['delivery','tips','contacts','spots','series','analytics','feedbacklist','specialpages','aiwriter']);
 var _myPermissions = []; // ログイン中の投稿者に個別付与された権限（例: ['contacts.view']）
 
 function canAccessView(key) {
@@ -1931,6 +1986,7 @@ async function goView(key) {
   if (key==='analytics') { document.getElementById('analytics-detail-panel').style.display='none'; document.getElementById('an-site-stats').style.display=''; document.getElementById('analytics-list-panel').style.display='block'; renderAnalyticsList(); }
   if (key==='specialpages') { closeSpecialPageEditor(); await loadArticles(); renderSpecialPagesList(); }
   if (key==='feedbacklist') renderFeedbackList();
+  if (key==='aiwriter')  { await loadArticles(); awInit(); }
   closeSB();
   window.scrollTo(0,0);
 }
@@ -7222,6 +7278,200 @@ function autoGenerateThumbForForm() {
     btn.disabled = false;
     alert('アイキャッチの生成に失敗しました：' + e.message);
   });
+}
+
+// ============================================================
+// AI記事作成（メモ／続報／速報）
+// ============================================================
+var AW_CATS = ['まちの話題','イベント','空き家活用','商店街','文化','インタビュー','学校・子育て','移住・定住','防災','事件・事故','お知らせ','暮らしのもの','グルメ・特産品'];
+var _awResult = null;
+var _awCtx = null;
+
+function awEsc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function awInit() {
+  document.getElementById('aw-base').innerHTML = articles.slice(0, 200).map(function (a) {
+    return '<option value="' + a.id + '">' + awEsc(a.title) + '</option>';
+  }).join('');
+  document.getElementById('aw-cat').innerHTML = '<option value="">おまかせ（AIが選ぶ）</option>'
+    + AW_CATS.map(function (c) { return '<option value="' + c + '">' + c + '</option>'; }).join('');
+  populateAuthorDatalist();
+  awOnModeChange();
+}
+
+function awOnModeChange() {
+  var mode = document.getElementById('aw-mode').value;
+  document.getElementById('aw-base-wrap').style.display = mode === 'followup' ? 'flex' : 'none';
+  document.getElementById('aw-cat').parentElement.style.display = mode === 'followup' ? 'none' : '';
+  document.getElementById('aw-author').parentElement.style.display = mode === 'followup' ? 'none' : '';
+  var ph = {
+    memo: '箇条書き・走り書きでOK。\n例）\n・11/23 10時〜 洲本城下町マルシェ\n・本町3丁目アーケード、出店30店\n・雨天は中止',
+    followup: '前回から分かった新しい情報だけ書けばOK。\n例）\n・参加者は最終的に約500人\n・来年も開催予定',
+    breaking: '分かっている事実だけ。\n例）\n・今日15時ごろ 由良で停電\n・約300戸、原因調査中'
+  };
+  document.getElementById('aw-memo').placeholder = ph[mode];
+}
+
+async function awGenerate() {
+  var mode = document.getElementById('aw-mode').value;
+  var memo = document.getElementById('aw-memo').value.trim();
+  if (!memo) { toast('メモを入力してください', 'warn'); return; }
+
+  var base = null;
+  if (mode === 'followup') {
+    base = articles.find(function (a) { return a.id === document.getElementById('aw-base').value; });
+    if (!base) { toast('元になる記事を選んでください', 'warn'); return; }
+  }
+
+  var btn = document.getElementById('aw-gen-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 生成中…';
+  try {
+    var res = await fetch(SUBMIT_GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        type: 'admin_generate_article',
+        secret: ADMIN_API_SECRET,
+        mode: mode,
+        memo: memo,
+        baseTitle: base ? base.title : '',
+        baseBody: base ? awBaseText(base.body) : '',
+        category: document.getElementById('aw-cat').value,
+        categories: AW_CATS,
+        today: new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })
+      })
+    }).then(function (r) { return r.json(); });
+
+    if (!res.ok) throw new Error(res.error || '生成に失敗しました');
+    res.tags = Array.isArray(res.tags) ? res.tags : [];
+    _awResult = res;
+    _awCtx = { mode: mode, baseId: base ? base.id : '' };
+    awRenderResult();
+  } catch (e) {
+    toast('生成失敗: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = '✨ 記事を生成する';
+  }
+}
+
+function awBaseText(html) {
+  var t = (html || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+  return t.length > 3000 ? t.slice(0, 1500) + ' …（中略）… ' + t.slice(-1500) : t;
+}
+
+function awCurrentBase() {
+  return (_awCtx && _awCtx.baseId) ? articles.find(function (a) { return a.id === _awCtx.baseId; }) : null;
+}
+
+// 続報として元記事の末尾に足すHTML（見出し＋本文）
+function awFollowupBlock(r) {
+  var d = new Date();
+  return '<hr>\n<h2>【続報】' + (d.getMonth() + 1) + '月' + d.getDate() + '日</h2>\n' + r.body;
+}
+
+function awRenderResult() {
+  var r = _awResult;
+  var isFollow = _awCtx.mode === 'followup';
+  var base = awCurrentBase();
+  document.getElementById('aw-result').style.display = 'block';
+  if (isFollow) {
+    document.getElementById('aw-r-title').textContent = '元記事：' + (base ? base.title : '');
+    document.getElementById('aw-r-meta').textContent = '↓ この内容が元記事の末尾に追記されます';
+    document.getElementById('aw-r-body').innerHTML = awFollowupBlock(r);
+  } else {
+    document.getElementById('aw-r-title').textContent = r.title;
+    document.getElementById('aw-r-meta').textContent = (r.category || 'カテゴリ未設定') + (r.tags.length ? '　🏷️ ' + r.tags.join('、') : '');
+    document.getElementById('aw-r-body').innerHTML = r.body;
+  }
+  document.getElementById('aw-bar-btn').style.display = _awCtx.mode === 'breaking' ? '' : 'none';
+  document.getElementById('aw-append-btn').style.display = isFollow ? '' : 'none';
+  document.getElementById('aw-send-btn').textContent = isFollow ? '📝 元記事の編集画面で確認して追記' : '📝 記事フォームで確認・編集する';
+  document.getElementById('aw-missing').innerHTML = (r.missing && r.missing.length)
+    ? '<div style="background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.84rem;color:#856404">'
+      + '<b>❓ 確認事項（メモに情報がなかったため、記事には書いていません）</b><br>'
+      + r.missing.map(function (m) { return '・' + awEsc(m); }).join('<br>') + '</div>'
+    : '';
+}
+
+async function awSendToForm() {
+  if (!_awResult) return;
+  var r = _awResult, ctx = _awCtx;
+  var base = awCurrentBase();
+
+  // 続報：新規記事ではなく、元記事の編集画面に「末尾に追記した状態」で開く（確認して公開保存）
+  if (ctx.mode === 'followup') {
+    if (!base) { toast('元記事が見つかりません', 'warn'); return; }
+    var fTags = (base.tags || []).slice();
+    if (fTags.indexOf('続報') < 0) fTags.push('続報');
+    editingId = base.id; editingDraftId = null;
+    setFormData(Object.assign({}, base, { body: (base.body || '') + '\n' + awFollowupBlock(r), tags: fTags }));
+    await goView('edit');
+    document.getElementById('form-title').textContent = '✏️ 続報を追記（内容を確認して公開保存）';
+    toast('元記事の末尾に続報を追記した状態です。確認して公開保存してください');
+    return;
+  }
+
+  var cat = document.getElementById('aw-cat').value || r.category || 'まちの話題';
+  var tags = (r.tags || []).slice();
+  if (ctx.mode === 'breaking' && tags.indexOf('速報') < 0) tags.push('速報');
+
+  await Promise.all([loadSeries(), loadSpots(), loadAuthors()]);
+  populateAuthorDatalist();
+  editingId = null; editingDraftId = null;
+  setFormData({
+    title: r.title,
+    slug: 'ai-' + Date.now(),
+    categories: [cat], category: cat,
+    author: document.getElementById('aw-author').value.trim() || '編集部',
+    seriesId: '', mapSpotId: '',
+    tags: tags, thumbnail: '', featured: false,
+    // 速報はすぐ公開（自由配信）、通常の記事はストック（「定期配信」の枠に入れて公開）
+    deliveryMode: ctx.mode === 'breaking' ? 'free' : 'stock',
+    body: r.body
+  });
+  document.querySelectorAll('.view').forEach(function (v) { v.classList.remove('on'); });
+  document.getElementById('v-form').classList.add('on');
+  document.getElementById('page-title').textContent = '✏️ AI生成記事の確認';
+  document.getElementById('form-title').textContent = '✏️ AI生成記事の確認（内容を確認して保存）';
+  toast('記事フォームに反映しました。確認して保存してください');
+  window.scrollTo(0, 0);
+}
+
+// 続報：確認画面を挟まず、元記事の末尾にそのまま追記して保存する
+async function awAppendToBase() {
+  var base = awCurrentBase();
+  if (!base || !_awResult) return;
+  if (!confirm('「' + base.title + '」の末尾に続報を追記して保存します。よろしいですか？')) return;
+  var tags = (base.tags || []).slice();
+  if (tags.indexOf('続報') < 0) tags.push('続報');
+  var newBody = (base.body || '') + '\n' + awFollowupBlock(_awResult);
+  try {
+    await window._updateDoc('articles', base.id, { body: newBody, tags: tags, updatedAt: window._ts() });
+    await queueTranslations(base.id, Object.assign({}, base, { body: newBody }), base, true); // 本文が変わったので翻訳をやり直す
+    toast('元記事に続報を追記しました ✅');
+    await loadArticles();
+    awInit();
+    document.getElementById('aw-memo').value = '';
+    document.getElementById('aw-result').style.display = 'none';
+    _awResult = null;
+  } catch (e) { toast('追記失敗: ' + e.message, 'error'); }
+}
+
+async function awAddToBreakingBar() {
+  if (!_awResult) return;
+  var headline = (_awResult.title || '').replace(/^【速報】\s*/, '');
+  try {
+    var snap = await window._getDoc('settings', 'breaking');
+    var d = snap.exists() ? snap.data() : {};
+    var items = d.breakingItems || [];
+    items.unshift(headline);
+    await window._setDoc('settings', 'breaking', {
+      breakingVisible: true,
+      breakingLabel: d.breakingLabel || '速報',
+      breakingItems: items
+    });
+    toast('速報バーの先頭に追加しました 📡');
+  } catch (e) { toast('追加失敗: ' + e.message, 'error'); }
 }
 
 </script>
