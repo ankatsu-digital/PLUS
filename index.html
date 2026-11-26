@@ -327,6 +327,9 @@
       getFirestore, collection, getDocs, getDoc, doc,
       query, orderBy, where, limit, addDoc, serverTimestamp, updateDoc, increment
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import {
+      getMessaging, getToken, onMessage, isSupported
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js";
 
     const firebaseConfig = {
       apiKey:            "AIzaSyC4HUWd4c5_fdgA-k34i1uthozfqYcRn9A",
@@ -343,7 +346,21 @@
     window._db          = db;
     window._firestoreOp = { collection, getDocs, getDoc, doc, query, orderBy, where, limit, addDoc, serverTimestamp, updateDoc, increment };
 
-    document.dispatchEvent(new Event("firebase-ready"));
+    isSupported().then(function(supported){
+      if (supported) {
+        try {
+          const messaging = getMessaging(app);
+          window._messaging = messaging;
+          window._getToken  = getToken;
+          onMessage(messaging, function(payload){
+            window.dispatchEvent(new CustomEvent('push-foreground-message', { detail: payload }));
+          });
+        } catch(e) { console.error('messaging init error:', e); }
+      }
+      document.dispatchEvent(new Event("firebase-ready"));
+    }).catch(function(){
+      document.dispatchEvent(new Event("firebase-ready"));
+    });
   </script>
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -529,6 +546,18 @@
     #share-toast-container{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);z-index:9998;display:flex;flex-direction:column;align-items:center;gap:.5rem}
     .share-toast{background:var(--text-main);color:var(--bg);padding:.6rem 1.25rem;border-radius:20px;font-size:.82rem;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.25);animation:jmaSlideIn .2s ease-out}
 
+    /* プッシュ通知バナー（メルマガバナーの上に積む） */
+    #push-banner{display:none;position:fixed;bottom:6.5rem;left:1.25rem;right:1.25rem;z-index:9997;justify-content:center}
+    .push-banner-card{max-width:480px;width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:14px;box-shadow:0 10px 30px var(--shadow);padding:1.1rem 1.25rem;display:flex;align-items:center;gap:.9rem;flex-wrap:wrap}
+    .push-banner-text{flex:1;min-width:160px}
+    .push-banner-title{font-size:.87rem;font-weight:700;margin-bottom:.2rem;color:var(--text-main)}
+    .push-banner-sub{font-size:.74rem;color:var(--text-muted)}
+    .push-banner-actions{display:flex;gap:.5rem;flex-shrink:0}
+    .push-banner-btn{padding:.45rem .9rem;border-radius:20px;font-size:.8rem;font-weight:700}
+    .push-banner-btn-primary{background:var(--accent);color:#fff}
+    .push-banner-btn-primary:hover{background:var(--accent-light)}
+    .push-banner-btn-secondary{background:var(--bg-sub);color:var(--text-muted);border:1px solid var(--border)}
+    .map-pin-badge svg{width:62%;height:62%;display:block}
     .back-btn{display:inline-flex;align-items:center;gap:.5rem;font-size:.85rem;color:var(--text-muted);padding:.5rem 1rem;border:1px solid var(--border);border-radius:4px;margin-bottom:1.5rem;transition:background var(--tr);cursor:pointer}
     .back-btn:hover{background:var(--bg-sub);color:var(--accent)}
 
@@ -922,6 +951,20 @@
     </div>
   </div>
 
+  <!-- プッシュ通知 購読案内バナー -->
+  <div id="push-banner">
+    <div class="push-banner-card">
+      <div class="push-banner-text">
+        <div class="push-banner-title">新着記事をプッシュ通知で受け取りませんか？</div>
+        <div class="push-banner-sub">速報や新着記事をすぐにお知らせします</div>
+      </div>
+      <div class="push-banner-actions">
+        <button class="push-banner-btn push-banner-btn-primary" onclick="enablePushNotifications()">オンにする</button>
+        <button class="push-banner-btn push-banner-btn-secondary" onclick="dismissPushBanner(true)">あとで</button>
+      </div>
+    </div>
+  </div>
+
   <!-- お気に入り追加時の、メルマガ登録案内ポップアップ -->
   <div id="fav-popup">
     <div class="newsletter-modal-card">
@@ -1233,6 +1276,11 @@
   </footer>
 
   <script>
+  /* 管理画面で入力された文言に絵文字が混ざっていても、サイト上では表示しない */
+  function stripEmoji(s){
+    return String(s==null?'':s).replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B50}\u{2B55}\u{2300}-\u{23FF}\u{FE0F}\u{200D}]/gu,'').replace(/[ ]{2,}/g,' ').trim();
+  }
+
   var allArticles = [];
   var visibleArticles = []; // allArticlesから限定公開(unlisted)記事を除いたもの。一覧・検索・カレンダー等はこちらを使う
   var allSeries = [];
@@ -1362,7 +1410,7 @@
   function mapPinBadge(a, size){
     if(!a || !a.mapSpotId) return '';
     var cls = size==='lg' ? 'map-pin-badge map-pin-badge-lg' : 'map-pin-badge';
-    return '<a class="'+cls+'" href="'+mapSpotUrl(a.mapSpotId)+'" target="_blank" rel="noopener" title="アンカツMAPでこの場所を見る" onclick="event.stopPropagation()"></a>';
+    return '<a class="'+cls+'" href="'+mapSpotUrl(a.mapSpotId)+'" target="_blank" rel="noopener" title="アンカツMAPでこの場所を見る" onclick="event.stopPropagation()"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg></a>';
   }
 
   var MAINTENANCE_REDIRECT_URL = 'maintenance.html'; /* ← 別途用意する簡易ページのURL・パスに書き換えてください */
@@ -1443,7 +1491,7 @@
       if(cfg.breakingLabel) document.getElementById('breaking-label').textContent=cfg.breakingLabel;
       if(cfg.breakingItems&&cfg.breakingItems.length){
         var items=cfg.breakingItems;
-        var html=items.map(function(t){return '<span class="breaking-item">'+t+'</span><span class="breaking-sep">◆</span>';}).join('');
+        var html=items.map(function(t){return '<span class="breaking-item">'+stripEmoji(t)+'</span><span class="breaking-sep">◆</span>';}).join('');
         document.getElementById('breaking-inner').innerHTML=html+html;
       } else {
         setDefaultBreaking();
@@ -1454,7 +1502,7 @@
 
   function setDefaultBreaking(){
     var defaults=['洲本市の空き家活用プロジェクト始動','洲本城下町ウォーキングマップ完成、市役所で無料配布中','特区構想「生涯活躍のまち」認定申請、来月審査へ','商店街の若手経営者グループが新カフェをオープン予定'];
-    var html=defaults.map(function(t){return '<span class="breaking-item">'+t+'</span><span class="breaking-sep">◆</span>';}).join('');
+    var html=defaults.map(function(t){return '<span class="breaking-item">'+stripEmoji(t)+'</span><span class="breaking-sep">◆</span>';}).join('');
     document.getElementById('breaking-inner').innerHTML=html+html;
     runBreakingMarquee();
   }
@@ -1725,7 +1773,7 @@
     wrap.innerHTML = items.map(function(it, idx){
       var targetAttr = it.newTab===false ? '' : ' target="_blank" rel="noopener"';
       var cls = idx===0 ? 'floating-menu-item' : 'floating-menu-item secondary'; // 一番上だけ強調色、それ以外は控えめに
-      var iconHtml = it.icon ? '<span class="fmi-icon">'+it.icon+'</span>' : '';
+      var iconHtml = '';
       return '<a class="'+cls+'" href="'+it.url+'"'+targetAttr+'>'+iconHtml+'<span class="fmi-label">'+(it.label||'')+'</span></a>';
     }).join('');
     document.body.appendChild(wrap);
@@ -2130,7 +2178,7 @@
     if(!cfg.enabled || !cfg.showToReaders) return '';
     var n = a.viewCount || 0;
     var tpl = cfg.displayText || '{{n}} 回読まれました';
-    return '<span class="article-view-count">'+tpl.replace('{{n}}', n)+'</span>';
+    return '<span class="article-view-count">'+stripEmoji(tpl.replace('{{n}}', n))+'</span>';
   }
 
   /* ---- 記事共有機能 ---- */
@@ -2196,6 +2244,63 @@
     wrap.appendChild(el);
     setTimeout(function(){ el.remove(); }, 2400);
   }
+
+  /* ---- プッシュ通知（Firebase Cloud Messaging + Google Apps Script） ----
+     下の2つを設定するまでは、バナーは表示されません。 */
+  var PUSH_GAS_URL = 'https://script.google.com/macros/s/XXXXXXXXXXXXXXXX/exec'; /* ← 発行したGASウェブアプリのURLに書き換えてください */
+  var PUSH_VAPID_KEY = 'YOUR_VAPID_KEY_HERE'; /* ← FirebaseコンソールのWeb Push証明書の鍵に書き換えてください */
+  var PUSH_DISMISS_KEY = 'ankatsu_push_prompt_dismissed';
+
+  function initPushNotifications(){
+    if(PUSH_GAS_URL.indexOf('XXXX')>=0 || PUSH_VAPID_KEY.indexOf('YOUR_')>=0) return; /* 未設定なら何もしない */
+    if(!('Notification' in window) || !('serviceWorker' in navigator) || !window._messaging) return;
+    if(Notification.permission!=='default') return; /* すでに許可・拒否済みなら何もしない */
+    if(localStorage.getItem(PUSH_DISMISS_KEY)==='1') return;
+    setTimeout(function(){ var el=document.getElementById('push-banner'); if(el) el.style.display='flex'; }, 2500);
+  }
+
+  function dismissPushBanner(remember){
+    document.getElementById('push-banner').style.display='none';
+    if(remember) localStorage.setItem(PUSH_DISMISS_KEY,'1');
+  }
+
+  async function enablePushNotifications(){
+    try{
+      var permission=await Notification.requestPermission();
+      if(permission!=='granted'){
+        dismissPushBanner(true);
+        showShareToast('通知が許可されませんでした');
+        return;
+      }
+      var reg=await navigator.serviceWorker.register('firebase-messaging-sw.js');
+      var token=await window._getToken(window._messaging, {vapidKey:PUSH_VAPID_KEY, serviceWorkerRegistration:reg});
+      if(!token){ showShareToast('通知の登録に失敗しました'); return; }
+      await fetch(PUSH_GAS_URL, {
+        method:'POST',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({action:'subscribe', token:token})
+      });
+      dismissPushBanner(true);
+      showShareToast('プッシュ通知をオンにしました');
+    }catch(e){
+      console.error('push subscribe error:', e);
+      showShareToast('通知の設定に失敗しました');
+    }
+  }
+
+  window.addEventListener('push-foreground-message', function(e){
+    var payload=e.detail||{};
+    var title=stripEmoji((payload.notification&&payload.notification.title)||'アンカツ＋');
+    var body=stripEmoji((payload.notification&&payload.notification.body)||'');
+    var url=(payload.fcmOptions&&payload.fcmOptions.link)||(payload.data&&payload.data.url)||'';
+    showShareToast(title+(body?'：'+body:''));
+    if('Notification' in window && Notification.permission==='granted'){
+      try{
+        var n=new Notification(title, {body:body, icon:'web-app-manifest-512x512.png'});
+        if(url){ n.onclick=function(){ window.focus(); location.href=url; }; }
+      }catch(err){ /* 一部ブラウザ（iOS Safari等）はページ内からのNotification生成に対応していないため無視 */ }
+    }
+  });
 
   function goBack(){
     history.back();
@@ -3441,6 +3546,7 @@
       loadBreaking();
       checkMaintenance();
       setInterval(checkMaintenance, MAINTENANCE_CHECK_INTERVAL);
+      initPushNotifications();
       initNewsletterBanner();
       setTimeout(function(){ try{ if(localStorage.getItem(NEWSLETTER_TOKEN_KEY) && !sessionStorage.getItem('ankatsu_fav_synced')){ sessionStorage.setItem('ankatsu_fav_synced','1'); syncFavoritesToServer(); } }catch(e){} }, 3000);
       loadSiteFeatureSettings();
